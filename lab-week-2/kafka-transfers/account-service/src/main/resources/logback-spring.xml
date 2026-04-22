@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!--
+        logback-spring.xml — account-service
+        ═══════════════════════════════════════════════════════════════════════════
+
+        account-service tiene DOS consumers (DebitConsumer y CreditConsumer),
+        cada uno en su propio Consumer Group y con sus propios hilos.
+        Ambos usan MDC.put("txId", ...) para que sus logs queden correlacionados.
+
+        EJEMPLO DEL FLUJO COMPLETO (mismo txId, hilos distintos):
+
+          10:23:42.100 [account-debit-1]  INFO  [txId=f47a-...] c.l.a.c.DebitConsumer  - 📨 TRANSFER_VALIDATED recibido
+          10:23:42.110 [account-debit-1]  INFO  [txId=f47a-...] c.l.a.s.DebitService   - Debitando 100.00 de ACC-001
+          10:23:42.120 [account-debit-1]  INFO  [txId=f47a-...] c.l.a.p.AccountEventProducer - Publicando transfer.debited
+          (unos ms después...)
+          10:23:42.250 [account-credit-1] INFO  [txId=f47a-...] c.l.a.c.CreditConsumer - 📨 TRANSFER_DEBITED recibido
+          10:23:42.260 [account-credit-1] INFO  [txId=f47a-...] c.l.a.s.CreditService  - Acreditando 100.00 en ACC-002
+          10:23:42.270 [account-credit-1] INFO  [txId=f47a-...] c.l.a.p.AccountEventProducer - Publicando transfer.credited
+          10:23:42.275 [account-credit-1] INFO  [txId=f47a-...] c.l.a.c.CreditConsumer - 🎉 Saga completada
+
+        TRAZA CROSS-SERVICE:
+          Todos los servicios tienen el mismo txId en el MDC. Puedes extraer los
+          logs de una transacción específica de TODOS los servicios con:
+            grep "txId=f47ac10b-58cc" *.log
+    -->
+
+    <conversionRule conversionWord="clr"
+                    converterClass="org.springframework.boot.logging.logback.ColorConverter"/>
+    <conversionRule conversionWord="wex"
+                    converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter"/>
+
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%clr(%d{HH:mm:ss.SSS}){faint} %clr([%15.15t]){faint} %clr(%-5p){highlight} %clr([txId=%X{txId:-}]){cyan} %clr(%-36.36logger{36}){blue} %clr(-){faint} %m%n%wex"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <logger name="com.lab" level="DEBUG"/>
+    <logger name="org.springframework.kafka" level="INFO"/>
+    <logger name="org.flywaydb" level="INFO"/>
+    <logger name="org.hibernate.SQL" level="DEBUG"/>
+    <logger name="org.hibernate.orm.jdbc.bind" level="TRACE"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

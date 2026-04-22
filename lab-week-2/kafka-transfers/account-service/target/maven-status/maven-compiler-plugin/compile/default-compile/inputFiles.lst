@@ -1,0 +1,12 @@
+C:\Users\aldo_\Documents\SIIE\kafka_documentacion\kafka_curso\lab-week-2\kafka-transfers\account-service\src\main\java\com\lab\account\AccountServiceApplication.java
+C:\Users\aldo_\Documents\SIIE\kafka_documentacion\kafka_curso\lab-week-2\kafka-transfers\account-service\src\main\java\com\lab\account\consumer\CreditConsumer.java
+C:\Users\aldo_\Documents\SIIE\kafka_documentacion\kafka_curso\lab-week-2\kafka-transfers\account-service\src\main\java\com\lab\account\consumer\DebitConsumer.java
+C:\Users\aldo_\Documents\SIIE\kafka_documentacion\kafka_curso\lab-week-2\kafka-transfers\account-service\src\main\java\com\lab\account\entity\Account.java
+C:\Users\aldo_\Documents\SIIE\kafka_documentacion\kafka_curso\lab-week-2\kafka-transfers\account-service\src\main\java\com\lab\account\entity\ProcessedEvent.java
+C:\Users\aldo_\Documents\SIIE\kafka_documentacion\kafka_curso\lab-week-2\kafka-transfers\account-service\src\main\java\com\lab\account\producer\AccountEventProducer.java
+C:\Users\aldo_\Documents\SIIE\kafka_documentacion\kafka_curso\lab-week-2\kafka-transfers\account-service\src\main\java\com\lab\account\repository\AccountRepository.java
+C:\Users\aldo_\Documents\SIIE\kafka_documentacion\kafka_curso\lab-week-2\kafka-transfers\account-service\src\main\java\com\lab\account\repository\ProcessedEventRepository.java
+C:\Users\aldo_\Documents\SIIE\kafka_documentacion\kafka_curso\lab-week-2\kafka-transfers\account-service\src\main\java\com\lab\account\service\CompensationService.java
+C:\Users\aldo_\Documents\SIIE\kafka_documentacion\kafka_curso\lab-week-2\kafka-transfers\account-service\src\main\java\com\lab\account\service\CreditService.java
+C:\Users\aldo_\Documents\SIIE\kafka_documentacion\kafka_curso\lab-week-2\kafka-transfers\account-service\src\main\java\com\lab\account\service\DebitService.java
+C:\Users\aldo_\Documents\SIIE\kafka_documentacion\kafka_curso\lab-week-2\kafka-transfers\account-service\src\main\java\com\lab\account\service\IdempotencyService.java

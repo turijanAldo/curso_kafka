@@ -1,0 +1,55 @@
+services:
+  kafka:
+    image: apache/kafka:4.2.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      # Identificador único de este nodo en el clúster
+      KAFKA_NODE_ID: 1
+
+      # Este nodo actúa como broker Y como controller (modo combinado KRaft)
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      # Listeners internos del broker
+      # PLAINTEXT → comunicación con producers/consumers
+      # CONTROLLER → comunicación interna del protocolo KRaft
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+
+      # Dirección que se anuncia hacia afuera del contenedor
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+
+      # Mapeo de nombres de listener a protocolos de seguridad
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+
+      # Listener usado para la comunicación entre controllers
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # Quórum de controllers: formato nodeId@host:port
+      # Con 1 solo nodo el quórum se forma consigo mismo
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      # Directorio donde Kafka guarda los logs (mensajes)
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+
+      # Factor de replicación mínimo para topics internos (1 = sin réplicas)
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # ID único del clúster KRaft (generado con: kafka-storage.sh random-uuid)
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  kafka-data:
+    driver: local

@@ -1,0 +1,82 @@
+spring:
+  application:
+    name: validation-service
+
+  # ── Base de datos ────────────────────────────────────────────────────────
+  datasource:
+    url: jdbc:mysql://localhost:3306/transfers_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: lab_user
+    password: lab_pass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      # validate → Hibernate verifica que Account.java y ProcessedEvent.java
+      # coinciden con las tablas accounts y processed_events que Flyway creó.
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  # ── Flyway ───────────────────────────────────────────────────────────────
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    table: flyway_history_validation
+    baseline-on-migrate: true
+
+  # ── Kafka ─────────────────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    consumer:
+      # Identificador del grupo de consumidores.
+      # TODOS los mensajes de transfer.requested son repartidos entre
+      # las instancias de este grupo. Si arrancas 2 instancias de
+      # validation-service con el mismo group-id, cada mensaje lo
+      # procesa solo UNA instancia (load balancing automático de Kafka).
+      group-id: validation-group
+      # Deserializa la clave (fromAccount) de bytes a String
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # Deserializa el valor (JSON) de bytes a objeto Java
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        # Permite deserializar cualquier clase del paquete com.lab
+        spring.json.trusted.packages: com.lab.*
+        # earliest → si este servicio arranca y hay mensajes que no leyó
+        # antes, los lee desde el principio. Garantiza que no se pierden
+        # mensajes entre reinicios durante el desarrollo.
+        auto.offset.reset: earliest
+        # false → el offset NO se confirma automáticamente.
+        # El código confirma el offset manualmente DESPUÉS de procesar
+        # y persistir el resultado. Si el servicio falla antes de confirmar,
+        # Kafka reentregará el mensaje → at-least-once delivery.
+        enable.auto.commit: false
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        acks: all
+        retries: 3
+
+    listener:
+      # MANUAL_IMMEDIATE → el código llama a acknowledgment.acknowledge()
+      # exactamente cuando quiere confirmar el offset, no antes.
+      ack-mode: MANUAL_IMMEDIATE
+
+# ── Servidor ─────────────────────────────────────────────────────────────
+# validation-service no expone endpoints REST, pero Spring Boot necesita
+# un puerto para el actuator y health checks internos.
+server:
+  port: 8081
+
+# ── Logging ──────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.lab: DEBUG
+    org.springframework.kafka: INFO
+    org.flywaydb: INFO

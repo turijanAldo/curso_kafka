@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: account-service
+
+  # ── Base de datos ────────────────────────────────────────────────────────
+  datasource:
+    url: jdbc:mysql://localhost:3306/transfers_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: lab_user
+    password: lab_pass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      # validate → Hibernate verifica que Account.java y ProcessedEvent.java
+      # coinciden con las tablas accounts y processed_events que Flyway creó.
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  # ── Flyway ───────────────────────────────────────────────────────────────
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    table: flyway_history_account
+    baseline-on-migrate: true
+
+  # ── Kafka ─────────────────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    consumer:
+      # IMPORTANTE: account-service tiene DOS consumer groups distintos.
+      # Este es el grupo principal para el listener de débito (@KafkaListener
+      # sobre transfer.validated). El listener de crédito usará
+      # account-credit-group definido con @KafkaListener(groupId=...).
+      # ¿Por qué dos grupos? Porque transfer.debited es publicado por
+      # account-service mismo, y account-service también necesita consumirlo
+      # para aplicar el crédito. Si usaran el mismo group, un consumer group
+      # no puede suscribirse a dos topics con semánticas distintas de offset.
+      group-id: account-debit-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.lab.*
+        auto.offset.reset: earliest
+        enable.auto.commit: false
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        acks: all
+        retries: 3
+
+    listener:
+      ack-mode: MANUAL_IMMEDIATE
+
+# ── Configuración del lab ─────────────────────────────────────────────────
+app:
+  # Flag para simular fallo en el paso de crédito (PASO 8 del lab).
+  # Cuando es true, CreditService lanza una excepción después del débito
+  # para demostrar la compensación (rollback del Saga).
+  # Cambiar a true con: -Dapp.simulate-credit-failure=true al arrancar
+  simulate-credit-failure: false
+
+# ── Servidor ─────────────────────────────────────────────────────────────
+server:
+  port: 8082
+
+# ── Logging ──────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.lab: DEBUG
+    org.springframework.kafka: INFO
+    org.flywaydb: INFO

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ================================================================ -->
+    <!-- MÓDULO: account-service                                            -->
+    <!--                                                                    -->
+    <!-- Rol: El corazón del sistema. Ejecuta el débito en la cuenta       -->
+    <!-- origen, el crédito en la cuenta destino, y la compensación si     -->
+    <!-- el crédito falla. Implementa las 3 capas de idempotencia.         -->
+    <!-- Puerto: 8082                                                       -->
+    <!-- Sin endpoints REST — consumer/producer puro de Kafka.             -->
+    <!-- Consumer Groups:                                                   -->
+    <!--   account-debit-group  → escucha transfer.validated               -->
+    <!--   account-credit-group → escucha transfer.debited                 -->
+    <!-- ================================================================ -->
+
+    <parent>
+        <groupId>com.lab</groupId>
+        <artifactId>kafka-transfers</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>account-service</artifactId>
+    <packaging>jar</packaging>
+    <name>account-service</name>
+
+    <dependencies>
+
+        <!-- JPA — operaciones CRUD sobre accounts y processed_events -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Kafka — consume transfer.validated y transfer.debited,
+             publica transfer.debited, transfer.credited, transfer.failed,
+             transfer.compensated -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+
+        <!-- MySQL Driver JDBC -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+        </dependency>
+
+        <!-- Flyway Core -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!-- Flyway MySQL -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+
+        <!-- Módulo common — eventos Kafka, enums, constantes -->
+        <dependency>
+            <groupId>com.lab</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+
+        <!-- Testcontainers — contenedores Docker reales para integration tests -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>kafka</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mysql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

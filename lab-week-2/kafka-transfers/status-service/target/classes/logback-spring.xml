@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!--
+        logback-spring.xml — status-service
+        ═══════════════════════════════════════════════════════════════════════════
+
+        status-service tiene un único consumer (SagaEventConsumer) que escucha
+        5 topics. Todos los eventos implementan SagaEvent → el consumer puede
+        extraer el txId de forma polimórfica:
+
+          if (event instanceof SagaEvent se) {
+              MDC.put("txId", se.getTransactionId());
+          }
+
+        Gracias a la interfaz SagaEvent, no se necesita encadenar instanceof
+        para cada tipo de evento solo para extraer el transactionId.
+
+        EJEMPLO:
+          10:23:42.300 [kafka-status-1] INFO  [txId=f47a-...] c.l.s.c.SagaEventConsumer - 📨 Evento recibido | topic=transfer.validated
+          10:23:42.310 [kafka-status-1] INFO  [txId=f47a-...] c.l.s.s.StatusService     - Actualizando estado → VALIDATED
+          10:23:42.400 [kafka-status-1] INFO  [txId=f47a-...] c.l.s.c.SagaEventConsumer - 📨 Evento recibido | topic=transfer.debited
+          10:23:42.410 [kafka-status-1] INFO  [txId=f47a-...] c.l.s.s.StatusService     - Actualizando estado → DEBITED
+          10:23:42.500 [kafka-status-1] INFO  [txId=f47a-...] c.l.s.c.SagaEventConsumer - 📨 Evento recibido | topic=transfer.credited
+          10:23:42.510 [kafka-status-1] INFO  [txId=f47a-...] c.l.s.s.StatusService     - Actualizando estado → COMPLETED
+    -->
+
+    <conversionRule conversionWord="clr"
+                    converterClass="org.springframework.boot.logging.logback.ColorConverter"/>
+    <conversionRule conversionWord="wex"
+                    converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter"/>
+
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%clr(%d{HH:mm:ss.SSS}){faint} %clr([%15.15t]){faint} %clr(%-5p){highlight} %clr([txId=%X{txId:-}]){cyan} %clr(%-36.36logger{36}){blue} %clr(-){faint} %m%n%wex"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <logger name="com.lab" level="DEBUG"/>
+    <logger name="org.springframework.kafka" level="INFO"/>
+    <logger name="org.flywaydb" level="INFO"/>
+    <logger name="org.hibernate.SQL" level="DEBUG"/>
+    <logger name="org.hibernate.orm.jdbc.bind" level="TRACE"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

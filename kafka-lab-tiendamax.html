@@ -1,0 +1,2289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TiendaMax Lab — Kafka Hands-on</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ── Variables ─────────────────────────────────── */
+  :root {
+    --kafka:  #e87d0d;
+    --kafka2: #f5a23d;
+    --bg:     #0a0c0f;
+    --bg2:    #111318;
+    --bg3:    #181c24;
+    --border: rgba(255,255,255,0.07);
+    --text:   #d4d8e2;
+    --muted:  #5a6070;
+    --green:  #39ff14;
+    --blue:   #4fc3f7;
+    --red:    #ff4444;
+    --yellow: #ffd600;
+    --purple: #b388ff;
+    --done:   #32c864;
+  }
+
+  /* ── Reset ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+  code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ── TOP BAR ────────────────────────────────────── */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(10,12,15,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 1.5rem;
+    padding: 0 1.5rem; height: 54px;
+  }
+  .topbar-logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700; font-size: 0.82rem;
+    color: var(--kafka); letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .topbar-sep { width: 1px; height: 24px; background: var(--border); }
+  .topbar-phase {
+    font-size: 0.62rem; letter-spacing: 0.2em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .topbar-phase span { color: var(--kafka2); }
+  .topbar-steps {
+    margin-left: auto;
+    display: flex; gap: 6px; align-items: center;
+  }
+  .ts-dot {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; font-weight: 700; cursor: pointer;
+    border: 1.5px solid var(--border); color: var(--muted);
+    transition: all 0.2s; font-family: 'JetBrains Mono', monospace;
+  }
+  .ts-dot.done  { background: rgba(50,200,100,0.15); border-color: var(--done); color: var(--done); }
+  .ts-dot.current { background: rgba(232,125,13,0.2); border-color: var(--kafka); color: var(--kafka); animation: pulse-dot 1.5s infinite; }
+  .ts-dot.pending { opacity: 0.3; }
+  @keyframes pulse-dot { 0%,100%{box-shadow:0 0 0 0 rgba(232,125,13,0.4)} 50%{box-shadow:0 0 0 5px rgba(232,125,13,0)} }
+
+  /* ── LAYOUT ─────────────────────────────────────── */
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: 100vh;
+    padding-top: 54px;
+  }
+
+  /* ── SIDEBAR ────────────────────────────────────── */
+  .sidebar {
+    position: sticky; top: 54px;
+    height: calc(100vh - 54px);
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    background: var(--bg2);
+    padding: 1.5rem 0;
+  }
+  .sidebar-section {
+    font-size: 0.55rem; letter-spacing: 0.3em;
+    color: var(--muted); padding: 0 1.2rem;
+    margin-bottom: 0.6rem; margin-top: 1.2rem;
+  }
+  .sidebar-item {
+    display: flex; align-items: flex-start; gap: 0.6rem;
+    padding: 0.55rem 1.2rem;
+    cursor: pointer; transition: background 0.15s;
+    border-left: 2px solid transparent;
+    font-size: 0.76rem;
+  }
+  .sidebar-item:hover { background: rgba(255,255,255,0.03); }
+  .sidebar-item.done  { border-left-color: var(--done); }
+  .sidebar-item.current { border-left-color: var(--kafka); background: rgba(232,125,13,0.06); }
+  .sidebar-item.pending { opacity: 0.4; cursor: default; }
+  .si-icon { font-size: 0.75rem; flex-shrink: 0; margin-top: 1px; }
+  .si-text { line-height: 1.4; }
+  .si-num  { font-size: 0.6rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .si-label { font-weight: 600; }
+  .si-sub  { font-size: 0.63rem; color: var(--muted); }
+
+  /* ── MAIN CONTENT ───────────────────────────────── */
+  .content { padding: 2rem 2.5rem 6rem; max-width: 860px; }
+
+  /* ── PROBLEM CARD ───────────────────────────────── */
+  .problem-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.8rem;
+    margin-bottom: 2.5rem;
+  }
+  .problem-tag {
+    font-size: 0.58rem; letter-spacing: 0.3em;
+    color: var(--kafka); margin-bottom: 0.6rem;
+  }
+  .problem-title {
+    font-size: 1.6rem; font-weight: 800;
+    line-height: 1.25; margin-bottom: 0.8rem;
+  }
+  .problem-title span { color: var(--kafka); }
+  .problem-desc { color: var(--text); font-size: 0.85rem; margin-bottom: 1.2rem; }
+
+  /* ── ARCH DIAGRAMS ──────────────────────────────── */
+  .arch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .arch-box {
+    border-radius: 6px; padding: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem; line-height: 1.9;
+  }
+  .arch-box.before { background: rgba(255,68,68,0.06); border: 1px solid rgba(255,68,68,0.25); }
+  .arch-box.after  { background: rgba(50,200,100,0.06); border: 1px solid rgba(50,200,100,0.25); }
+  .arch-label { font-size: 0.55rem; letter-spacing: 0.2em; margin-bottom: 0.5rem; }
+  .arch-label.bad  { color: var(--red); }
+  .arch-label.good { color: var(--done); }
+
+  /* ── STEP SECTION ───────────────────────────────── */
+  .step-section {
+    margin-bottom: 3rem;
+    scroll-margin-top: 70px;
+  }
+  .step-header {
+    display: flex; align-items: center; gap: 1rem;
+    margin-bottom: 1.2rem; padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem; letter-spacing: 0.15em;
+    padding: 0.25rem 0.6rem; border-radius: 3px;
+    font-weight: 700; white-space: nowrap;
+  }
+  .badge-done    { background: rgba(50,200,100,0.15); color: var(--done); border: 1px solid var(--done); }
+  .badge-current { background: rgba(232,125,13,0.15); color: var(--kafka); border: 1px solid var(--kafka); animation: pulse-dot 1.5s infinite; }
+  .badge-next    { background: rgba(90,96,112,0.15); color: var(--muted); border: 1px solid var(--muted); }
+  .step-title { font-size: 1.1rem; font-weight: 700; }
+  .step-concept {
+    font-size: 0.6rem; letter-spacing: 0.15em;
+    color: var(--muted); margin-left: auto; white-space: nowrap;
+  }
+  .step-concept span { color: var(--kafka2); }
+
+  /* ── WHAT WE SOLVE ──────────────────────────────── */
+  .solve-box {
+    background: rgba(79,195,247,0.06);
+    border: 1px solid rgba(79,195,247,0.2);
+    border-radius: 6px; padding: 0.9rem 1.1rem;
+    font-size: 0.8rem; margin-bottom: 1.2rem;
+    display: flex; gap: 0.8rem; align-items: flex-start;
+  }
+  .solve-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+  /* ── CODE BLOCK ─────────────────────────────────── */
+  .code-block {
+    background: #0d1117; border: 1px solid var(--border);
+    border-radius: 6px; overflow: hidden; margin: 0.8rem 0;
+  }
+  .code-bar {
+    background: var(--bg3); padding: 0.4rem 0.8rem;
+    display: flex; align-items: center; gap: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .code-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .code-dot.r { background: #ff5f57; }
+  .code-dot.y { background: #febc2e; }
+  .code-dot.g { background: #28c840; }
+  .code-title { font-size: 0.65rem; color: var(--muted); margin-left: 0.3rem; font-family: 'JetBrains Mono', monospace; }
+  .code-body { padding: 1rem 1.2rem; overflow-x: auto; }
+  .code-body pre { font-size: 0.75rem; line-height: 1.8; color: #e6edf3; }
+
+  /* syntax colors */
+  .tk { color: #79c0ff; }  /* keyword / flag */
+  .tv { color: #a5d6ff; }  /* value */
+  .tc { color: #8b949e; font-style: italic; } /* comment */
+  .ts { color: #7ee787; }  /* string */
+  .tn { color: #f2cc60; }  /* number / name */
+  .tp { color: #d2a8ff; }  /* property */
+  .te { color: #ff7b72; }  /* error/warning */
+  .tg { color: var(--green); }  /* good */
+
+  /* ── ANNOTATED CODE ─────────────────────────────── */
+  .annotated { margin: 1rem 0; }
+  .ann-table { width: 100%; border-collapse: collapse; }
+  .ann-row { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .ann-row:hover { background: rgba(255,255,255,0.02); }
+  .ann-code {
+    padding: 0.45rem 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem; color: #e6edf3;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    white-space: pre;
+  }
+  .ann-code.hl { background: rgba(232,125,13,0.08); border-left: 2px solid var(--kafka); padding-left: calc(1rem - 2px); }
+  .ann-explain {
+    padding: 0.45rem 1rem;
+    font-size: 0.73rem; color: var(--text); line-height: 1.5;
+  }
+  .ann-explain strong { color: var(--kafka2); }
+  .ann-explain .tag {
+    font-size: 0.56rem; letter-spacing: 0.12em; padding: 0.08rem 0.35rem;
+    border-radius: 2px; margin-right: 0.4rem; vertical-align: middle;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tag-why   { background: rgba(232,125,13,0.2); color: var(--kafka2); }
+  .tag-fix   { background: rgba(255,68,68,0.2); color: var(--red); }
+  .tag-crit  { background: rgba(255,214,0,0.2); color: var(--yellow); }
+
+  /* ── WHY BOX ────────────────────────────────────── */
+  .why-box {
+    background: rgba(232,125,13,0.06);
+    border: 1px solid rgba(232,125,13,0.25);
+    border-radius: 6px; padding: 0.9rem 1.1rem;
+    font-size: 0.8rem; margin: 1rem 0;
+  }
+  .why-label { font-size: 0.58rem; letter-spacing: 0.2em; color: var(--kafka); margin-bottom: 0.4rem; }
+  .why-box ul { padding-left: 1.2rem; }
+  .why-box li { margin-bottom: 0.3rem; }
+
+  /* ── FIX BOX ────────────────────────────────────── */
+  .fix-box {
+    background: rgba(255,68,68,0.06);
+    border: 1px solid rgba(255,68,68,0.25);
+    border-radius: 6px; padding: 0.9rem 1.1rem;
+    font-size: 0.8rem; margin: 1rem 0;
+  }
+  .fix-label { font-size: 0.58rem; letter-spacing: 0.2em; color: var(--red); margin-bottom: 0.4rem; }
+
+  /* ── SUCCESS BOX ────────────────────────────────── */
+  .success-box {
+    background: rgba(50,200,100,0.06);
+    border: 1px solid rgba(50,200,100,0.25);
+    border-radius: 6px; padding: 0.9rem 1.1rem;
+    font-size: 0.8rem; margin: 1rem 0;
+  }
+  .success-label { font-size: 0.58rem; letter-spacing: 0.2em; color: var(--done); margin-bottom: 0.4rem; }
+
+  /* ── CONCEPT LINK ───────────────────────────────── */
+  .concept-link {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    font-size: 0.65rem; color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 3px; padding: 0.15rem 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    margin: 0.15rem; vertical-align: middle;
+  }
+  .concept-link::before { content: "📖"; font-size: 0.65rem; }
+
+  /* ── CHECKLIST ──────────────────────────────────── */
+  .step-checks { margin: 1rem 0; }
+  .check-row {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.4rem 0.6rem; border-radius: 4px;
+    font-size: 0.8rem; cursor: pointer; transition: background 0.15s;
+    margin-bottom: 0.25rem;
+  }
+  .check-row:hover { background: rgba(255,255,255,0.03); }
+  .check-row.checked { color: var(--done); }
+  .check-box-mini {
+    width: 18px; height: 18px; border-radius: 3px;
+    border: 1.5px solid var(--muted); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; transition: all 0.2s;
+  }
+  .check-row.checked .check-box-mini { background: var(--done); border-color: var(--done); color: #000; }
+
+  /* ── NEXT STEP PREVIEW ──────────────────────────── */
+  .next-preview {
+    background: var(--bg2);
+    border: 1px dashed rgba(232,125,13,0.3);
+    border-radius: 8px; padding: 1.4rem 1.6rem;
+    opacity: 0.65;
+  }
+  .next-tag { font-size: 0.58rem; letter-spacing: 0.2em; color: var(--kafka); margin-bottom: 0.4rem; }
+  .next-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .next-items { font-size: 0.78rem; color: var(--muted); }
+  .next-items li { margin-bottom: 0.2rem; }
+
+  /* ── PHASE PROGRESS BAR ─────────────────────────── */
+  .phase-bar {
+    height: 3px; background: rgba(255,255,255,0.06);
+    border-radius: 2px; margin: 0 0 2rem;
+  }
+  .phase-bar-fill {
+    height: 100%; background: var(--kafka); border-radius: 2px;
+    transition: width 0.6s ease;
+  }
+
+  /* ── DIVIDER ────────────────────────────────────── */
+  .step-divider {
+    border: none; border-top: 1px solid var(--border);
+    margin: 2.5rem 0;
+  }
+
+  /* ── COMMAND INLINE ─────────────────────────────── */
+  code {
+    background: rgba(255,255,255,0.06);
+    padding: 0.1rem 0.4rem; border-radius: 3px;
+    font-size: 0.8em; color: var(--kafka2);
+  }
+  .hl-green { color: var(--green); }
+  .hl-red   { color: var(--red); }
+  .hl-blue  { color: var(--blue); }
+  .hl-yellow { color: var(--yellow); }
+
+  /* ── TABLE ──────────────────────────────────────── */
+  .info-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin: 0.8rem 0; }
+  .info-table th { background: var(--bg3); padding: 0.45rem 0.7rem; text-align: left; font-size: 0.62rem; letter-spacing: 0.1em; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .info-table td { padding: 0.4rem 0.7rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .info-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* ── SCROLLBAR ──────────────────────────────────── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ TOP BAR ═══════════════════ -->
+<header class="topbar">
+  <div class="topbar-logo">🏪 TIENDAMAX LAB</div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-phase">FASE ACTUAL: <span id="current-phase-label">PASO 6 — Monitoreo de lag y reset de offsets 🔴 en curso</span></div>
+  <div class="topbar-steps">
+    <div class="ts-dot done"    onclick="scrollToStep('step-1')" title="Paso 1: Infraestructura">1</div>
+    <div class="ts-dot done"    onclick="scrollToStep('step-2')" title="Paso 2: Producer Java">2</div>
+    <div class="ts-dot done"    onclick="scrollToStep('step-3')" title="Paso 3: Consumer + commit">3</div>
+    <div class="ts-dot done"    onclick="scrollToStep('step-4')" title="Paso 4: 3 Consumers en paralelo">4</div>
+    <div class="ts-dot done"    onclick="scrollToStep('step-5')" title="Paso 5: Simulación de fallo">5</div>
+    <div class="ts-dot current" onclick="scrollToStep('step-6')" title="Paso 6: Monitoreo de lag">6</div>
+  </div>
+</header>
+
+<!-- ═══════════════════ LAYOUT ═══════════════════ -->
+<div class="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <nav class="sidebar">
+    <div class="sidebar-section">EL PROBLEMA</div>
+    <div class="sidebar-item done" onclick="scrollToStep('problem')">
+      <div class="si-icon">🏪</div>
+      <div class="si-text">
+        <div class="si-label">TiendaMax</div>
+        <div class="si-sub">Qué vamos a construir</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">PASOS DEL LAB</div>
+
+    <div class="sidebar-item done" onclick="scrollToStep('step-1')">
+      <div class="si-icon">✅</div>
+      <div class="si-text">
+        <div class="si-num">PASO 1</div>
+        <div class="si-label">Infra & Topic</div>
+        <div class="si-sub">Docker · KRaft · kafka-topics.sh</div>
+      </div>
+    </div>
+
+    <div class="sidebar-item done" onclick="scrollToStep('step-2')">
+      <div class="si-icon">✅</div>
+      <div class="si-text">
+        <div class="si-num">PASO 2</div>
+        <div class="si-label">Producer Java</div>
+        <div class="si-sub">kafka-clients · acks=all · keys</div>
+      </div>
+    </div>
+
+    <div class="sidebar-item done" onclick="scrollToStep('step-3')">
+      <div class="si-icon">✅</div>
+      <div class="si-text">
+        <div class="si-num">PASO 3</div>
+        <div class="si-label">Consumer + Commit</div>
+        <div class="si-sub">poll() · manual commit · offsets</div>
+      </div>
+    </div>
+
+    <div class="sidebar-item done" onclick="scrollToStep('step-4')">
+      <div class="si-icon">✅</div>
+      <div class="si-text">
+        <div class="si-num">PASO 4</div>
+        <div class="si-label">3 Consumers en paralelo</div>
+        <div class="si-sub">Consumer Group · RangeAssignor</div>
+      </div>
+    </div>
+
+    <div class="sidebar-item done" onclick="scrollToStep('step-5')">
+      <div class="si-icon">✅</div>
+      <div class="si-text">
+        <div class="si-num">PASO 5</div>
+        <div class="si-label">Simulación de fallo</div>
+        <div class="si-sub">Ctrl+C · rebalanceo · at-least-once</div>
+      </div>
+    </div>
+
+    <div class="sidebar-item current" onclick="scrollToStep('step-6')">
+      <div class="si-icon">🔴</div>
+      <div class="si-text">
+        <div class="si-num">PASO 6</div>
+        <div class="si-label">Monitoreo de lag</div>
+        <div class="si-sub">consumer-groups.sh · Offset reset</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── MAIN CONTENT ── -->
+  <main class="content">
+
+    <!-- PROGRESS BAR -->
+    <div class="phase-bar">
+      <div class="phase-bar-fill" style="width: 100%"></div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!--  EL PROBLEMA                               -->
+    <!-- ══════════════════════════════════════════ -->
+    <section class="step-section" id="problem">
+      <div class="problem-card">
+        <div class="problem-tag">🏪 CASO REAL — PUNTO DE PARTIDA</div>
+        <div class="problem-title">TiendaMax tiene un<br><span>problema de resiliencia</span></div>
+        <div class="problem-desc">
+          TiendaMax es una tienda en línea que procesa pedidos a través de una API REST sincrónica.
+          Cuando cualquiera de sus servicios internos falla, los pedidos <strong style="color:var(--red)">se pierden permanentemente</strong>.
+          El equipo de ingeniería necesita una solución que garantice que ningún pedido se pierda,
+          que los servicios puedan escalar independientemente y que el equipo pueda monitorear el
+          estado del sistema en tiempo real.
+        </div>
+
+        <div class="arch-grid">
+          <div class="arch-box before">
+            <div class="arch-label bad">❌ ARQUITECTURA ACTUAL — FRÁGIL</div>
+            Cliente<br>
+            &nbsp;&nbsp;↓<br>
+            API REST (síncrona)<br>
+            &nbsp;&nbsp;├──▶ Inventario &nbsp;&nbsp;⚠️<br>
+            &nbsp;&nbsp;├──▶ Notificaciones ⚠️<br>
+            &nbsp;&nbsp;└──▶ Facturación &nbsp;&nbsp;⚠️<br>
+            <br>
+            <span style="color:var(--red)">Si cualquier servicio cae:<br>timeout → pedido PERDIDO</span>
+          </div>
+          <div class="arch-box after">
+            <div class="arch-label good">✅ ARQUITECTURA OBJETIVO — RESILIENTE</div>
+            Cliente<br>
+            &nbsp;&nbsp;↓<br>
+            Producer Java<br>
+            &nbsp;&nbsp;└──▶ Kafka [P0][P1][P2]<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├──▶ Consumer inventario<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├──▶ Consumer notificaciones<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└──▶ Consumer facturación<br>
+            <span style="color:var(--done)">Si un servicio cae: Kafka retiene<br>los mensajes → se procesan al reiniciar</span>
+          </div>
+        </div>
+
+        <div style="margin-top:1.2rem">
+          <div style="font-size:0.65rem;letter-spacing:0.15em;color:var(--muted);margin-bottom:0.6rem">CONCEPTOS QUE VAS A APLICAR EN ESTE LAB</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem;font-size:0.72rem">
+            <span class="concept-link">M2 · Topics & Particiones</span>
+            <span class="concept-link">M2 · KRaft (sin ZooKeeper)</span>
+            <span class="concept-link">M3 · Producer ACKs</span>
+            <span class="concept-link">M3 · Delivery semantics</span>
+            <span class="concept-link">M4 · Consumer Groups</span>
+            <span class="concept-link">M4 · Offsets & Lag</span>
+            <span class="concept-link">M4 · Rebalanceo dinámico</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!--  PASO 1 — INFRA & TOPIC                    -->
+    <!-- ══════════════════════════════════════════ -->
+    <section class="step-section" id="step-1">
+      <div class="step-header">
+        <span class="step-badge badge-done">✅ COMPLETADO</span>
+        <span class="step-title">Paso 1 — Infraestructura: Kafka corriendo + topic creado</span>
+        <span class="step-concept">Módulos <span>M1 · M2</span></span>
+      </div>
+
+      <div class="solve-box">
+        <div class="solve-icon">🎯</div>
+        <div>
+          <strong>¿Qué resuelve este paso?</strong><br>
+          Antes de escribir una sola línea de código de negocio necesitamos el <strong>cerebro</strong>
+          del sistema: el broker Kafka corriendo localmente, y el <strong>canal de comunicación</strong>
+          (topic) por donde fluirán todos los pedidos de TiendaMax.
+          Sin esto, el producer y los consumers no tienen a dónde conectarse.
+        </div>
+      </div>
+
+      <!-- docker-compose.yml ANNOTATED -->
+      <p style="margin-bottom:0.5rem"><strong>1.1 — docker-compose.yml</strong> (ya existe en <code>kafka-week/infra/</code>)</p>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.8rem">
+        Cada línea de esta configuración conecta directamente con lo que aprendiste en el Módulo 2.
+        Aquí está la explicación de por qué se puso cada variable:
+      </p>
+
+      <div class="annotated">
+        <div style="background:#0d1117;border:1px solid var(--border);border-radius:6px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.8rem;display:flex;align-items:center;gap:0.5rem;border-bottom:1px solid var(--border)">
+            <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+            <span style="font-size:0.65rem;color:var(--muted);margin-left:0.3rem;font-family:'JetBrains Mono',monospace">docker-compose.yml · anotado línea a línea</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr">
+            <!-- header -->
+            <div style="padding:0.3rem 1rem;font-size:0.58rem;letter-spacing:0.15em;color:var(--muted);background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border)">CÓDIGO</div>
+            <div style="padding:0.3rem 1rem;font-size:0.58rem;letter-spacing:0.15em;color:var(--muted);background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);border-left:1px solid var(--border)">¿POR QUÉ ESTÁ ESO AHÍ?</div>
+
+            <div class="ann-code">image: apache/kafka:4.2.0</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><span class="tag tag-why">POR QUÉ</span> Kafka <strong>4.x = modo KRaft obligatorio</strong>. Ya no existe ZooKeeper. Un solo proceso maneja todo el clúster. (Módulo 2)</div>
+
+            <div class="ann-code hl">KAFKA_PROCESS_ROLES: broker,controller</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><span class="tag tag-why">CLAVE</span> Este nodo es <strong>broker</strong> (atiende producers/consumers) Y <strong>controller</strong> (coordina el clúster con protocolo Raft). En producción se separan.</div>
+
+            <div class="ann-code">KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><strong>9092</strong> = tus apps se conectan aquí.<br><strong>9093</strong> = comunicación interna KRaft (tú nunca tocas este puerto).</div>
+
+            <div class="ann-code hl">KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><span class="tag tag-crit">CRÍTICO</span> Es la dirección que Kafka anuncia a producers/consumers. <strong>En local usa localhost</strong>. En producción (AWS/GCP) aquí va la IP pública o el hostname del broker.</div>
+
+            <div class="ann-code">KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">Define quién puede votar en las elecciones de líder (protocolo Raft). Con 1 broker, el quórum es consigo mismo. En prod mínimo 3 para alta disponibilidad.</div>
+
+            <div class="ann-code hl">KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><span class="tag tag-fix">DEV ONLY</span> El topic interno <code>__consumer_offsets</code> normalmente tiene RF=3. En local con 1 broker forzamos RF=1 o Kafka no arranca.</div>
+
+            <div class="ann-code">CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">UUID único del clúster KRaft. Se genera con <code>kafka-storage.sh random-uuid</code>. Este ID identifica el clúster — si lo cambias, Kafka rechaza datos del volumen anterior.</div>
+
+            <div class="ann-code">healthcheck: kafka-topics.sh --list</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">Docker marca el container como <code>healthy</code> solo cuando este comando tiene éxito. Útil para orquestar: el producer no arranca hasta que Kafka esté listo.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- El comando de topic -->
+      <p style="margin:1.5rem 0 0.5rem"><strong>1.2 — Crear el topic <code>pedidos-tiendamax</code></strong></p>
+
+      <div class="fix-box">
+        <div class="fix-label">⚠️ FIX APLICADO — Kafka 4.x en apache/kafka:4.2.0</div>
+        La imagen <code>apache/kafka:4.2.0</code> <strong>no agrega <code>/opt/kafka/bin</code> al PATH</strong> por defecto.
+        Todas las herramientas CLI (kafka-topics.sh, kafka-console-producer.sh, etc.) están en <code>/opt/kafka/bin/</code>.
+        <strong>Siempre que entres al container, ejecuta primero:</strong>
+        <div class="code-block" style="margin-top:0.6rem">
+          <div class="code-body"><pre><span class="tg">export PATH=/opt/kafka/bin:$PATH</span></pre></div>
+        </div>
+        O usa la ruta completa: <code>/opt/kafka/bin/kafka-topics.sh</code>
+      </div>
+
+      <div class="annotated">
+        <div style="background:#0d1117;border:1px solid var(--border);border-radius:6px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.8rem;display:flex;gap:0.5rem;align-items:center;border-bottom:1px solid var(--border)">
+            <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+            <span style="font-size:0.65rem;color:var(--muted);margin-left:0.3rem;font-family:'JetBrains Mono',monospace">bash · dentro del container</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr">
+            <div style="padding:0.3rem 1rem;font-size:0.58rem;letter-spacing:0.15em;color:var(--muted);background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border)">COMANDO</div>
+            <div style="padding:0.3rem 1rem;font-size:0.58rem;letter-spacing:0.15em;color:var(--muted);background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);border-left:1px solid var(--border)">¿POR QUÉ?</div>
+
+            <div class="ann-code">kafka-topics.sh --create</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">Crea el canal por donde fluirán los pedidos. En Kafka, el topic es la abstracción lógica — las particiones son la implementación física.</div>
+
+            <div class="ann-code hl">--topic pedidos-tiendamax</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><span class="tag tag-why">CONVENCIÓN</span> Nombre descriptivo con dominio + evento. En producción: <code>v1.pedidos.creados</code>. El prefijo de versión permite migración sin downtime.</div>
+
+            <div class="ann-code hl">--partitions 3</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><span class="tag tag-crit">DECISIÓN CRÍTICA</span> <strong>3 particiones = máximo 3 consumers en paralelo</strong>. Elegimos 3 porque tenemos exactamente 3 servicios (inventario, notif., factura.). Más consumers = standby.</div>
+
+            <div class="ann-code">--replication-factor 1</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><span class="tag tag-fix">DEV ONLY</span> En local solo tenemos 1 broker → RF=1. En <strong>producción mínimo RF=3</strong> para tolerar la caída de 1 broker sin pérdida de datos. (Módulo 2 → ISR)</div>
+
+            <div class="ann-code hl">--config retention.ms=604800000</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><strong>604800000 ms = 7 días</strong>. Si el servicio de inventario cae y tarda 3 días en recuperarse, <strong>no pierde ningún pedido</strong> — los mensajes siguen en Kafka esperando.</div>
+
+            <div class="ann-code">--bootstrap-server localhost:9092</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">El cliente contacta a este broker primero para obtener los metadatos del clúster (quién es líder de cada partición). No es el único broker, es el punto de entrada.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fix Kafka 4.x flags -->
+      <p style="margin:1.5rem 0 0.5rem"><strong>1.3 — Fix de flags deprecados en Kafka 4.x</strong></p>
+
+      <div class="fix-box">
+        <div class="fix-label">🔧 KAFKA 4.x — CAMBIO DE FLAGS EN CLI</div>
+        <p style="margin-bottom:0.6rem">
+          En Kafka 4.x, los flags del console-producer y consumer fueron separados.
+          Usar <code>--property</code> lanza un <em>Warning</em> y puede fallar silenciosamente:
+        </p>
+        <table class="info-table">
+          <thead><tr><th>HERRAMIENTA</th><th>FLAG VIEJO ❌</th><th>FLAG CORRECTO KAFKA 4.x ✅</th></tr></thead>
+          <tbody>
+            <tr><td>console-producer</td><td><code class="hl-red">--property parse.key=true</code></td><td><code class="hl-green">--reader-property parse.key=true</code></td></tr>
+            <tr><td>console-producer</td><td><code class="hl-red">--property key.separator=:</code></td><td><code class="hl-green">--reader-property key.separator=:</code></td></tr>
+            <tr><td>console-consumer</td><td><code class="hl-red">--property print.key=true</code></td><td><code class="hl-green">--formatter-property print.key=true</code></td></tr>
+            <tr><td>console-consumer</td><td><code class="hl-red">--timeout-ms 5000</code> (poco confiable)</td><td><code class="hl-green">--max-messages N</code> (termina al leer N mensajes)</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:0.6rem;font-size:0.78rem;color:var(--muted)">
+          <strong style="color:var(--text)">¿Por qué este split?</strong> Kafka 4.x separó la lógica de lectura del stdin (reader) de la lógica de formateo del output (formatter) para mayor claridad y extensibilidad.
+        </p>
+      </div>
+
+      <!-- Comandos corregidos -->
+      <p style="margin-bottom:0.5rem"><strong>Comandos corregidos para Kafka 4.2.0:</strong></p>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">Producer — enviar con key</span>
+        </div>
+        <div class="code-body"><pre><span class="tc"># Dentro del container (con PATH ya configurado)</span>
+kafka-console-producer.sh \
+  --topic pedidos-tiendamax \
+  --bootstrap-server localhost:9092 \
+  <span class="tn">--reader-property</span> parse.key=true \   <span class="tc"># ← correcto en Kafka 4.x</span>
+  <span class="tn">--reader-property</span> key.separator=:    <span class="tc"># ← formato: ORD-001:{json}</span>
+
+<span class="tc"># Escribe y presiona Enter:</span>
+<span class="ts">ORD-001:{"order_id":"ORD-001","cliente":"ana","total":299}</span>
+<span class="ts">ORD-002:{"order_id":"ORD-002","cliente":"bob","total":149}</span>
+<span class="ts">ORD-003:{"order_id":"ORD-003","cliente":"ana","total":89}</span></pre></div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">Consumer — leer desde el inicio</span>
+        </div>
+        <div class="code-body"><pre>kafka-console-consumer.sh \
+  --topic pedidos-tiendamax \
+  --from-beginning \               <span class="tc"># ← auto.offset.reset=earliest</span>
+  --max-messages 10 \              <span class="tc"># ← termina después de 10 mensajes (más confiable que --timeout-ms)</span>
+  <span class="tn">--formatter-property</span> print.key=true \
+  <span class="tn">--formatter-property</span> <span class="tp">key.separator</span>=<span class="ts">" → "</span> \
+  --bootstrap-server localhost:9092</pre></div>
+      </div>
+
+      <div class="success-box">
+        <div class="success-label">✅ OUTPUT ESPERADO DEL CONSUMER</div>
+        <div class="code-block" style="margin-top:0.5rem">
+          <div class="code-body"><pre><span class="ts">ORD-001 → {"order_id":"ORD-001","cliente":"ana","total":299}</span>
+<span class="ts">ORD-002 → {"order_id":"ORD-002","cliente":"bob","total":149}</span>
+<span class="ts">ORD-003 → {"order_id":"ORD-003","cliente":"ana","total":89}</span>
+<span class="tg">Processed a total of 3 messages</span></pre></div>
+        </div>
+        <p style="margin-top:0.6rem;font-size:0.78rem">
+          Observa que ORD-001 y ORD-003 son del mismo cliente "ana" — con <code>key=ORD-001</code> y <code>key=ORD-003</code>
+          van a <strong>diferentes particiones</strong> (el key es el order_id, no el cliente). Esto garantiza que los
+          pedidos de cualquier orden específica se procesen en orden, independientemente del cliente.
+        </p>
+      </div>
+
+      <div class="why-box">
+        <div class="why-label">💡 ¿POR QUÉ LA KEY ES order_id Y NO cliente_id?</div>
+        <ul>
+          <li><strong>Orden garantizado por pedido</strong>: todos los eventos de ORD-001 (creado → pagado → enviado → entregado) van a la misma partición → en secuencia</li>
+          <li><strong>Evita hotspot</strong>: si usáramos <code>cliente_id</code> y "ana" hace 80% de los pedidos, una partición se saturaría</li>
+          <li><strong>Si usáramos sin key</strong>: Round Robin distribuye bien la carga pero <strong>pierde el orden</strong> — el evento "enviado" podría llegar antes que "pagado"</li>
+        </ul>
+      </div>
+
+      <!-- Checklist -->
+      <p style="margin:1.2rem 0 0.5rem"><strong>Verificación — ¿Está todo bien?</strong></p>
+      <div class="step-checks">
+        <div class="check-row checked" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span><code>docker compose ps</code> muestra kafka con status <code class="hl-green">healthy</code></span>
+        </div>
+        <div class="check-row checked" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span><code>kafka-topics.sh --describe</code> muestra 3 particiones con Leader: 1</span>
+        </div>
+        <div class="check-row checked" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Consumer devuelve <code class="hl-green">Processed a total of 3 messages</code></span>
+        </div>
+        <div class="check-row checked" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>PATH fix aplicado: <code>export PATH=/opt/kafka/bin:$PATH</code> dentro del container</span>
+        </div>
+      </div>
+    </section>
+
+    <hr class="step-divider">
+
+    <!-- ══════════════════════════════════════════ -->
+    <!--  PASO 2 — PRODUCER JAVA (EN CURSO)          -->
+    <!-- ══════════════════════════════════════════ -->
+    <section class="step-section" id="step-2">
+      <div class="step-header">
+        <span class="step-badge badge-current">🔴 EN CURSO</span>
+        <span class="step-title">Paso 2 — Producer Java con acks=all</span>
+        <span class="step-concept">Módulos <span>M3 · M4</span></span>
+      </div>
+
+      <div class="solve-box">
+        <div class="solve-icon">🎯</div>
+        <div>
+          <strong>¿Qué resuelve este paso?</strong><br>
+          Reemplazar el punto de entrada de TiendaMax. En lugar de llamar directamente a los servicios
+          por REST, el producer publica el pedido en Kafka con <strong>garantía de durabilidad</strong>
+          (<code>acks=all</code>). Si el servidor de inventario está caído, el pedido queda guardado en Kafka
+          y será procesado cuando el servicio se recupere — <strong>cero pérdidas</strong>.
+        </div>
+      </div>
+
+      <!-- 2.1 Estructura del proyecto -->
+      <p style="margin-bottom:0.5rem"><strong>2.1 — Estructura del proyecto Java</strong></p>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.8rem">
+        Usamos la librería oficial <code>kafka-clients</code> (sin Spring) para ver exactamente qué pasa
+        en cada capa. Sin magia de framework — puro Kafka API.
+      </p>
+
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">estructura de directorios</span>
+        </div>
+        <div class="code-body"><pre>kafka-week/
+  tiendamax/
+    pom.xml
+    src/main/java/com/tiendamax/
+      model/
+        <span class="tn">Pedido.java</span>          <span class="tc">← POJO del pedido</span>
+      <span class="tn">PedidoProducer.java</span>    <span class="tc">← Producer con acks=all (este paso)</span>
+      PedidoConsumer.java    <span class="tc">← Consumer con commit manual (Paso 3)</span></pre></div>
+      </div>
+
+      <!-- 2.2 pom.xml -->
+      <p style="margin:1.4rem 0 0.5rem"><strong>2.2 — pom.xml</strong> — dependencia única</p>
+
+      <div class="annotated">
+        <div style="background:#0d1117;border:1px solid var(--border);border-radius:6px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.8rem;display:flex;gap:0.5rem;align-items:center;border-bottom:1px solid var(--border)">
+            <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+            <span style="font-size:0.65rem;color:var(--muted);margin-left:0.3rem;font-family:'JetBrains Mono',monospace">pom.xml · anotado</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr">
+            <div style="padding:0.3rem 1rem;font-size:0.58rem;letter-spacing:0.15em;color:var(--muted);background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border)">CÓDIGO</div>
+            <div style="padding:0.3rem 1rem;font-size:0.58rem;letter-spacing:0.15em;color:var(--muted);background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);border-left:1px solid var(--border)">¿POR QUÉ?</div>
+
+            <div class="ann-code">&lt;groupId&gt;org.apache.kafka&lt;/groupId&gt;</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">Librería oficial del proyecto Apache Kafka. Sin Spring, sin Confluent — el cliente Java puro.</div>
+
+            <div class="ann-code hl">&lt;artifactId&gt;kafka-clients&lt;/artifactId&gt;</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><span class="tag tag-why">POR QUÉ</span> Esta librería contiene <code>KafkaProducer</code>, <code>KafkaConsumer</code>, <code>ProducerRecord</code> — la API de bajo nivel. Spring Kafka la envuelve por encima, pero los conceptos son los mismos.</div>
+
+            <div class="ann-code hl">&lt;version&gt;3.7.1&lt;/version&gt;</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">Versión del <strong>cliente Java</strong> — no del broker. El cliente 3.7.x es compatible con brokers Kafka 4.x gracias a retrocompatibilidad del protocolo.</div>
+
+            <div class="ann-code">&lt;artifactId&gt;jackson-databind&lt;/artifactId&gt;</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">Para serializar el objeto <code>Pedido</code> a JSON antes de enviarlo. Kafka solo transporta <code>byte[]</code> — nosotros definimos el formato.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="code-block" style="margin-top:0.5rem">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">pom.xml</span>
+        </div>
+        <div class="code-body"><pre><span class="tk">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
+<span class="tk">&lt;project&gt;</span>
+  <span class="tk">&lt;modelVersion&gt;</span>4.0.0<span class="tk">&lt;/modelVersion&gt;</span>
+  <span class="tk">&lt;groupId&gt;</span>com.tiendamax<span class="tk">&lt;/groupId&gt;</span>
+  <span class="tk">&lt;artifactId&gt;</span>tiendamax-kafka<span class="tk">&lt;/artifactId&gt;</span>
+  <span class="tk">&lt;version&gt;</span>1.0-SNAPSHOT<span class="tk">&lt;/version&gt;</span>
+  <span class="tk">&lt;properties&gt;</span>
+    <span class="tk">&lt;maven.compiler.source&gt;</span>17<span class="tk">&lt;/maven.compiler.source&gt;</span>
+    <span class="tk">&lt;maven.compiler.target&gt;</span>17<span class="tk">&lt;/maven.compiler.target&gt;</span>
+  <span class="tk">&lt;/properties&gt;</span>
+  <span class="tk">&lt;dependencies&gt;</span>
+    <span class="tc">&lt;!-- Kafka Java Client oficial --&gt;</span>
+    <span class="tk">&lt;dependency&gt;</span>
+      <span class="tk">&lt;groupId&gt;</span>org.apache.kafka<span class="tk">&lt;/groupId&gt;</span>
+      <span class="tk">&lt;artifactId&gt;</span>kafka-clients<span class="tk">&lt;/artifactId&gt;</span>
+      <span class="tk">&lt;version&gt;</span>3.7.1<span class="tk">&lt;/version&gt;</span>
+    <span class="tk">&lt;/dependency&gt;</span>
+    <span class="tc">&lt;!-- Serialización Pedido → JSON --&gt;</span>
+    <span class="tk">&lt;dependency&gt;</span>
+      <span class="tk">&lt;groupId&gt;</span>com.fasterxml.jackson.core<span class="tk">&lt;/groupId&gt;</span>
+      <span class="tk">&lt;artifactId&gt;</span>jackson-databind<span class="tk">&lt;/artifactId&gt;</span>
+      <span class="tk">&lt;version&gt;</span>2.17.1<span class="tk">&lt;/version&gt;</span>
+    <span class="tk">&lt;/dependency&gt;</span>
+    <span class="tc">&lt;!-- Logging --&gt;</span>
+    <span class="tk">&lt;dependency&gt;</span>
+      <span class="tk">&lt;groupId&gt;</span>org.slf4j<span class="tk">&lt;/groupId&gt;</span>
+      <span class="tk">&lt;artifactId&gt;</span>slf4j-simple<span class="tk">&lt;/artifactId&gt;</span>
+      <span class="tk">&lt;version&gt;</span>2.0.13<span class="tk">&lt;/version&gt;</span>
+    <span class="tk">&lt;/dependency&gt;</span>
+  <span class="tk">&lt;/dependencies&gt;</span>
+<span class="tk">&lt;/project&gt;</span></pre></div>
+      </div>
+
+      <!-- 2.3 Pedido.java -->
+      <p style="margin:1.4rem 0 0.5rem"><strong>2.3 — Pedido.java</strong> — el modelo de datos</p>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">src/main/java/com/tiendamax/model/Pedido.java</span>
+        </div>
+        <div class="code-body"><pre><span class="tk">package</span> com.tiendamax.model;
+
+<span class="tk">public class</span> <span class="tn">Pedido</span> {
+    <span class="tk">private</span> String orderId;
+    <span class="tk">private</span> String clienteId;
+    <span class="tk">private</span> String producto;
+    <span class="tk">private</span> <span class="tk">double</span> total;
+    <span class="tk">private</span> String estado;   <span class="tc">// "CREADO", "PAGADO", "ENVIADO", "ENTREGADO"</span>
+    <span class="tk">private</span> <span class="tk">long</span>   timestamp;
+
+    <span class="tc">// Constructor, getters, setters (generados por tu IDE)</span>
+    <span class="tk">public</span> Pedido() {}
+
+    <span class="tk">public</span> Pedido(String orderId, String clienteId,
+                 String producto, <span class="tk">double</span> total) {
+        <span class="tk">this</span>.orderId   = orderId;
+        <span class="tk">this</span>.clienteId = clienteId;
+        <span class="tk">this</span>.producto  = producto;
+        <span class="tk">this</span>.total     = total;
+        <span class="tk">this</span>.estado    = <span class="ts">"CREADO"</span>;
+        <span class="tk">this</span>.timestamp = System.currentTimeMillis();
+    }
+    <span class="tc">// ... getters/setters</span>
+}</pre></div>
+      </div>
+
+      <!-- 2.4 PedidoProducer.java ANNOTATED -->
+      <p style="margin:1.4rem 0 0.5rem"><strong>2.4 — PedidoProducer.java</strong> — el corazón de este paso</p>
+
+      <div class="annotated">
+        <div style="background:#0d1117;border:1px solid var(--border);border-radius:6px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.8rem;display:flex;gap:0.5rem;align-items:center;border-bottom:1px solid var(--border)">
+            <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+            <span style="font-size:0.65rem;color:var(--muted);margin-left:0.3rem;font-family:'JetBrains Mono',monospace">PedidoProducer.java · anotado línea a línea</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr">
+            <div style="padding:0.3rem 1rem;font-size:0.58rem;letter-spacing:0.15em;color:var(--muted);background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border)">CÓDIGO</div>
+            <div style="padding:0.3rem 1rem;font-size:0.58rem;letter-spacing:0.15em;color:var(--muted);background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);border-left:1px solid var(--border)">¿POR QUÉ ESTÁ ESO AHÍ?</div>
+
+            <div class="ann-code">props.put("bootstrap.servers",<br>         "localhost:9092");</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">Punto de entrada al clúster. El producer contacta este broker para obtener metadatos (quién es líder de cada partición). En producción serían 3+ brokers separados por coma.</div>
+
+            <div class="ann-code hl">props.put("acks", "all");</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><span class="tag tag-crit">CRÍTICO</span> El producer espera ACK del líder <strong>Y todas las réplicas ISR</strong> antes de considerar el mensaje enviado. Si el broker cae justo después del send, el mensaje <strong>no se pierde</strong>. Conecta con lo que viste en el Módulo 3 y el Simulador.</div>
+
+            <div class="ann-code hl">props.put("enable.idempotence", "true");</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><span class="tag tag-why">POR QUÉ</span> Si la red falla y el producer reintenta, Kafka detecta el duplicado (PID + sequence number) y descarta el segundo. Sin esto, un pedido podría procesarse <strong>dos veces</strong>. Módulo 3 → PID/idempotencia.</div>
+
+            <div class="ann-code">props.put("retries", "3");</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">Reintentos automáticos si el broker no responde. Con <code>enable.idempotence=true</code> los reintentos son seguros — Kafka deduplica. Sin idempotencia, reintentar = duplicados.</div>
+
+            <div class="ann-code">props.put("key.serializer",<br>  "...StringSerializer");</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">Kafka transporta <code>byte[]</code>. Este serializer convierte el <code>String</code> key (<code>"ORD-001"</code>) a bytes. El broker aplica <code>murmur2(key) % numPartitions</code> a esos bytes para determinar la partición.</div>
+
+            <div class="ann-code hl">props.put("value.serializer",<br>  "...StringSerializer");</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">Enviamos el <code>Pedido</code> como <strong>JSON String</strong>. En producción se usa Avro + Schema Registry para validar el esquema en tiempo real. Por ahora JSON es suficiente para el lab.</div>
+
+            <div class="ann-code hl">new ProducerRecord&lt;&gt;(<br>  TOPIC, orderId, jsonPedido)</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><span class="tag tag-crit">CLAVE DEL DISEÑO</span> El segundo argumento es la <strong>key = orderId</strong>. Esto garantiza que todos los eventos del mismo pedido (CREADO→PAGADO→ENVIADO) siempre van a la misma partición → orden garantizado.</div>
+
+            <div class="ann-code">producer.send(record,<br>  (metadata, ex) -&gt; { ... })</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">El callback de confirmación. Si <code>ex == null</code>: éxito, muestra partición + offset. Si <code>ex != null</code>: fallo, loguea el error. Esto es lo que hace <strong>at-least-once</strong> — confirmas antes de avanzar.</div>
+
+            <div class="ann-code">metadata.partition()<br>metadata.offset()</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)">El broker confirma exactamente en qué partición y en qué offset quedó el mensaje. Puedes guardar esto en tu DB para hacer <strong>exactly-once</strong> a nivel de aplicación (verificar idempotencia del negocio).</div>
+
+            <div class="ann-code hl">producer.flush();<br>producer.close();</div>
+            <div class="ann-explain" style="border-left:1px solid var(--border)"><code>flush()</code> bloquea hasta que todos los mensajes pendientes en el buffer se enviaron y recibieron ACK. <code>close()</code> libera las conexiones. Sin <code>flush()</code> podrías perder mensajes al cerrar.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Código completo -->
+      <p style="margin:1.2rem 0 0.5rem"><strong>Código completo — listo para copiar y ejecutar:</strong></p>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">src/main/java/com/tiendamax/PedidoProducer.java</span>
+        </div>
+        <div class="code-body"><pre><span class="tk">package</span> com.tiendamax;
+
+<span class="tk">import</span> com.fasterxml.jackson.databind.ObjectMapper;
+<span class="tk">import</span> com.tiendamax.model.Pedido;
+<span class="tk">import</span> org.apache.kafka.clients.producer.*;
+<span class="tk">import</span> org.apache.kafka.common.serialization.StringSerializer;
+<span class="tk">import</span> java.util.Properties;
+
+<span class="tk">public class</span> <span class="tn">PedidoProducer</span> {
+
+    <span class="tk">private static final</span> String TOPIC    = <span class="ts">"pedidos-tiendamax"</span>;
+    <span class="tk">private static final</span> String BROKER   = <span class="ts">"localhost:9092"</span>;
+    <span class="tk">private static final</span> ObjectMapper MAPPER = <span class="tk">new</span> ObjectMapper();
+
+    <span class="tk">public static void</span> main(String[] args) <span class="tk">throws</span> Exception {
+
+        <span class="tc">// ── 1. Configuración del producer ──────────────────</span>
+        Properties props = <span class="tk">new</span> Properties();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,  BROKER);
+        props.put(ProducerConfig.ACKS_CONFIG,               <span class="ts">"all"</span>);       <span class="tc">// espera todas las ISR</span>
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, <span class="ts">"true"</span>);    <span class="tc">// sin duplicados en retry</span>
+        props.put(ProducerConfig.RETRIES_CONFIG,            3);
+        props.put(ProducerConfig.LINGER_MS_CONFIG,          5);            <span class="tc">// batching: espera 5ms</span>
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                  StringSerializer.class.getName());
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+                  StringSerializer.class.getName());
+
+        <span class="tc">// ── 2. Pedidos de muestra para el lab ──────────────</span>
+        Pedido[] pedidos = {
+            <span class="tk">new</span> Pedido(<span class="ts">"ORD-001"</span>, <span class="ts">"cli-ana"</span>,  <span class="ts">"Laptop"</span>,  1299.00),
+            <span class="tk">new</span> Pedido(<span class="ts">"ORD-002"</span>, <span class="ts">"cli-bob"</span>,  <span class="ts">"Teclado"</span>,   89.00),
+            <span class="tk">new</span> Pedido(<span class="ts">"ORD-003"</span>, <span class="ts">"cli-ana"</span>,  <span class="ts">"Mouse"</span>,     45.00),
+            <span class="tk">new</span> Pedido(<span class="ts">"ORD-004"</span>, <span class="ts">"cli-carlos"</span>,<span class="ts">"Monitor"</span>, 399.00),
+            <span class="tk">new</span> Pedido(<span class="ts">"ORD-005"</span>, <span class="ts">"cli-bob"</span>,  <span class="ts">"Webcam"</span>,   129.00),
+            <span class="tk">new</span> Pedido(<span class="ts">"ORD-006"</span>, <span class="ts">"cli-diana"</span>,<span class="ts">"Audífonos"</span>, 79.00),
+            <span class="tk">new</span> Pedido(<span class="ts">"ORD-007"</span>, <span class="ts">"cli-ana"</span>,  <span class="ts">"SSD 1TB"</span>,  159.00),
+            <span class="tk">new</span> Pedido(<span class="ts">"ORD-008"</span>, <span class="ts">"cli-carlos"</span>,<span class="ts">"RAM 32GB"</span>, 89.00),
+            <span class="tk">new</span> Pedido(<span class="ts">"ORD-009"</span>, <span class="ts">"cli-diana"</span>,<span class="ts">"Mousepad"</span>,  19.00),
+            <span class="tk">new</span> Pedido(<span class="ts">"ORD-010"</span>, <span class="ts">"cli-bob"</span>,  <span class="ts">"Hub USB"</span>,   35.00),
+        };
+
+        <span class="tc">// ── 3. Enviar cada pedido ───────────────────────────</span>
+        <span class="tk">try</span> (KafkaProducer&lt;String, String&gt; producer =
+                <span class="tk">new</span> KafkaProducer&lt;&gt;(props)) {
+
+            <span class="tk">for</span> (Pedido pedido : pedidos) {
+                String jsonValue = MAPPER.writeValueAsString(pedido);
+
+                <span class="tc">// KEY = orderId → misma partición para todos los eventos del pedido</span>
+                ProducerRecord&lt;String, String&gt; record =
+                    <span class="tk">new</span> ProducerRecord&lt;&gt;(TOPIC, pedido.getOrderId(), jsonValue);
+
+                producer.send(record, (metadata, ex) -&gt; {
+                    <span class="tk">if</span> (ex == <span class="tk">null</span>) {
+                        System.out.printf(
+                            <span class="ts">"✅ Enviado: %s → P-%d offset=%d%n"</span>,
+                            pedido.getOrderId(),
+                            metadata.partition(),
+                            metadata.offset());
+                    } <span class="tk">else</span> {
+                        System.err.println(<span class="ts">"❌ Error enviando "</span>
+                            + pedido.getOrderId() + <span class="ts">": "</span> + ex.getMessage());
+                    }
+                });
+
+                Thread.sleep(200); <span class="tc">// pausa para ver el log ordenado</span>
+            }
+
+            producer.flush(); <span class="tc">// espera ACK de todos antes de cerrar</span>
+            System.out.println(<span class="ts">"\n📊 Todos los pedidos enviados. Verifica distribución:"</span>);
+            System.out.println(<span class="ts">"  kafka-consumer-groups.sh --describe (Paso 6)"</span>);
+        }
+    }
+}</pre></div>
+      </div>
+
+      <!-- Ejecutar -->
+      <p style="margin:1.4rem 0 0.5rem"><strong>2.5 — Compilar y ejecutar</strong></p>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">PowerShell · desde kafka-week/tiendamax/</span>
+        </div>
+        <div class="code-body"><pre><span class="tc"># Compilar y empaquetar</span>
+mvn package -q
+
+<span class="tc"># Ejecutar el producer</span>
+mvn exec:java -Dexec.mainClass="com.tiendamax.PedidoProducer"</pre></div>
+      </div>
+
+      <div class="success-box">
+        <div class="success-label">✅ OUTPUT ESPERADO</div>
+        <div class="code-block" style="margin-top:0.5rem">
+          <div class="code-body"><pre><span class="tg">✅ Enviado: ORD-001 → P-1 offset=3</span>
+<span class="tg">✅ Enviado: ORD-002 → P-0 offset=4</span>
+<span class="tg">✅ Enviado: ORD-003 → P-1 offset=4</span>
+<span class="tg">✅ Enviado: ORD-004 → P-2 offset=0</span>
+<span class="tg">✅ Enviado: ORD-005 → P-0 offset=5</span>
+<span class="tg">...</span>
+<span class="tg">📊 Todos los pedidos enviados. Verifica distribución:</span></pre></div>
+        </div>
+        <p style="margin-top:0.6rem;font-size:0.78rem">
+          Observa que ORD-001 y ORD-003 (ambos de "cli-ana") van a la <strong>misma partición P-1</strong>
+          porque la key es el <code>orderId</code>, no el cliente. Si dos pedidos diferentes van a la misma
+          partición es correcto — el hash del orderId lo determina.
+        </p>
+      </div>
+
+      <div class="why-box">
+        <div class="why-label">💡 ¿POR QUÉ kafka-clients PURO Y NO SPRING KAFKA?</div>
+        <ul>
+          <li><strong>Transparencia total</strong>: ves exactamente qué parámetros se configuran y por qué — Spring los oculta en <code>application.yml</code></li>
+          <li><strong>Mismo modelo mental</strong>: <code>KafkaProducer</code>, <code>ProducerRecord</code>, <code>metadata.partition()</code> son los mismos conceptos que en el simulador del Módulo 4</li>
+          <li><strong>Portabilidad</strong>: este código funciona igual en cualquier framework — Spring, Quarkus, Micronaut o sin framework</li>
+          <li><strong>En el Paso 4</strong> verás cómo mapea a Spring Kafka para que compares ambas formas</li>
+        </ul>
+      </div>
+
+      <!-- Verifica la distribución -->
+      <p style="margin:1.2rem 0 0.5rem"><strong>2.6 — Verifica la distribución en las 3 particiones</strong></p>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.8rem">
+        Desde dentro del container (con PATH configurado):
+      </p>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">bash · dentro del container</span>
+        </div>
+        <div class="code-body"><pre>kafka-run-class.sh kafka.tools.GetOffsetShell \
+  --broker-list localhost:9092 \
+  --topic pedidos-tiendamax
+
+<span class="tc"># Output esperado (10 pedidos nuevos + 3 de prueba del Paso 1 = 13 total):</span>
+<span class="tg">pedidos-tiendamax:0:5</span>    <span class="tc">← P-0 tiene 5 mensajes (offsets 0-4)</span>
+<span class="tg">pedidos-tiendamax:1:5</span>    <span class="tc">← P-1 tiene 5 mensajes (offsets 0-4)</span>
+<span class="tg">pedidos-tiendamax:2:3</span>    <span class="tc">← P-2 tiene 3 mensajes (offsets 0-2)</span></pre></div>
+      </div>
+
+      <!-- Checklist paso 2 -->
+      <p style="margin:1.2rem 0 0.5rem"><strong>Verificación — Paso 2 completo cuando:</strong></p>
+      <div class="step-checks">
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span><code>mvn package</code> compila sin errores</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>El producer imprime <code class="hl-green">✅ Enviado: ORD-001 → P-X offset=Y</code> para los 10 pedidos</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span><code>GetOffsetShell</code> muestra los offsets acumulados en las 3 particiones</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Puedo explicar por qué ORD-001 y ORD-003 van siempre a la misma partición</span>
+        </div>
+      </div>
+    </section>
+
+    <hr class="step-divider">
+
+    <!-- ══════════════════════════════════════════ -->
+    <!--  PASO 3 — CONSUMER CON COMMIT MANUAL       -->
+    <!-- ══════════════════════════════════════════ -->
+
+    <section class="step-section" id="step-3">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem">
+        <div style="background:rgba(232,125,13,0.15);border:1px solid var(--kafka);color:var(--kafka);font-family:'JetBrains Mono',monospace;font-size:0.62rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:4px;letter-spacing:0.1em">PASO 3 🔴 EN CURSO</div>
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--muted)">CONSUMER CON COMMIT MANUAL</div>
+      </div>
+      <h2 style="font-size:1.45rem;font-weight:800;margin-bottom:0.4rem">PedidoConsumer.java</h2>
+      <p style="color:var(--muted);margin-bottom:1.8rem;font-size:0.85rem">
+        El consumer lee pedidos del topic, los procesa (inventario / notificaciones / factura)
+        y confirma el offset <strong>solo después</strong> de procesar — garantizando semántica at-least-once.
+      </p>
+
+      <!-- ¿Qué semántica de entrega usamos? -->
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:1.2rem 1.4rem;margin-bottom:1.6rem">
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--muted);margin-bottom:0.8rem">TIMING DEL COMMIT → SEMÁNTICA DE ENTREGA</div>
+        <pre style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;line-height:1.7;color:var(--text)">
+  POLL → PROCESO → <span style="color:var(--green)">COMMIT</span>          ← at-least-once ✅ (crash antes del commit → relee)
+  POLL → <span style="color:var(--red)">COMMIT</span> → PROCESO            ← at-most-once  ⚠️  (crash antes de procesar → mensaje perdido)
+  POLL → PROCESO → DB + COMMIT (atómico) ← exactly-once  🏆 (requiere transacciones Kafka)</pre>
+        <div style="margin-top:0.8rem;font-size:0.75rem;color:var(--blue)">
+          → Nosotros usamos <strong>at-least-once</strong>: <code>commitSync()</code> va al final del loop, después de procesar todos los registros del poll batch.
+        </div>
+      </div>
+
+      <!-- Configuración KafkaConsumer — tabla anotada -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin-bottom:0.8rem">⚙️ CONFIGURACIÓN DEL KAFKACONSUMER — línea por línea</h3>
+      <table class="anno-table">
+        <thead><tr><th>Código</th><th>¿Por qué?</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code class="hl-orange">GROUP_ID = "grupo-tiendamax"</code></td>
+            <td>Todos los consumers con el mismo ID forman <strong>un Consumer Group</strong>. Kafka distribuye las particiones entre ellos. Cambia el ID → grupo independiente que lee TODO el topic desde el principio.</td>
+          </tr>
+          <tr>
+            <td><code>AUTO_OFFSET_RESET = "earliest"</code></td>
+            <td>Si no hay offset guardado para este grupo (primera vez, o después de un reset), lee <strong>desde el offset 0</strong>. Con <code>latest</code> ignoraría todos los mensajes anteriores.</td>
+          </tr>
+          <tr>
+            <td><code class="hl-red">ENABLE_AUTO_COMMIT = "false"</code></td>
+            <td>Con auto-commit=true Kafka commitea cada N segundos sin importar si procesaste bien el mensaje. Un crash entre el auto-commit y el procesamiento real → <strong>mensaje perdido silenciosamente</strong>. Lo desactivamos para controlar nosotros cuándo commitear.</td>
+          </tr>
+          <tr>
+            <td><code>MAX_POLL_RECORDS = 10</code></td>
+            <td>Máximo de mensajes por poll(). Con 10 pedidos de prueba, vemos todo en un solo poll. En producción, ajusta según la capacidad de tu pipeline de procesamiento.</td>
+          </tr>
+          <tr>
+            <td><code>HEARTBEAT_INTERVAL_MS = 3000</code></td>
+            <td>Cada 3 segundos el consumer avisa al Group Coordinator que sigue vivo. Si no llega heartbeat en <code>session.timeout.ms</code> → <strong>rebalanceo</strong>: Kafka redistribuye las particiones entre los consumers restantes.</td>
+          </tr>
+          <tr>
+            <td><code>SESSION_TIMEOUT_MS = 10000</code></td>
+            <td>Si Kafka no recibe heartbeat en 10 seg → consumer muerto. Regla: <code>heartbeat &lt; session_timeout / 3</code>. Con 3000 ms de heartbeat y 10000 ms de session timeout hay margen para 3 heartbeats fallidos antes del rebalanceo.</td>
+          </tr>
+          <tr>
+            <td><code class="hl-green">consumer.subscribe(List.of(TOPIC))</code></td>
+            <td>En lugar de <code>assign()</code> manual, <code>subscribe()</code> permite el <strong>rebalanceo automático</strong>: cuando se une un nuevo consumer o cae uno, Kafka redistribuye las particiones sin intervención manual.</td>
+          </tr>
+          <tr>
+            <td><code>consumer.poll(Duration.ofMillis(1000))</code></td>
+            <td>Bloquea hasta 1 segundo esperando mensajes. El SDK envía heartbeats internamente durante el poll. Si tu procesamiento tarda más que <code>max.poll.interval.ms</code> (default 5 min) → Kafka asume que el consumer murió → rebalanceo.</td>
+          </tr>
+          <tr>
+            <td><code class="hl-green">consumer.commitSync()</code></td>
+            <td>Commit <strong>síncrono</strong> (bloquea hasta que el broker confirma en <code>__consumer_offsets</code>). Va al final del loop, después de procesar todos los records del poll batch. Si el proceso cae antes → relee. Si cae después → ya está commiteado.</td>
+          </tr>
+          <tr>
+            <td><code>mainThread.interrupt()</code></td>
+            <td><strong>Shutdown hook</strong>: captura Ctrl+C y interrumpe el hilo principal. El loop <code>while (!Thread.currentThread().isInterrupted())</code> detecta la interrupción y termina limpiamente — el <code>try-with-resources</code> cierra el consumer y envía el último heartbeat al grupo.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ── Árbol de paquetes del proyecto ── -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">🗂️ ESTRUCTURA DEL PROYECTO — cómo va creciendo</h3>
+
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">kafka-week/ · árbol al finalizar el Paso 3</span>
+        </div>
+        <div class="code-body"><pre><span class="tc">kafka-week/</span>
+<span class="tc">│</span>
+<span class="tc">├── infra/</span>
+<span class="tc">│   └── </span><span class="tg">docker-compose.yml</span>              <span class="tc">← ✅ Paso 1 · broker KRaft en Docker</span>
+<span class="tc">│</span>
+<span class="tc">└── tiendamax/</span>                            <span class="tc">← raíz del proyecto Maven</span>
+    <span class="tc">│</span>
+    <span class="tc">├── </span><span class="tg">pom.xml</span>                           <span class="tc">← ✅ Paso 2 · kafka-clients + jackson + slf4j</span>
+    <span class="tc">│</span>
+    <span class="tc">└── src/</span>
+        <span class="tc">└── main/</span>
+            <span class="tc">└── java/</span>
+                <span class="tc">└── com/</span>
+                    <span class="tc">└── tiendamax/</span>            <span class="tc">← paquete raíz</span>
+                        <span class="tc">│</span>
+                        <span class="tc">├── model/</span>            <span class="tc">← 📦 paquete: modelo de dominio</span>
+                        <span class="tc">│   └── </span><span class="tg">Pedido.java</span>   <span class="tc">← ✅ Paso 2 · Value Object</span>
+                        <span class="tc">│</span>
+                        <span class="tc">├── </span><span class="tg">PedidoProducer.java</span>   <span class="tc">← ✅ Paso 2 · Entry Point</span>
+                        <span class="tc">└── </span><span class="tn">PedidoConsumer.java</span>   <span class="tn">← 🔴 Paso 3 · Entry Point  ← AQUÍ</span></pre></div>
+      </div>
+
+      <!-- Clean Code callouts -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.6rem;margin:0.8rem 0 1.8rem">
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:0.85rem">
+          <div style="font-size:0.57rem;letter-spacing:0.15em;color:var(--purple);margin-bottom:0.4rem">SRP — SINGLE RESPONSIBILITY</div>
+          <div style="font-size:0.73rem;line-height:1.55">Cada clase hace <strong>una sola cosa</strong>. <code>Pedido</code>&nbsp;= datos. <code>PedidoProducer</code>&nbsp;= enviar. <code>PedidoConsumer</code>&nbsp;= consumir y commitear.</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:0.85rem">
+          <div style="font-size:0.57rem;letter-spacing:0.15em;color:var(--blue);margin-bottom:0.4rem">PAQUETE model/</div>
+          <div style="font-size:0.73rem;line-height:1.55">Los <strong>Value Objects</strong> viven en su propio paquete. Al escalar el proyecto, aquí irán <code>LineaPedido</code>, <code>Cliente</code>, etc. — sin mezclarlos con la lógica Kafka.</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:0.85rem">
+          <div style="font-size:0.57rem;letter-spacing:0.15em;color:var(--kafka2);margin-bottom:0.4rem">MÉTODO PRIVADO</div>
+          <div style="font-size:0.73rem;line-height:1.55"><code>procesarPedido()</code> separa la <strong>lógica de negocio</strong> de la infraestructura Kafka. En producción se convierte en un servicio inyectable (<code>@Service</code>).</div>
+        </div>
+      </div>
+
+      <!-- Código completo PedidoConsumer.java -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">📄 PedidoConsumer.java — código completo</h3>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">src/main/java/com/tiendamax/PedidoConsumer.java</span>
+        </div>
+        <div class="code-body"><pre><span class="tk">package</span> <span class="tv">com.tiendamax</span>;
+
+<span class="tk">import</span> com.fasterxml.jackson.databind.ObjectMapper;
+<span class="tk">import</span> com.tiendamax.model.Pedido;
+<span class="tk">import</span> org.apache.kafka.clients.consumer.ConsumerConfig;
+<span class="tk">import</span> org.apache.kafka.clients.consumer.ConsumerRecord;
+<span class="tk">import</span> org.apache.kafka.clients.consumer.ConsumerRecords;
+<span class="tk">import</span> org.apache.kafka.clients.consumer.KafkaConsumer;
+<span class="tk">import</span> org.apache.kafka.common.serialization.StringDeserializer;
+<span class="tk">import</span> java.time.Duration;
+<span class="tk">import</span> java.util.List;
+<span class="tk">import</span> java.util.Properties;
+
+<span class="tk">public class</span> <span class="tn">PedidoConsumer</span> {
+
+    <span class="tc">// ── 1. Constantes ─────────────────────────────────────────────────</span>
+    <span class="tk">private static final</span> String TOPIC    = <span class="ts">"pedidos-tiendamax"</span>;
+    <span class="tk">private static final</span> String BROKER   = <span class="ts">"localhost:9092"</span>;
+    <span class="tk">private static final</span> String GROUP_ID = <span class="ts">"grupo-tiendamax"</span>;
+    <span class="tk">private static final</span> ObjectMapper MAPPER = <span class="tk">new</span> ObjectMapper(); <span class="tc">// thread-safe</span>
+
+    <span class="tk">public static void</span> <span class="tp">main</span>(String[] args) <span class="tk">throws</span> Exception {
+        String servicio = args.length &gt; <span class="tn">0</span> ? args[<span class="tn">0</span>] : <span class="ts">"generico"</span>;
+
+        <span class="tc">// ── 2. Configuración del KafkaConsumer ────────────────────────</span>
+        Properties props = <span class="tk">new</span> Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,   BROKER);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG,            GROUP_ID);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,   <span class="ts">"earliest"</span>);
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,  <span class="te">"false"</span>);  <span class="tc">// ← CRÍTICO</span>
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG,    <span class="tn">10</span>);
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, <span class="tn">3000</span>);
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG,    <span class="tn">10000</span>);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                  StringDeserializer.<span class="tk">class</span>.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                  StringDeserializer.<span class="tk">class</span>.getName());
+
+        <span class="tc">// ── 3. Shutdown hook — cierre limpio con Ctrl+C ───────────────</span>
+        Thread mainThread = Thread.currentThread();
+        Runtime.getRuntime().addShutdownHook(<span class="tk">new</span> Thread(() -&gt; {
+            System.out.printf(<span class="ts">"\n[%s] 🛑 Señal de cierre recibida...%n"</span>, servicio);
+            mainThread.interrupt();
+        }));
+
+        <span class="tc">// ── 4. Poll loop ──────────────────────────────────────────────</span>
+        <span class="tk">try</span> (KafkaConsumer&lt;String, String&gt; consumer = <span class="tk">new</span> KafkaConsumer&lt;&gt;(props)) {
+
+            consumer.subscribe(List.of(TOPIC));   <span class="tc">// → rebalanceo automático</span>
+            System.out.printf(<span class="ts">"[%s] 👂 Escuchando '%s' en grupo '%s'...%n"</span>,
+                servicio, TOPIC, GROUP_ID);
+
+            <span class="tk">while</span> (!Thread.currentThread().isInterrupted()) {
+
+                ConsumerRecords&lt;String, String&gt; records =
+                    consumer.poll(Duration.ofMillis(<span class="tn">1000</span>));
+
+                <span class="tk">if</span> (records.isEmpty()) {
+                    System.out.printf(<span class="ts">"[%s] ⏳ Esperando mensajes...%n"</span>, servicio);
+                    <span class="tk">continue</span>;
+                }
+
+                System.out.printf(<span class="ts">"[%s] 📦 Recibidos %d mensajes:%n"</span>,
+                    servicio, records.count());
+
+                <span class="tc">// Procesar cada record del poll batch</span>
+                <span class="tk">for</span> (ConsumerRecord&lt;String, String&gt; record : records) {
+                    <span class="tk">try</span> {
+                        Pedido pedido = MAPPER.readValue(record.value(), Pedido.<span class="tk">class</span>);
+                        procesarPedido(servicio, pedido, record);
+                    } <span class="tk">catch</span> (Exception e) {
+                        System.err.printf(<span class="ts">"[%s] ❌ Error offset=%d: %s%n"</span>,
+                            servicio, record.offset(), e.getMessage());
+                        <span class="tc">// En prod: dead-letter topic, retry, alertas</span>
+                    }
+                }
+
+                <span class="tc">// at-least-once: commit DESPUÉS de procesar todos los records</span>
+                consumer.<span class="tg">commitSync()</span>;
+                System.out.printf(<span class="ts">"[%s] ✔  Commit realizado.%n%n"</span>, servicio);
+            }
+
+        } <span class="tk">catch</span> (Exception e) {
+            <span class="tk">if</span> (!Thread.currentThread().isInterrupted())
+                System.err.println(<span class="ts">"Error inesperado: "</span> + e.getMessage());
+        }
+        System.out.printf(<span class="ts">"[%s] 👋 Consumer cerrado limpiamente.%n"</span>, servicio);
+    }
+
+    <span class="tc">// ── Simula el trabajo del microservicio ───────────────────────────</span>
+    <span class="tc">// Método privado → SRP: separa lógica de negocio de infraestructura Kafka</span>
+    <span class="tk">private static void</span> <span class="tp">procesarPedido</span>(String servicio, Pedido pedido,
+                                          ConsumerRecord&lt;String, String&gt; record)
+                                          <span class="tk">throws</span> InterruptedException {
+        Thread.sleep(<span class="tn">50</span> + (<span class="tk">long</span>)(Math.random() * <span class="tn">100</span>));  <span class="tc">// simula latencia</span>
+
+        String accion = <span class="tk">switch</span> (servicio) {
+            <span class="tk">case</span> <span class="ts">"inventario"</span>     -&gt; <span class="ts">"📦 Reservando stock: "</span> + pedido.getProducto();
+            <span class="tk">case</span> <span class="ts">"notificaciones"</span> -&gt; <span class="ts">"📧 Email a: "</span>          + pedido.getClienteId();
+            <span class="tk">case</span> <span class="ts">"facturacion"</span>    -&gt; <span class="ts">"🧾 Factura: $"</span>         + pedido.getTotal();
+            <span class="tk">default</span>             -&gt; <span class="ts">"⚙️  Procesando: "</span>       + pedido.getOrderId();
+        };
+
+        System.out.printf(<span class="ts">"  [%s] %s  |  P-%d offset=%-3d  key=%s%n"</span>,
+            servicio, accion, record.partition(), record.offset(), record.key());
+    }
+}</pre></div>
+      </div>
+
+      <!-- Cómo ejecutar -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">▶ CÓMO EJECUTAR — 1 consumer (Paso 3)</h3>
+      <div class="info-box" style="margin-bottom:0.8rem">
+        <strong>Primero</strong>, asegúrate de que el broker Docker está corriendo (<code>docker compose up -d</code>) y que ya ejecutaste el Producer del Paso 2.
+      </div>
+      <div class="code-block">
+<span style="color:var(--muted)"># Desde la carpeta tiendamax/</span>
+mvn exec:java \
+  -Dexec.mainClass=<span style="color:var(--green)">"com.tiendamax.PedidoConsumer"</span> \
+  -Dexec.args=<span style="color:var(--green)">"inventario"</span>
+      </div>
+      <div class="tip-box" style="margin-top:0.8rem">
+        En Windows PowerShell usa backtick `` ` `` en lugar de <code>\</code> para continuar líneas, o escríbelo en una sola línea.
+      </div>
+
+      <!-- Salida esperada -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.6rem 0 0.7rem">📟 SALIDA ESPERADA</h3>
+      <div class="code-block" style="color:var(--green);font-size:0.73rem;line-height:1.7">
+[inventario] 👂 Escuchando topic 'pedidos-tiendamax' en grupo 'grupo-tiendamax'...
+[inventario] 📦 Recibidos 10 mensajes en este poll():
+  [inventario] 📦 Reservando stock: Laptop Pro    | P-0 offset=0
+  [inventario] 📦 Reservando stock: Teclado Mec.  | P-0 offset=1
+  [inventario] 📦 Reservando stock: Mouse Inalámb.| P-1 offset=0
+  [inventario] 📦 Reservando stock: Monitor 27"   | P-2 offset=0
+  ... (10 pedidos en total)
+[inventario] ✔  Commit realizado. Offsets guardados en __consumer_offsets.
+
+[inventario] ⏳ Esperando mensajes...
+[inventario] ⏳ Esperando mensajes...   ← ya no hay más mensajes → queda en espera
+      </div>
+      <div class="tip-box" style="margin-top:0.7rem">
+        Si ves <strong>0 mensajes</strong>, ejecuta primero el Producer (Paso 2) o usa <code>auto.offset.reset=earliest</code> que ya está configurado.
+      </div>
+
+      <!-- Verificar con kafka-consumer-groups.sh -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.6rem 0 0.7rem">🔍 VERIFICAR LAG = 0 (en otra terminal)</h3>
+      <div class="code-block">
+<span style="color:var(--muted)"># Entrar al container Docker</span>
+docker exec -it kafka bash
+
+<span style="color:var(--muted)"># Describir el Consumer Group — ver LAG por partición</span>
+/opt/kafka/bin/kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --group grupo-tiendamax \
+  --describe
+      </div>
+      <div class="code-block" style="color:var(--green);font-size:0.73rem;margin-top:0.5rem;line-height:1.6">
+GROUP           TOPIC              PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG  CONSUMER-ID
+grupo-tiendamax pedidos-tiendamax  0          4               4               <span style="color:var(--yellow)">0</span>    inventario-...
+grupo-tiendamax pedidos-tiendamax  1          3               3               <span style="color:var(--yellow)">0</span>    inventario-...
+grupo-tiendamax pedidos-tiendamax  2          3               3               <span style="color:var(--yellow)">0</span>    inventario-...
+      </div>
+      <div class="info-box" style="margin-top:0.8rem">
+        <strong>LAG = 0</strong> significa que el consumer ha leído y commiteado <strong>todos</strong> los mensajes del topic.
+        <code>CURRENT-OFFSET = LOG-END-OFFSET</code>. Si el LAG fuera &gt; 0, hay mensajes sin procesar → alert en producción.
+      </div>
+
+      <!-- ¿Por qué commitSync y no commitAsync? -->
+      <div style="background:var(--bg3);border-left:3px solid var(--purple);border-radius:0 8px 8px 0;padding:1rem 1.2rem;margin:1.6rem 0">
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--purple);margin-bottom:0.5rem">💡 ¿POR QUÉ commitSync() Y NO commitAsync()?</div>
+        <div style="font-size:0.82rem;line-height:1.7">
+          <code>commitAsync()</code> no bloquea (mejor throughput) pero si falla, <strong>no reintenta</strong> — un commit fallido puede dejar el offset atrás y causar reprocesamiento.
+          <code>commitSync()</code> reintenta automáticamente hasta conseguir confirmación del broker o fallar definitivamente.
+          <br><br>
+          <strong>Patrón híbrido en producción:</strong> usar <code>commitAsync()</code> en cada iteración del loop para throughput, y <code>commitSync()</code> en el bloque <code>finally</code> para garantizar el último commit antes de cerrar.
+        </div>
+      </div>
+
+      <!-- Checklist Paso 3 -->
+      <div style="background:rgba(57,255,20,0.05);border:1px solid rgba(57,255,20,0.2);border-radius:8px;padding:1.2rem 1.4rem;margin-top:1.6rem">
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--green);margin-bottom:0.9rem">✅ CHECKLIST PASO 3 — marca cuando lo hayas comprobado</div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>El consumer imprime los 10 pedidos y hace el commit (<code>✔ Commit realizado</code>)</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span><code>kafka-consumer-groups.sh --describe</code> muestra <code>LAG=0</code> en las 3 particiones</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Si mato el consumer con Ctrl+C y lo relanzó, <strong>no relee</strong> los mensajes (offset ya commiteado)</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Puedo explicar la diferencia entre at-least-once, at-most-once y exactly-once en términos del timing del commit</span>
+        </div>
+      </div>
+    </section>
+
+    <hr class="step-divider">
+
+    <!-- ══════════════════════════════════════════ -->
+    <!--  PASO 4 — 3 CONSUMERS EN PARALELO          -->
+    <!-- ══════════════════════════════════════════ -->
+
+    <section class="step-section" id="step-4">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem">
+        <div style="background:rgba(232,125,13,0.15);border:1px solid var(--kafka);color:var(--kafka);font-family:'JetBrains Mono',monospace;font-size:0.62rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:4px;letter-spacing:0.1em">PASO 4 🔴 EN CURSO</div>
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--muted)">CONSUMER GROUP · RANGEASSIGNOR</div>
+      </div>
+      <h2 style="font-size:1.45rem;font-weight:800;margin-bottom:0.4rem">3 Consumers en paralelo</h2>
+      <p style="color:var(--muted);margin-bottom:1.8rem;font-size:0.85rem">
+        Ejecutamos <strong>3 instancias</strong> de <code>PedidoConsumer.java</code> con el <strong>mismo</strong> <code>group.id</code>.
+        Kafka detecta el grupo, aplica el <strong>RangeAssignor</strong> y distribuye las 3 particiones — una por consumer.
+        Cada servicio (inventario / notificaciones / facturación) procesa solo los pedidos de su partición asignada.
+      </p>
+
+      <!-- Clean code callout — no new files -->
+      <div style="background:rgba(57,255,20,0.05);border:1px solid rgba(57,255,20,0.25);border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.6rem;display:flex;gap:0.9rem;align-items:flex-start">
+        <div style="font-size:1.1rem;flex-shrink:0">♻️</div>
+        <div>
+          <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--green);margin-bottom:0.3rem">CLEAN CODE — REUTILIZACIÓN SIN DUPLICACIÓN</div>
+          <div style="font-size:0.82rem;line-height:1.6">
+            <strong>No se crea ningún archivo Java nuevo.</strong> La clase <code>PedidoConsumer.java</code> ya fue diseñada para recibir el nombre del servicio como argumento.
+            3 instancias, 1 sola clase, comportamiento diferente por parámetro.
+            Este patrón se llama <em>parametrización por argumento</em> — mucho mejor que duplicar la clase 3 veces.
+          </div>
+        </div>
+      </div>
+
+      <!-- Árbol del proyecto — sin cambios en Paso 4 -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin-bottom:0.8rem">🗂️ ESTRUCTURA DEL PROYECTO — sin cambios en este paso</h3>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">kafka-week/ · mismos archivos que en el Paso 3</span>
+        </div>
+        <div class="code-body"><pre><span class="tc">kafka-week/</span>
+<span class="tc">│</span>
+<span class="tc">├── infra/</span>
+<span class="tc">│   └── </span><span class="tg">docker-compose.yml</span>              <span class="tc">← ✅ Paso 1</span>
+<span class="tc">│</span>
+<span class="tc">└── tiendamax/</span>
+    <span class="tc">├── </span><span class="tg">pom.xml</span>                           <span class="tc">← ✅ Paso 2</span>
+    <span class="tc">└── src/main/java/com/tiendamax/</span>
+        <span class="tc">├── model/</span>
+        <span class="tc">│   └── </span><span class="tg">Pedido.java</span>               <span class="tc">← ✅ Paso 2 · Value Object</span>
+        <span class="tc">├── </span><span class="tg">PedidoProducer.java</span>           <span class="tc">← ✅ Paso 2</span>
+        <span class="tc">└── </span><span class="tg">PedidoConsumer.java</span>           <span class="tg">← ✅ Paso 3 · se lanza 3 veces con distinto arg</span></pre></div>
+      </div>
+
+      <!-- RangeAssignor — cómo funciona -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">⚙️ CÓMO FUNCIONA EL RANGEASSIGNOR</h3>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:1.2rem 1.4rem;margin-bottom:1rem">
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--muted);margin-bottom:0.9rem">ALGORITMO DE ASIGNACIÓN — ejecutado por el Group Coordinator al hacer el rebalanceo</div>
+        <div class="code-block" style="margin:0">
+          <div class="code-bar">
+            <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+            <span class="code-title">RangeAssignor · pedidos-tiendamax · 3 particiones · 3 consumers</span>
+          </div>
+          <div class="code-body"><pre><span class="tc">Paso 1 — ordenar particiones del topic:</span>
+    [P0, P1, P2]
+
+<span class="tc">Paso 2 — ordenar consumers del grupo (por member-id):</span>
+    [consumer-inventario-xxx, consumer-notificaciones-yyy, consumer-facturacion-zzz]
+
+<span class="tc">Paso 3 — dividir:</span>
+    n = floor(3 particiones / 3 consumers) = <span class="tn">1</span>  por consumer
+    r = 3 % 3 = <span class="tn">0</span>  (sin resto → distribución exacta, nadie recibe extra)
+
+<span class="tc">Resultado:</span>
+    consumer-inventario    → [<span class="tg">P0</span>]
+    consumer-notificaciones → [<span class="tg">P1</span>]
+    consumer-facturacion   → [<span class="tg">P2</span>]</pre></div>
+        </div>
+        <div style="margin-top:0.9rem;font-size:0.77rem;line-height:1.6;color:var(--text)">
+          💡 <strong>Regla de oro:</strong> con <code>N</code> particiones y <code>N</code> consumers en el mismo grupo → distribución perfecta, 1 partición por consumer.
+          Si hay <strong>más consumers que particiones</strong>, los sobrantes quedan <em>idle</em> (en espera como backup).
+          Si hay <strong>menos consumers</strong>, algunos reciben 2 o más particiones.
+        </div>
+      </div>
+
+      <!-- Diagrama visual de asignación -->
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">diagrama · grupo-tiendamax · estado después del rebalanceo</span>
+        </div>
+        <div class="code-body"><pre>  <span class="tc">TOPIC: pedidos-tiendamax</span>
+
+  ┌────────────┐   ┌────────────┐   ┌────────────┐
+  │  Partición │   │  Partición │   │  Partición │
+  │     P0     │   │     P1     │   │     P2     │
+  │ ORD-001    │   │ ORD-003    │   │ ORD-002    │
+  │ ORD-004    │   │ ORD-007    │   │ ORD-005    │
+  │ ORD-008    │   │ ORD-009    │   │ ORD-006    │
+  └─────┬──────┘   └─────┬──────┘   └─────┬──────┘
+        │                 │                 │
+        ▼                 ▼                 ▼
+  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+  │  inventario  │ │notificaciones│ │  facturacion  │
+  │  (instancia 1)│ │ (instancia 2)│ │ (instancia 3) │
+  └──────────────┘ └──────────────┘ └──────────────┘
+
+  <span class="tc">GRUPO: grupo-tiendamax   ← los 3 forman UN solo grupo</span>
+  <span class="tc">Todos leen pedidos distintos → procesamiento paralelo sin solapamiento</span></pre></div>
+      </div>
+
+      <!-- Cómo ejecutar — 3 terminales -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">▶ CÓMO EJECUTAR — abre 3 terminales por separado</h3>
+      <div class="info-box" style="margin-bottom:1rem">
+        <strong>Antes de empezar:</strong> asegúrate de que el broker corre (<code>docker compose up -d</code>). Si los pedidos ya fueron consumidos en el Paso 3, vuelve a ejecutar el Producer para tener mensajes frescos.
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:0.7rem">
+        <!-- Terminal 1 -->
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.9rem;display:flex;align-items:center;gap:0.6rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.75rem">🖥️</span>
+            <span style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--kafka2)">Terminal 1 · Servicio: inventario</span>
+          </div>
+          <div class="code-body"><pre>cd tiendamax
+mvn exec:java -Dexec.mainClass=<span class="ts">"com.tiendamax.PedidoConsumer"</span> -Dexec.args=<span class="ts">"inventario"</span></pre></div>
+        </div>
+
+        <!-- Terminal 2 -->
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.9rem;display:flex;align-items:center;gap:0.6rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.75rem">🖥️</span>
+            <span style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--blue)">Terminal 2 · Servicio: notificaciones</span>
+          </div>
+          <div class="code-body"><pre>cd tiendamax
+mvn exec:java -Dexec.mainClass=<span class="ts">"com.tiendamax.PedidoConsumer"</span> -Dexec.args=<span class="ts">"notificaciones"</span></pre></div>
+        </div>
+
+        <!-- Terminal 3 -->
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.9rem;display:flex;align-items:center;gap:0.6rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.75rem">🖥️</span>
+            <span style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--purple)">Terminal 3 · Servicio: facturacion</span>
+          </div>
+          <div class="code-body"><pre>cd tiendamax
+mvn exec:java -Dexec.mainClass=<span class="ts">"com.tiendamax.PedidoConsumer"</span> -Dexec.args=<span class="ts">"facturacion"</span></pre></div>
+        </div>
+      </div>
+
+      <div class="tip-box" style="margin-top:0.8rem">
+        Lanza primero los 3 consumers y <em>después</em> el producer. Así verás el rebalanceo en vivo: cada consumer imprimirá qué partición le fue asignada en el primer poll.
+      </div>
+
+      <!-- Secuencia de arranque -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">🔄 SECUENCIA DE ARRANQUE Y REBALANCEO</h3>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">línea de tiempo — qué ocurre al lanzar los 3 consumers</span>
+        </div>
+        <div class="code-body"><pre><span class="tn">t=0s</span>  inventario    arranca → se une al grupo → <span class="ts">REBALANCEO #1</span>
+             asignado: [P0, P1, P2]  <span class="tc">← solo hay 1 consumer, se queda con todo</span>
+
+<span class="tn">t=2s</span>  notificaciones arranca → se une → <span class="ts">REBALANCEO #2</span>
+             inventario    → [P0, P1]
+             notificaciones → [P2]
+
+<span class="tn">t=4s</span>  facturacion   arranca → se une → <span class="ts">REBALANCEO #3</span>
+             inventario    → [<span class="tg">P0</span>]   <span class="tc">← distribución final óptima</span>
+             notificaciones → [<span class="tg">P1</span>]
+             facturacion   → [<span class="tg">P2</span>]
+
+<span class="tc">Durante cada rebalanceo → STOP THE WORLD: ningún consumer procesa mensajes</span>
+<span class="tc">Por eso existe CooperativeStickyAssignor (Módulo 5) → rebalanceo incremental</span></pre></div>
+      </div>
+
+      <!-- Salida esperada -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">📟 SALIDA ESPERADA — fragmentos de cada terminal</h3>
+
+      <div style="display:flex;flex-direction:column;gap:0.6rem">
+        <div style="border:1px solid rgba(232,125,13,0.3);border-radius:8px;overflow:hidden">
+          <div style="background:rgba(232,125,13,0.08);padding:0.35rem 0.9rem;font-size:0.63rem;font-family:'JetBrains Mono',monospace;color:var(--kafka2);border-bottom:1px solid rgba(232,125,13,0.2)">Terminal 1 — inventario</div>
+          <div class="code-body"><pre><span class="tg">[inventario] 👂 Escuchando 'pedidos-tiendamax' en grupo 'grupo-tiendamax'...
+[inventario] 📦 Recibidos 4 mensajes:
+  [inventario] 📦 Reservando stock: Laptop Pro   | P-0 offset=0  key=ORD-001
+  [inventario] 📦 Reservando stock: Monitor 27"  | P-0 offset=1  key=ORD-004
+  [inventario] 📦 Reservando stock: RAM 32GB     | P-0 offset=2  key=ORD-008
+  [inventario] 📦 Reservando stock: Hub USB-C    | P-0 offset=3  key=ORD-010
+[inventario] ✔  Commit realizado.</span></pre></div>
+        </div>
+
+        <div style="border:1px solid rgba(79,195,247,0.3);border-radius:8px;overflow:hidden">
+          <div style="background:rgba(79,195,247,0.08);padding:0.35rem 0.9rem;font-size:0.63rem;font-family:'JetBrains Mono',monospace;color:var(--blue);border-bottom:1px solid rgba(79,195,247,0.2)">Terminal 2 — notificaciones</div>
+          <div class="code-body"><pre><span class="tv">[notificaciones] 👂 Escuchando 'pedidos-tiendamax' en grupo 'grupo-tiendamax'...
+[notificaciones] 📦 Recibidos 3 mensajes:
+  [notificaciones] 📧 Email a: cli-ana   | P-1 offset=0  key=ORD-003
+  [notificaciones] 📧 Email a: cli-ana   | P-1 offset=1  key=ORD-007
+  [notificaciones] 📧 Email a: cli-diana | P-1 offset=2  key=ORD-009
+[notificaciones] ✔  Commit realizado.</span></pre></div>
+        </div>
+
+        <div style="border:1px solid rgba(179,136,255,0.3);border-radius:8px;overflow:hidden">
+          <div style="background:rgba(179,136,255,0.08);padding:0.35rem 0.9rem;font-size:0.63rem;font-family:'JetBrains Mono',monospace;color:var(--purple);border-bottom:1px solid rgba(179,136,255,0.2)">Terminal 3 — facturacion</div>
+          <div class="code-body"><pre><span style="color:var(--purple)">[facturacion] 👂 Escuchando 'pedidos-tiendamax' en grupo 'grupo-tiendamax'...
+[facturacion] 📦 Recibidos 3 mensajes:
+  [facturacion] 🧾 Factura: $89.00  | P-2 offset=0  key=ORD-002
+  [facturacion] 🧾 Factura: $129.00 | P-2 offset=1  key=ORD-005
+  [facturacion] 🧾 Factura: $79.00  | P-2 offset=2  key=ORD-006
+[facturacion] ✔  Commit realizado.</span></pre></div>
+        </div>
+      </div>
+
+      <div class="info-box" style="margin-top:0.9rem">
+        Observa que <strong>cada terminal solo ve UNA partición</strong> (P-0, P-1 o P-2).
+        Los 10 pedidos se distribuyen entre los 3 services sin solapamiento — ningún pedido se procesa dos veces.
+      </div>
+
+      <!-- Verificación con consumer-groups.sh -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">🔍 VERIFICAR — 3 CONSUMER-ID en el grupo (Terminal 4)</h3>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">bash · dentro del container Docker</span>
+        </div>
+        <div class="code-body"><pre>docker exec -it kafka bash
+<span class="tc"># con PATH ya configurado:</span>
+kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --group grupo-tiendamax \
+  --describe</pre></div>
+      </div>
+      <div class="code-block" style="margin-top:0.5rem">
+        <div class="code-body"><pre><span class="tg">GROUP           TOPIC              PARTITION  CURRENT-OFFSET  LOG-END  LAG  CONSUMER-ID
+grupo-tiendamax pedidos-tiendamax  0          4               4        0    inventario-xxxxxxxx
+grupo-tiendamax pedidos-tiendamax  1          3               3        0    notificaciones-yyy
+grupo-tiendamax pedidos-tiendamax  2          3               3        0    facturacion-zzzzzzz</span></pre></div>
+      </div>
+      <div style="background:var(--bg3);border-left:3px solid var(--yellow);border-radius:0 8px 8px 0;padding:0.9rem 1.1rem;margin-top:0.8rem;font-size:0.8rem;line-height:1.65">
+        <div style="font-size:0.58rem;letter-spacing:0.18em;color:var(--yellow);margin-bottom:0.4rem">⚡ ¿QUÉ PASA SI LANZAS UN 4° CONSUMER?</div>
+        El 4° consumer se une al grupo → nuevo rebalanceo → pero solo hay 3 particiones → 1 consumer queda <strong>IDLE</strong> (sin partición asignada, solo enviando heartbeats).
+        No es un error: es el <strong>consumer de standby</strong>. Si uno de los 3 activos cae, el idle toma su partición automáticamente en el siguiente rebalanceo.
+      </div>
+
+      <!-- Checklist Paso 4 -->
+      <div style="background:rgba(57,255,20,0.05);border:1px solid rgba(57,255,20,0.2);border-radius:8px;padding:1.2rem 1.4rem;margin-top:1.6rem">
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--green);margin-bottom:0.9rem">✅ CHECKLIST PASO 4 — marca cuando lo hayas comprobado</div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Los 3 consumers arrancan y cada uno muestra solo mensajes de <strong>su partición asignada</strong></span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span><code>kafka-consumer-groups.sh --describe</code> muestra <strong>3 CONSUMER-ID distintos</strong>, LAG=0 en todos</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Si lanzo un 4° consumer con <code>-Dexec.args="backup"</code>, queda IDLE sin recibir mensajes</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Puedo explicar el algoritmo RangeAssignor: ordenar particiones → ordenar consumers → dividir rangos</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Entiendo por qué no creamos un archivo Java nuevo: una clase, 3 instancias, distinto argumento</span>
+        </div>
+      </div>
+    </section>
+
+    <hr class="step-divider">
+
+    <!-- ══════════════════════════════════════════ -->
+    <!--  PASO 5 — SIMULACIÓN DE FALLO              -->
+    <!-- ══════════════════════════════════════════ -->
+
+    <section class="step-section" id="step-5">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem">
+        <div style="background:rgba(232,125,13,0.15);border:1px solid var(--kafka);color:var(--kafka);font-family:'JetBrains Mono',monospace;font-size:0.62rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:4px;letter-spacing:0.1em">PASO 5 🔴 EN CURSO</div>
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--muted)">TOLERANCIA A FALLOS · REBALANCEO · AT-LEAST-ONCE EN ACCIÓN</div>
+      </div>
+      <h2 style="font-size:1.45rem;font-weight:800;margin-bottom:0.4rem">Simulación de fallo y rebalanceo</h2>
+      <p style="color:var(--muted);margin-bottom:1.8rem;font-size:0.85rem">
+        Con los 3 consumers corriendo del Paso 4, matamos uno con <strong>Ctrl+C</strong>.
+        Kafka detecta el silencio, dispara un <strong>rebalanceo</strong> y el Group Coordinator redistribuye
+        automáticamente la partición huérfana entre los consumers supervivientes — sin intervención manual.
+      </p>
+
+      <!-- Dos tipos de fallo -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin-bottom:0.8rem">⚡ DOS TIPOS DE FALLO — cómo los detecta Kafka</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:1.6rem">
+        <div style="background:var(--bg3);border:1px solid rgba(57,255,20,0.25);border-radius:8px;padding:1rem 1.1rem">
+          <div style="font-size:0.6rem;letter-spacing:0.18em;color:var(--green);margin-bottom:0.5rem">CIERRE LIMPIO — Ctrl+C</div>
+          <div style="font-size:0.78rem;line-height:1.6">
+            El <strong>shutdown hook</strong> (línea del <code>addShutdownHook</code>) interrumpe el hilo principal.
+            El consumer llama a <code>close()</code> → notifica al Group Coordinator <em>en ese instante</em>.
+            <br><br>
+            ⏱ Rebalanceo: <strong>inmediato</strong> — sin esperar timeout.
+          </div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid rgba(255,68,68,0.25);border-radius:8px;padding:1rem 1.1rem">
+          <div style="font-size:0.6rem;letter-spacing:0.18em;color:var(--red);margin-bottom:0.5rem">CRASH — proceso muerto / OOM / kill -9</div>
+          <div style="font-size:0.78rem;line-height:1.6">
+            El proceso muere sin avisar. El broker espera <code>session.timeout.ms</code> sin recibir heartbeat.
+            Pasados los <strong>10 segundos</strong> (nuestro config), el Group Coordinator declara al consumer muerto.
+            <br><br>
+            ⏱ Rebalanceo: <strong>~10 seg</strong> después del crash.
+          </div>
+        </div>
+      </div>
+
+      <!-- Secuencia completa del rebalanceo -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin-bottom:0.8rem">🔄 SECUENCIA COMPLETA DEL REBALANCEO</h3>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">línea de tiempo · se mata "notificaciones" (Terminal 2)</span>
+        </div>
+        <div class="code-body"><pre><span class="tn">t=0s</span>   Estado inicial — 3 consumers activos, distribución óptima:
+         inventario    → [P0]   notificaciones → [P1]   facturacion → [P2]
+
+<span class="tn">t=1s</span>   <span class="te">Ctrl+C en Terminal 2 (notificaciones)</span>
+         Shutdown hook dispara → mainThread.interrupt()
+         KafkaConsumer.close() → envía LeaveGroup al broker
+
+<span class="tn">t=1s</span>   Group Coordinator recibe LeaveGroup
+         Marca a notificaciones como DEAD
+         Emite <span class="ts">JoinGroup</span> request a los consumers vivos → <span class="ts">REBALANCEO EAGER</span>
+
+<span class="tn">t=1s</span>   <span class="tc">── STOP THE WORLD ─────────────────────────────────────────────</span>
+         inventario y facturacion dejan de procesar mensajes
+         Ambos re-envían JoinGroup → el broker elige un Leader
+         El Leader ejecuta RangeAssignor con 3 particiones y 2 consumers:
+           floor(3 / 2) = <span class="tn">1</span>  base por consumer
+           3 % 2       = <span class="tn">1</span>  → primer consumer recibe 1 extra
+
+<span class="tn">t=2s</span>   Nueva asignación propagada (SyncGroup):
+         inventario  → [<span class="tg">P0, P1</span>]   <span class="tc">← ahora tiene 2 particiones</span>
+         facturacion → [<span class="tg">P2</span>]
+         <span class="tc">── FIN STOP THE WORLD ─────────────────────────────────────────</span>
+
+<span class="tn">t=2s</span>   Consumers reanudan poll() con sus nuevas particiones asignadas</pre></div>
+      </div>
+
+      <!-- Diagrama antes / después -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">📊 ANTES Y DESPUÉS DEL FALLO</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem">
+        <div class="code-block" style="margin:0">
+          <div class="code-bar">
+            <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+            <span class="code-title">antes — 3 consumers · distribución óptima</span>
+          </div>
+          <div class="code-body"><pre>  P0 → <span class="tg">inventario</span>
+  P1 → <span class="tg">notificaciones</span>
+  P2 → <span class="tg">facturacion</span>
+
+  Cada consumer: 1 partición
+  Throughput máximo</pre></div>
+        </div>
+        <div class="code-block" style="margin:0">
+          <div class="code-bar">
+            <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+            <span class="code-title">después — 2 consumers · rebalanceado</span>
+          </div>
+          <div class="code-body"><pre>  P0 → <span class="tg">inventario</span>
+  P1 → <span class="tg">inventario</span>   <span class="tc">← asumió P1</span>
+  P2 → <span class="tg">facturacion</span>
+  <span class="te">     notificaciones — MUERTO</span>
+
+  Sigue funcionando al 100%
+  inventario procesa 2 particiones</pre></div>
+        </div>
+      </div>
+
+      <!-- At-least-once en acción -->
+      <div style="background:var(--bg3);border-left:3px solid var(--yellow);border-radius:0 8px 8px 0;padding:1rem 1.2rem;margin:1.2rem 0">
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--yellow);margin-bottom:0.5rem">⚡ AT-LEAST-ONCE EN ACCIÓN — reprocesamiento tras el fallo</div>
+        <div style="font-size:0.8rem;line-height:1.7">
+          Si <code>notificaciones</code> había procesado mensajes de P1 pero aún <strong>no había llamado a commitSync()</strong>
+          (crash en medio del loop), esos offsets <em>no están commiteados en</em> <code>__consumer_offsets</code>.
+          <br><br>
+          Cuando <code>inventario</code> asume P1, lee desde el <strong>último committed offset</strong> → esos mensajes se procesan de nuevo.
+          Resultado: <strong>at-least-once</strong> — posible duplicado, pero <em>ningún mensaje se pierde</em>.
+          <br><br>
+          <span style="color:var(--muted)">En producción se maneja con idempotencia en el destino (DB upsert, deduplicación por orderId).</span>
+        </div>
+      </div>
+
+      <!-- Cómo ejecutarlo tú mismo -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">▶ CÓMO REPRODUCIRLO — paso a paso</h3>
+      <div style="display:flex;flex-direction:column;gap:0.5rem">
+
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:0.9rem 1.1rem">
+          <div style="font-size:0.6rem;letter-spacing:0.18em;color:var(--muted);margin-bottom:0.5rem">PREPARACIÓN</div>
+          <div style="font-size:0.8rem;line-height:1.65">
+            1. Asegúrate de que el Producer fue ejecutado y hay mensajes en el topic.<br>
+            2. Lanza los 3 consumers del Paso 4 (1 por terminal) y espera a que todos impriman
+               <code>Escuchando topic...</code> y hayan consumido los mensajes existentes.<br>
+            3. Ejecuta el Producer <strong>otra vez</strong> para enviar 10 pedidos nuevos — así habrá mensajes frescos que ver durante el rebalanceo.
+          </div>
+        </div>
+
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.9rem;display:flex;align-items:center;gap:0.6rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.75rem">💥</span>
+            <span style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--red)">Terminal 2 — mata "notificaciones" con Ctrl+C</span>
+          </div>
+          <div class="code-body"><pre><span class="tc"># Simplemente presiona Ctrl+C en la terminal donde corre notificaciones</span>
+<span class="tc"># Verás el mensaje del shutdown hook:</span>
+<span class="te">[notificaciones] 🛑 Señal de cierre recibida...
+[notificaciones] 👋 Consumer cerrado limpiamente.</span></pre></div>
+        </div>
+
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.9rem;display:flex;align-items:center;gap:0.6rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.75rem">👀</span>
+            <span style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--kafka2)">Terminal 1 — observa cómo inventario asume P1</span>
+          </div>
+          <div class="code-body"><pre><span class="tg">[inventario] ⏳ Esperando mensajes...
+[inventario] ⏳ Esperando mensajes...
+</span><span class="tc"># ← aquí ocurre el rebalanceo (breve pausa)</span>
+<span class="tg">[inventario] 📦 Recibidos 7 mensajes:        ← ahora ve P0 + P1
+  [inventario] 📦 Reservando stock: Laptop Pro  | P-0 offset=4  key=ORD-001
+  [inventario] 📦 Reservando stock: Monitor 27" | P-0 offset=5  key=ORD-004
+  [inventario] 📦 Reservando stock: Teclado Mec | P-1 offset=3  key=ORD-002  ← P1 nueva
+  [inventario] 📦 Reservando stock: Mouse Inalám| P-1 offset=4  key=ORD-007
+[inventario] ✔  Commit realizado.</span></pre></div>
+        </div>
+      </div>
+
+      <!-- Verificar el estado del grupo -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">🔍 VERIFICAR — solo 2 CONSUMER-ID tras el fallo</h3>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">kafka-consumer-groups.sh --describe · tras matar notificaciones</span>
+        </div>
+        <div class="code-body"><pre>kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --group grupo-tiendamax \
+  --describe</pre></div>
+      </div>
+      <div class="code-block" style="margin-top:0.5rem">
+        <div class="code-body"><pre><span class="tg">GROUP           TOPIC              PARTITION  CURRENT-OFFSET  LOG-END  LAG  CONSUMER-ID
+grupo-tiendamax pedidos-tiendamax  0          8               8        0    inventario-xxxxxxxx
+grupo-tiendamax pedidos-tiendamax  1          6               6        0    inventario-xxxxxxxx   </span><span class="tn">← P1 ahora en inventario</span>
+<span class="tg">grupo-tiendamax pedidos-tiendamax  2          6               6        0    facturacion-zzzzzzz</span>
+
+<span class="tc"># notificaciones ya no aparece en la lista — el grupo funciona con 2 members</span></pre></div>
+      </div>
+
+      <!-- Qué pasa si vuelve a arrancar -->
+      <div style="background:rgba(57,255,20,0.05);border:1px solid rgba(57,255,20,0.25);border-radius:8px;padding:1rem 1.2rem;margin-top:1rem">
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--green);margin-bottom:0.45rem">♻️ ¿QUÉ PASA SI REINICIAS NOTIFICACIONES?</div>
+        <div style="font-size:0.8rem;line-height:1.65">
+          Se une de nuevo al grupo → <strong>otro rebalanceo</strong> → RangeAssignor redistribuye las 3 particiones entre 3 consumers
+          → vuelve a la distribución óptima (1 partición por consumer).
+          El sistema <strong>se auto-repara</strong> sin intervención manual. Eso es lo que hace Kafka resiliente.
+        </div>
+      </div>
+
+      <!-- Comparación Eager vs Cooperative -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">🆚 EAGER vs COOPERATIVE — dos modos de rebalanceo</h3>
+      <table class="anno-table">
+        <thead>
+          <tr><th>Característica</th><th>Eager (Stop-The-World) — default</th><th>CooperativeStickyAssignor</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>¿Cómo funciona?</td>
+            <td>Todos los consumers revocan <strong>todas</strong> sus particiones, se reúnen y reciben nueva asignación</td>
+            <td>Solo se mueven las particiones <strong>afectadas</strong>; el resto sigue procesando sin pausa</td>
+          </tr>
+          <tr>
+            <td>Pausa en procesamiento</td>
+            <td><span style="color:var(--red)">Total</span> — todos paran durante el rebalanceo</td>
+            <td><span style="color:var(--green)">Mínima</span> — solo los que cambian de partición</td>
+          </tr>
+          <tr>
+            <td>Configuración</td>
+            <td><code>partition.assignment.strategy=RangeAssignor</code> (default)</td>
+            <td><code>partition.assignment.strategy=CooperativeStickyAssignor</code></td>
+          </tr>
+          <tr>
+            <td>Cuándo usarlo</td>
+            <td>Apps simples, volumen bajo, fácil de razonar</td>
+            <td>Producción con alto throughput donde la pausa importa</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Checklist Paso 5 -->
+      <div style="background:rgba(57,255,20,0.05);border:1px solid rgba(57,255,20,0.2);border-radius:8px;padding:1.2rem 1.4rem;margin-top:1.6rem">
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--green);margin-bottom:0.9rem">✅ CHECKLIST PASO 5 — marca cuando lo hayas comprobado</div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Al matar <code>notificaciones</code>, veo en Terminal 1 que <code>inventario</code> empieza a procesar mensajes de <strong>P1</strong></span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span><code>kafka-consumer-groups.sh --describe</code> muestra solo <strong>2 CONSUMER-ID</strong> y ambas columnas LAG=0</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Al relanzar <code>notificaciones</code>, el grupo vuelve a 3 members y P1 regresa a él (rebalanceo de vuelta)</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Puedo explicar la diferencia entre cierre limpio (Ctrl+C) y crash en términos del tiempo de detección de Kafka</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Entiendo por qué puede haber reprocesamiento (at-least-once) si el consumer muere antes del <code>commitSync()</code></span>
+        </div>
+      </div>
+    </section>
+
+    <hr class="step-divider">
+
+    <!-- ══════════════════════════════════════════ -->
+    <!--  PASO 6 — MONITOREO DE LAG                 -->
+    <!-- ══════════════════════════════════════════ -->
+
+    <section class="step-section" id="step-6">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem">
+        <div style="background:rgba(232,125,13,0.15);border:1px solid var(--kafka);color:var(--kafka);font-family:'JetBrains Mono',monospace;font-size:0.62rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:4px;letter-spacing:0.1em">PASO 6 🔴 EN CURSO</div>
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--muted)">OBSERVABILIDAD · CONSUMER LAG · RESET DE OFFSETS</div>
+      </div>
+      <h2 style="font-size:1.45rem;font-weight:800;margin-bottom:0.4rem">Monitoreo de lag y reset de offsets</h2>
+      <p style="color:var(--muted);margin-bottom:1.8rem;font-size:0.85rem">
+        El <strong>consumer lag</strong> es la métrica más importante en Kafka: cuántos mensajes tiene pendientes tu grupo.
+        Un lag creciente significa que el consumer no procesa tan rápido como el producer produce — la primera señal de alarma en producción.
+        También veremos cómo <strong>resetear offsets</strong> para reprocesar todo el historial o saltar mensajes problemáticos.
+      </p>
+
+      <!-- ¿Qué es el Consumer Lag? -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin-bottom:0.8rem">📐 ¿QUÉ ES EL CONSUMER LAG?</h3>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">concepto · lag por partición</span>
+        </div>
+        <div class="code-body"><pre>  Partición P0  →  offsets almacenados en el log del broker:
+
+  ┌──────┬──────┬──────┬──────┬──────┬──────┬──────┬──────┐
+  │  0   │  1   │  2   │  3   │  4   │  5   │  6   │  7   │
+  │ORD-1 │ORD-4 │ORD-8 │ORD-10│ORD-11│ORD-12│ORD-13│ORD-14│
+  └──────┴──────┴──────┴──────┴──────┴──────┴──────┴──────┘
+                                  ▲                         ▲
+                          COMMITTED-OFFSET = 4    LOG-END-OFFSET = 8
+
+  <span class="tn">LAG = LOG-END-OFFSET − COMMITTED-OFFSET = 8 − 4 = 4</span>
+
+  <span class="tc">← los 4 mensajes entre ambos punteros están sin leer (o sin commitear)</span></pre></div>
+      </div>
+
+      <!-- Columnas de --describe explicadas -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">🗂️ COLUMNAS DE --describe — qué significa cada una</h3>
+      <table class="anno-table">
+        <thead><tr><th>Columna</th><th>Significado</th><th>Ejemplo</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>GROUP</code></td>
+            <td>Nombre del Consumer Group. Un mismo topic puede tener múltiples grupos leyendo de forma independiente.</td>
+            <td><code>grupo-tiendamax</code></td>
+          </tr>
+          <tr>
+            <td><code>TOPIC</code></td>
+            <td>Nombre del topic que está consumiendo este grupo.</td>
+            <td><code>pedidos-tiendamax</code></td>
+          </tr>
+          <tr>
+            <td><code>PARTITION</code></td>
+            <td>Número de partición. Una fila por cada partición del topic.</td>
+            <td><code>0</code>, <code>1</code>, <code>2</code></td>
+          </tr>
+          <tr>
+            <td><code>CURRENT-OFFSET</code></td>
+            <td>El último offset que el grupo <strong>commiteó</strong> en <code>__consumer_offsets</code>. Desde aquí reanudará si reinicia.</td>
+            <td><code>4</code></td>
+          </tr>
+          <tr>
+            <td><code>LOG-END-OFFSET</code></td>
+            <td>El último offset que existe en el log del broker (el mensaje más reciente escrito).</td>
+            <td><code>8</code></td>
+          </tr>
+          <tr>
+            <td><code class="hl-red">LAG</code></td>
+            <td><strong>LOG-END-OFFSET − CURRENT-OFFSET</strong>. La métrica más crítica: cuántos mensajes están pendientes de procesar. LAG=0 es el objetivo.</td>
+            <td><code class="hl-red">4</code> → alerta</td>
+          </tr>
+          <tr>
+            <td><code>CONSUMER-ID</code></td>
+            <td>ID único del consumer al que está asignada esa partición. Vacío si el grupo está inactivo (ningún consumer corriendo).</td>
+            <td><code>inventario-abc123</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Generar lag intencional -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">🧪 EXPERIMENTO — genera lag y obsérvalo crecer</h3>
+      <div style="display:flex;flex-direction:column;gap:0.6rem">
+
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:0.9rem 1.1rem">
+          <div style="font-size:0.6rem;letter-spacing:0.18em;color:var(--muted);margin-bottom:0.5rem">1 · DETÉN TODOS LOS CONSUMERS</div>
+          <div style="font-size:0.8rem">Ctrl+C en las 3 terminales del Paso 4. El grupo queda sin members activos.</div>
+        </div>
+
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.9rem;display:flex;align-items:center;gap:0.5rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--kafka2)">2 · ENVÍA MENSAJES NUEVOS (con el grupo parado)</span>
+          </div>
+          <div class="code-body"><pre><span class="tc"># Desde la carpeta tiendamax/ — envía 10 pedidos nuevos sin consumer activo</span>
+mvn exec:java -Dexec.mainClass=<span class="ts">"com.tiendamax.PedidoProducer"</span></pre></div>
+        </div>
+
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.9rem;display:flex;align-items:center;gap:0.5rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--kafka2)">3 · OBSERVA EL LAG ACUMULADO</span>
+          </div>
+          <div class="code-body"><pre>docker exec -it kafka bash
+kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --group grupo-tiendamax \
+  --describe</pre></div>
+        </div>
+
+        <div class="code-block" style="margin:0">
+          <div class="code-body"><pre><span class="te">GROUP           TOPIC              PARTITION  CURRENT-OFFSET  LOG-END  LAG  CONSUMER-ID
+grupo-tiendamax pedidos-tiendamax  0          4               8        4    -
+grupo-tiendamax pedidos-tiendamax  1          3               6        3    -
+grupo-tiendamax pedidos-tiendamax  2          3               6        3    -</span>
+<span class="tc">                                                                        ▲
+                                                              LAG > 0, CONSUMER-ID vacío
+                                                              → grupo parado, mensajes acumulados</span></pre></div>
+        </div>
+      </div>
+
+      <div class="info-box" style="margin-top:0.7rem">
+        En producción, este LAG se exporta a <strong>Prometheus + Grafana</strong> (vía JMX o Kafka Exporter).
+        Una alerta típica: <em>"si LAG &gt; 1000 mensajes durante más de 5 minutos → PagerDuty"</em>.
+      </div>
+
+      <!-- Reset de offsets -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">🔁 RESET DE OFFSETS — volver a procesar mensajes</h3>
+      <div class="info-box" style="margin-bottom:1rem">
+        <strong>⚠️ Prerequisito:</strong> El Consumer Group debe estar <strong>inactivo</strong> (sin ningún consumer corriendo).
+        Si hay consumers activos, el reset falla con error. Para esto el grupo ya estaba parado en el experimento anterior.
+      </div>
+
+      <!-- Tabla de opciones de reset -->
+      <table class="anno-table">
+        <thead><tr><th>Opción</th><th>¿Qué hace?</th><th>Cuándo usarlo</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>--to-earliest</code></td>
+            <td>Mueve el committed-offset al <strong>offset 0</strong> de cada partición. Al relanzar el consumer, reprocesa <em>todos</em> los mensajes del topic.</td>
+            <td>Reprocessing completo: nuevo campo en DB, bug fix que requiere recalcular todo.</td>
+          </tr>
+          <tr>
+            <td><code>--to-latest</code></td>
+            <td>Mueve el offset al final del log. El consumer ignora todos los mensajes existentes y solo lee los <em>nuevos</em>.</td>
+            <td>Saltar mensajes envenenados o un backlog antiguo irrelevante.</td>
+          </tr>
+          <tr>
+            <td><code>--to-offset N</code></td>
+            <td>Mueve el offset exactamente a <code>N</code> en la partición especificada.</td>
+            <td>Replay quirúrgico: "quiero reprocesar desde el mensaje 150 de P0".</td>
+          </tr>
+          <tr>
+            <td><code>--shift-by -N</code></td>
+            <td>Retrocede <code>N</code> posiciones desde el committed-offset actual.</td>
+            <td>Reprocesar solo los últimos N mensajes sin saber el offset exacto.</td>
+          </tr>
+          <tr>
+            <td><code>--by-duration PT1H</code></td>
+            <td>Retrocede hasta el mensaje más antiguo dentro de la última hora (formato ISO 8601).</td>
+            <td>Reprocesar el último bloque de tiempo tras un incidente en producción.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Ejemplo práctico: reset to earliest -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">▶ EJEMPLO PRÁCTICO — reprocesar todo desde el principio</h3>
+      <div style="display:flex;flex-direction:column;gap:0.6rem">
+
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.9rem;display:flex;align-items:center;gap:0.5rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--muted)">PASO A · dry-run primero — ver qué va a cambiar sin aplicar</span>
+          </div>
+          <div class="code-body"><pre>kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --group grupo-tiendamax \
+  --topic pedidos-tiendamax \
+  --reset-offsets \
+  --to-earliest \
+  <span class="tn">--dry-run</span>         <span class="tc">← solo muestra el plan, NO ejecuta</span></pre></div>
+        </div>
+
+        <div class="code-block" style="margin:0">
+          <div class="code-body"><pre><span class="tc"># Salida del dry-run:</span>
+<span class="tg">GROUP           TOPIC              PARTITION  NEW-OFFSET
+grupo-tiendamax pedidos-tiendamax  0          0          ← volverá a offset 0
+grupo-tiendamax pedidos-tiendamax  1          0
+grupo-tiendamax pedidos-tiendamax  2          0</span></pre></div>
+        </div>
+
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.9rem;display:flex;align-items:center;gap:0.5rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--red)">PASO B · aplicar el reset (reemplaza --dry-run con --execute)</span>
+          </div>
+          <div class="code-body"><pre>kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --group grupo-tiendamax \
+  --topic pedidos-tiendamax \
+  --reset-offsets \
+  --to-earliest \
+  <span class="tg">--execute</span>         <span class="tc">← aplica el cambio en __consumer_offsets</span></pre></div>
+        </div>
+
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div style="background:var(--bg3);padding:0.4rem 0.9rem;display:flex;align-items:center;gap:0.5rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--kafka2)">PASO C · relanza cualquier consumer — verás los mensajes desde el inicio</span>
+          </div>
+          <div class="code-body"><pre>mvn exec:java -Dexec.mainClass=<span class="ts">"com.tiendamax.PedidoConsumer"</span> -Dexec.args=<span class="ts">"inventario"</span></pre></div>
+        </div>
+
+        <div class="code-block" style="margin:0">
+          <div class="code-body"><pre><span class="tg">[inventario] 📦 Recibidos 10 mensajes:
+  [inventario] 📦 Reservando stock: Laptop Pro   | P-0 offset=0   ← desde el principio
+  [inventario] 📦 Reservando stock: Monitor 27"  | P-0 offset=1
+  ...</span>
+<span class="tc"># offset=0 confirma que el reset funcionó</span></pre></div>
+        </div>
+      </div>
+
+      <!-- Ejemplo: shift-by -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">▶ EJEMPLO PRÁCTICO — retroceder solo 5 mensajes en P0</h3>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">--shift-by · reset relativo al offset actual</span>
+        </div>
+        <div class="code-body"><pre>kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --group grupo-tiendamax \
+  --topic pedidos-tiendamax:0 \     <span class="tc">← solo partición 0</span>
+  --reset-offsets \
+  --shift-by <span class="te">-5</span> \               <span class="tc">← retrocede 5 posiciones</span>
+  --execute</pre></div>
+      </div>
+      <div style="background:var(--bg3);border-left:3px solid var(--purple);border-radius:0 8px 8px 0;padding:0.9rem 1.1rem;margin-top:0.7rem">
+        <div style="font-size:0.6rem;letter-spacing:0.18em;color:var(--purple);margin-bottom:0.4rem">💡 USO EN PRODUCCIÓN</div>
+        <div style="font-size:0.8rem;line-height:1.65">
+          Imagina que el microservicio de facturación tuvo un bug durante 5 mensajes y los procesó mal.
+          Con <code>--shift-by -5</code> en esa partición + fix del bug + <code>--execute</code> →
+          esos 5 mensajes se reprocesarán correctamente sin tocar el resto del historial.
+        </div>
+      </div>
+
+      <!-- Resumen del flujo completo -->
+      <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin:1.8rem 0 0.8rem">🗺️ FLUJO COMPLETO DEL LAB — lo que construiste</h3>
+      <div class="code-block">
+        <div class="code-bar">
+          <div class="code-dot r"></div><div class="code-dot y"></div><div class="code-dot g"></div>
+          <span class="code-title">arquitectura TiendaMax · resumen end-to-end</span>
+        </div>
+        <div class="code-body"><pre>  REST API / Evento        Kafka Broker (KRaft)       Microservicios
+  ────────────────         ──────────────────         ──────────────────
+                           pedidos-tiendamax
+  PedidoProducer.java  ──▶  ┌──────────────┐  ──▶  PedidoConsumer "inventario"
+    acks=all               │ P0 · P1 · P2  │  ──▶  PedidoConsumer "notificaciones"
+    idempotente            └──────────────┘  ──▶  PedidoConsumer "facturacion"
+    key=orderId                                     └── mismo group.id
+                                                    └── commitSync() at-least-once
+
+  Monitoreo:
+    kafka-consumer-groups.sh --describe  →  LAG por partición
+    --reset-offsets --to-earliest        →  replay completo
+    --reset-offsets --shift-by -N        →  replay quirúrgico</pre></div>
+      </div>
+
+      <!-- Checklist final Paso 6 -->
+      <div style="background:rgba(57,255,20,0.05);border:1px solid rgba(57,255,20,0.2);border-radius:8px;padding:1.2rem 1.4rem;margin-top:1.6rem">
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--green);margin-bottom:0.9rem">✅ CHECKLIST PASO 6 — marca cuando lo hayas comprobado</div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Con el grupo parado y mensajes nuevos, veo <code>LAG &gt; 0</code> y <code>CONSUMER-ID</code> vacío en <code>--describe</code></span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>El <code>--dry-run</code> muestra el plan del reset sin modificar nada; al cambiar a <code>--execute</code> sí lo aplica</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Tras <code>--to-earliest --execute</code>, el consumer relanzado imprime <code>offset=0</code> en los primeros mensajes</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Puedo explicar la fórmula: <strong>LAG = LOG-END-OFFSET − CURRENT-OFFSET</strong> y qué significa cada parte</span>
+        </div>
+        <div class="check-row" onclick="this.classList.toggle('checked')">
+          <div class="check-box-mini">✓</div>
+          <span>Entiendo cuándo usar <code>--to-earliest</code> vs <code>--shift-by</code> vs <code>--to-latest</code> según el caso de uso</span>
+        </div>
+      </div>
+    </section>
+
+    <hr class="step-divider">
+
+    <!-- ══════════════════════════════════════════ -->
+    <!--  BONUS — SPRING KAFKA                      -->
+    <!-- ══════════════════════════════════════════ -->
+
+    <section class="step-section" id="step-future">
+      <div style="font-size:0.58rem;letter-spacing:0.25em;color:var(--muted);margin-bottom:1.2rem">🎉 LAB COMPLETADO — BONUS DISPONIBLE</div>
+
+      <div style="background:linear-gradient(135deg,rgba(232,125,13,0.08),rgba(245,162,61,0.05));border:1px solid rgba(232,125,13,0.3);border-radius:10px;padding:1.4rem;margin-bottom:1.2rem">
+        <div style="font-size:1.1rem;font-weight:800;margin-bottom:0.4rem">🏆 ¡Completaste el lab TiendaMax!</div>
+        <div style="font-size:0.82rem;line-height:1.7;color:var(--text)">
+          Has construido un sistema Kafka completo de principio a fin:
+          infraestructura KRaft, producer idempotente, consumer con commit manual,
+          Consumer Groups con RangeAssignor, tolerancia a fallos con rebalanceo automático
+          y monitoreo de lag con reset de offsets.
+        </div>
+      </div>
+
+      <div style="border:1px dashed rgba(232,125,13,0.4);border-radius:8px;padding:1.2rem;opacity:0.7">
+        <div style="font-size:0.6rem;letter-spacing:0.2em;color:var(--kafka2);margin-bottom:0.7rem">BONUS — SPRING KAFKA · mapeo del código puro</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;font-size:0.78rem">
+          <div>
+            <div style="color:var(--muted);font-size:0.62rem;margin-bottom:0.3rem">KAFKA CLIENTS PURO</div>
+            <div style="background:var(--bg3);border-radius:6px;padding:0.7rem;font-family:'JetBrains Mono',monospace;font-size:0.68rem;line-height:1.7">
+              KafkaConsumer&lt;K,V&gt;<br>
+              consumer.poll(duration)<br>
+              consumer.commitSync()<br>
+              consumer.subscribe(topics)<br>
+              KafkaProducer&lt;K,V&gt;<br>
+              producer.send(record, cb)
+            </div>
+          </div>
+          <div>
+            <div style="color:var(--kafka2);font-size:0.62rem;margin-bottom:0.3rem">SPRING KAFKA EQUIVALENTE</div>
+            <div style="background:var(--bg3);border-radius:6px;padding:0.7rem;font-family:'JetBrains Mono',monospace;font-size:0.68rem;line-height:1.7">
+              @KafkaListener(topics=...)<br>
+              <span style="color:var(--muted)">// gestionado por Spring</span><br>
+              ack.acknowledge()<br>
+              <span style="color:var(--muted)">// gestionado por Spring</span><br>
+              KafkaTemplate&lt;K,V&gt;<br>
+              kafkaTemplate.send(topic, v)
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  function scrollToStep(id) {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Highlight active sidebar item on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+          item.classList.toggle('current-scroll',
+            item.getAttribute('onclick')?.includes(id));
+        });
+      }
+    });
+  }, { threshold: 0.3, rootMargin: '-54px 0px 0px 0px' });
+
+  document.querySelectorAll('.step-section').forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

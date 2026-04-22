@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd /c \"mkdir C:\\\\Users\\\\aldo_\\\\Documents\\\\SIIE\\\\kafka_documentacion\\\\kafka_curso\\\\kafka-week\\\\tiendamax\\\\src\\\\main\\\\java\\\\com\\\\tiendamax\\\\model 2>nul & echo OK\")",
+      "Bash(cmd /c \"mkdir \\\\\"C:\\\\Users\\\\aldo_\\\\Documents\\\\SIIE\\\\kafka_documentacion\\\\kafka_curso\\\\kafka-week\\\\tiendamax\\\\src\\\\main\\\\java\\\\com\\\\tiendamax\\\\model\\\\\" 2>nul && echo CREATED || echo ALREADY_EXISTS\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\aldo_\\\\Documents\\\\SIIE\\\\kafka_documentacion\\\\kafka_curso\\\\kafka-week\\\\tiendamax\\\\src\\\\main\\\\java\\\\com\\\\tiendamax\\\\model\")",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-Content \"C:\\\\Users\\\\aldo_\\\\Documents\\\\SIIE\\\\kafka_documentacion\\\\kafka_curso\\\\kafka-curso-interactivo.html\")",
+      "Bash(Measure-Object -Line)",
+      "Bash(Select-Object Lines)",
+      "Bash(bash\" /c/Users/aldo_/Documents/SIIE/kafka_documentacion/kafka_curso/lab-week-2/LAB-GUIDE.md 2>/dev/null)",
+      "Bash(grep -n \"```bash\" /c/Users/aldo_/Documents/SIIE/kafka_documentacion/kafka_curso/lab-week-2/LAB-GUIDE.md 2>/dev/null)",
+      "Bash(dir \"C:\\\\Users\\\\aldo_\\\\Documents\\\\SIIE\\\\kafka_documentacion\\\\kafka_curso\\\\lab-week-2\" /b)"
+    ]
+  }
+}

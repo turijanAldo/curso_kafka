@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!--
+        logback-spring.xml — validation-service
+        ═══════════════════════════════════════════════════════════════════════════
+
+        Configura el patrón de logging para incluir el correlationId del Saga
+        via MDC (Mapped Diagnostic Context).
+
+        CLAVE MDC: txId
+          - TransferRequestedConsumer hace MDC.put("txId", event.getTransactionId())
+            al inicio de onTransferRequested() y MDC.remove("txId") en el finally.
+          - Todos los logs dentro del procesamiento de ese evento (incluyendo los de
+            ValidationService y ValidationEventProducer) verán txId en el MDC.
+
+        ¿CÓMO FUNCIONA MDC EN KAFKA CONSUMERS?
+          Cada mensaje Kafka es procesado en el hilo del KafkaListenerContainer.
+          MDC es thread-local → valores del MDC no se mezclan entre mensajes
+          procesados en distintos hilos. Si hay 3 particiones y 3 hilos de consumer,
+          cada hilo tiene su propio MDC. Al terminar el procesamiento, limpiamos
+          el MDC con remove("txId") para no "contaminar" el siguiente mensaje
+          que ese hilo procese.
+
+        VENTAJA PRINCIPAL:
+          En los logs de la consola, cada línea muestra el txId de la transferencia
+          en proceso. Si hay múltiples transferencias concurrentes, podemos filtrar
+          por txId para ver solo los logs de una transferencia específica:
+
+          grep "txId=f47ac10b-58cc" application.log
+
+        EJEMPLO:
+          10:23:41.500 [kafka-consumer-1] INFO  [txId=f47a-...] c.l.v.c.TransferRequestedConsumer - 📨 Evento recibido
+          10:23:41.510 [kafka-consumer-1] INFO  [txId=f47a-...] c.l.v.s.ValidationService - Validando transferencia
+          10:23:41.520 [kafka-consumer-1] INFO  [txId=f47a-...] c.l.v.p.ValidationEventProducer - Publicando transfer.validated
+    -->
+
+    <conversionRule conversionWord="clr"
+                    converterClass="org.springframework.boot.logging.logback.ColorConverter"/>
+    <conversionRule conversionWord="wex"
+                    converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter"/>
+
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%clr(%d{HH:mm:ss.SSS}){faint} %clr([%15.15t]){faint} %clr(%-5p){highlight} %clr([txId=%X{txId:-}]){cyan} %clr(%-36.36logger{36}){blue} %clr(-){faint} %m%n%wex"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <logger name="com.lab" level="DEBUG"/>
+    <logger name="org.springframework.kafka" level="INFO"/>
+    <logger name="org.flywaydb" level="INFO"/>
+    <logger name="org.hibernate.SQL" level="DEBUG"/>
+    <logger name="org.hibernate.orm.jdbc.bind" level="TRACE"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

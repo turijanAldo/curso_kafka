@@ -1,0 +1,146 @@
+version: "3.9"
+
+# ================================================================
+# INFRAESTRUCTURA LOCAL — kafka-transfers Lab Week 2
+#
+# Servicios:
+#   kafka   → Apache Kafka 4.0.0 en modo KRaft (sin ZooKeeper)
+#   mysql   → MySQL 8.0, base de datos compartida del lab
+#   redis   → Redis 7, caché de estado de transferencias (Bonus A)
+#
+# Red interna: transfers-net
+# ================================================================
+
+networks:
+  transfers-net:
+    driver: bridge
+
+services:
+
+  # ================================================================
+  # KAFKA — Broker único, modo KRaft
+  # Puerto interno: 29092 (entre contenedores)
+  # Puerto externo: 9092  (desde el host / microservicios locales)
+  # ================================================================
+  kafka:
+    image: apache/kafka:4.0.0
+    container_name: kafka
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+    environment:
+      # ── Identidad del nodo ───────────────────────────────────────
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      # ── Listeners ───────────────────────────────────────────────
+      # PLAINTEXT  → acceso desde dentro de la red Docker (otros contenedores)
+      # EXTERNAL   → acceso desde el host (microservicios Spring Boot locales)
+      # CONTROLLER → protocolo interno de KRaft para elección de líder
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # ── KRaft — quórum de controladores ─────────────────────────
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      # ── Almacenamiento de logs ───────────────────────────────────
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+
+      # ── Cluster ID único (base64, 16 bytes) ─────────────────────
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+      # ── Configuración de rendimiento para lab ───────────────────
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"     # creamos topics explícitamente
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1    # 1 broker → RF=1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_NUM_PARTITIONS: 3                      # default para topics nuevos
+      KAFKA_LOG_RETENTION_HOURS: 24                # retener mensajes 24 h en lab
+
+    healthcheck:
+      test: >
+        kafka-topics.sh --list --bootstrap-server localhost:9092
+        || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+    networks:
+      - transfers-net
+
+  # ================================================================
+  # MYSQL 8.0 — Base de datos del lab
+  # Puerto externo: 3306
+  # Schema:   transfers_db
+  # Usuario:  lab_user / lab_pass
+  # Root:     root / root_pass
+  # ================================================================
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: transfers_db
+      MYSQL_USER: lab_user
+      MYSQL_PASSWORD: lab_pass
+    volumes:
+      # Script de inicialización ejecutado al crear el contenedor por primera vez
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      # Volumen nombrado para persistir datos entre reinicios
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "lab_user", "-plab_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - transfers-net
+
+  # ================================================================
+  # REDIS 7 — Caché de estado de transferencias (Bonus A)
+  # Puerto externo: 6379
+  #
+  # USO:
+  #   transfer-api cachea el resultado de GET /transfers/{id}
+  #   para evitar ir a MySQL en cada consulta de estado.
+  #
+  # TTL por estado:
+  #   - Estados finales (COMPLETED, FAILED, ROLLED_BACK): 10 minutos
+  #     El estado ya no cambia → TTL largo
+  #   - Estados intermedios (PROCESSING, VALIDATED, DEBITED): 5 segundos
+  #     El estado puede cambiar pronto → TTL corto para evitar stale reads
+  #
+  # En producción se usaría un cluster Redis con replicación.
+  # Para el lab, un nodo único es suficiente.
+  # ================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --save "" --appendonly no --maxmemory 64mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - transfers-net
+
+# ================================================================
+# VOLÚMENES NOMBRADOS
+# ================================================================
+volumes:
+  mysql-data:
+    driver: local

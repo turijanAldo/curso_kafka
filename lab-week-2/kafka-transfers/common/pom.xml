@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ================================================================ -->
+    <!-- MÓDULO: common                                                     -->
+    <!--                                                                    -->
+    <!-- Rol: JAR compartido entre todos los microservicios.               -->
+    <!-- Contiene: eventos Kafka (DTOs), enums del Saga, constantes.       -->
+    <!-- NO tiene @SpringBootApplication — no es un microservicio.         -->
+    <!-- Produce: common-1.0.0.jar (instalado en ~/.m2 con mvn install)   -->
+    <!-- ================================================================ -->
+
+    <parent>
+        <groupId>com.lab</groupId>
+        <artifactId>kafka-transfers</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>common</artifactId>
+    <packaging>jar</packaging>
+    <name>common</name>
+    <description>Shared events, enums and constants for all microservices</description>
+
+    <dependencies>
+
+        <!-- Jackson — serialización de eventos a JSON para Kafka -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- Jackson soporte de tipos Java 8+ (Instant) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
+        <!-- Bean Validation — anotaciones @NotNull, @NotBlank en los DTOs -->
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
+
+    </dependencies>
+
+    <!-- Este módulo NO usa spring-boot-maven-plugin (no genera fat JAR) -->
+    <!-- Solo el plugin estándar para compilar con Java 17 -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

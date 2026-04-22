@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!--
+        logback-spring.xml — transfer-api
+        ═══════════════════════════════════════════════════════════════════════════
+
+        Configura el patrón de logging para incluir el correlationId del Saga
+        via MDC (Mapped Diagnostic Context).
+
+        CLAVE MDC: txId
+          - Se pone en MDC.put("txId", event.getTransactionId()) al inicio del
+            procesamiento de cada request POST /transfers.
+          - Si el request no tiene txId (ej: GET /transfers/{id}), %X{txId:-}
+            muestra "-" como valor por defecto.
+          - Se limpia con MDC.clear() en el bloque finally del handler.
+
+        FORMATO DE LÍNEA:
+          HH:mm:ss.SSS  — hora con milisegundos
+          [thread]      — nombre del hilo (kafka-listener-1, http-nio-8080-exec-1, etc.)
+          LEVEL         — DEBUG/INFO/WARN/ERROR
+          [txId=UUID]   — correlationId del Saga (o "-" si no aplica)
+          Logger        — nombre corto de la clase (máx 36 chars)
+          Mensaje       — el log
+
+        EJEMPLO DE SALIDA:
+          10:23:41.123 [http-nio-8080-exec-1] INFO  [txId=-] c.l.a.c.TransferController - POST /transfers recibido
+          10:23:41.130 [http-nio-8080-exec-1] INFO  [txId=f47a-...] c.l.a.s.TransferService - Insertando transacción
+          10:23:41.145 [http-nio-8080-exec-1] INFO  [txId=f47a-...] c.l.a.p.TransferEventProducer - Publicando transfer.requested
+
+        ¿Por qué %X{txId:-} y no %X{txId}?
+          El guion "-" es el valor por defecto de Logback para MDC keys no presentes.
+          Sin él, se mostraría el campo vacío: [txId=] lo cual es confuso.
+          Con él: [txId=-] deja claro que no hay transacción en curso.
+    -->
+
+    <!-- Colores ANSI — solo en consola; ignored en archivos de log -->
+    <conversionRule conversionWord="clr"
+                    converterClass="org.springframework.boot.logging.logback.ColorConverter"/>
+    <conversionRule conversionWord="wex"
+                    converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter"/>
+
+    <!-- ── Patrón con correlationId ────────────────────────────────────────── -->
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%clr(%d{HH:mm:ss.SSS}){faint} %clr([%15.15t]){faint} %clr(%-5p){highlight} %clr([txId=%X{txId:-}]){cyan} %clr(%-36.36logger{36}){blue} %clr(-){faint} %m%n%wex"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ── Niveles por paquete ──────────────────────────────────────────────── -->
+    <logger name="com.lab" level="DEBUG"/>
+    <logger name="org.springframework.kafka" level="INFO"/>
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="org.flywaydb" level="INFO"/>
+    <logger name="org.hibernate.SQL" level="DEBUG"/>
+    <logger name="org.hibernate.orm.jdbc.bind" level="TRACE"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>
