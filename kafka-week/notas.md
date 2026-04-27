@@ -32,7 +32,7 @@ docker compose logs kafka | grep "Kafka Server started"
 powershell w10
 
 ```bash
-docker-compose logs kafka | sls "Kafka Server started"
+docker-compose logs kafka | findstr "Kafka Server started"
 ```
 
 **Línea que confirma el arranque:**

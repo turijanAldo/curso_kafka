@@ -1,5 +1,6 @@
 package com.tiendamax.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * KEY en Kafka  = orderId  → garantiza orden de eventos por pedido
  * VALUE en Kafka = JSON de este objeto
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Pedido {
 
     @JsonProperty("order_id")

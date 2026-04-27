@@ -372,6 +372,23 @@
             z-index: -1;
         }
 
+        .dot-animation {
+            width: 14px;
+            height: 14px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 0 10px var(--primary-color);
+            z-index: 5;
+        }
+
+        @keyframes moveRight {
+            0% { left: 0; }
+            100% { left: 100%; }
+        }
+
         /* Code blocks */
         .code-block {
             background: #1e1e1e;
@@ -553,6 +570,52 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Diagrama Animado -->
+                <div class="diagram-box mt-4" x-data="{ sagaStep: 0 }">
+                    <h5 class="section-title mb-4"><i class="bi bi-play-circle-fill"></i> Flujo Animado: Transacción con Fallo</h5>
+                    <div class="d-flex align-items-center justify-content-around position-relative py-4">
+                        <!-- Servicio A -->
+                        <div class="text-center" style="width: 150px;">
+                            <div class="node" :class="sagaStep === 1 || sagaStep === 4 ? 'pulse-dot' : ''">Servicio A (Débito)</div>
+                            <div class="mt-2 small" :class="sagaStep === 4 ? 'text-success fw-bold' : 'text-muted'" x-text="sagaStep === 4 ? '¡Compensado!' : (sagaStep >= 1 ? 'OK' : 'Esperando')"></div>
+                        </div>
+
+                        <!-- Conector A -> Kafka -->
+                        <div class="flex-grow-1 mx-2 position-relative" style="height: 4px; background: #eee; border-radius: 2px;">
+                            <div class="dot-animation" x-show="sagaStep === 1" style="animation: moveRight 1.5s linear infinite;"></div>
+                            <div class="dot-animation bg-danger" x-show="sagaStep === 3" style="animation: moveRight 1.5s linear infinite reverse; right: 0;"></div>
+                        </div>
+
+                        <!-- Kafka -->
+                        <div class="node-secondary" style="border-style: dashed; padding: 0.5rem 1rem;">
+                            <i class="bi bi-diagram-3-fill d-block"></i> Kafka
+                        </div>
+
+                        <!-- Conector Kafka -> B -->
+                        <div class="flex-grow-1 mx-2 position-relative" style="height: 4px; background: #eee; border-radius: 2px;">
+                            <div class="dot-animation" x-show="sagaStep === 2" style="animation: moveRight 1.5s linear infinite;"></div>
+                        </div>
+
+                        <!-- Servicio B -->
+                        <div class="text-center" style="width: 150px;">
+                            <div class="node-consumer" :class="sagaStep >= 2 ? 'bg-danger' : ''">Servicio B (Crédito)</div>
+                            <div class="mt-2 small text-danger fw-bold" x-show="sagaStep >= 2">❌ Error</div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <button class="btn btn-sm btn-primary px-4 rounded-pill" @click="sagaStep = (sagaStep + 1) % 5">
+                            <span x-text="sagaStep === 0 ? 'Iniciar Animación' : (sagaStep === 4 ? 'Reiniciar' : 'Siguiente Paso')"></span>
+                        </button>
+                        <div class="mt-3 small text-muted" style="min-height: 24px;">
+                            <strong x-show="sagaStep === 1">1. Débito exitoso en A → Evento enviado a Kafka.</strong>
+                            <strong x-show="sagaStep === 2">2. B recibe el evento pero falla la acreditación.</strong>
+                            <strong x-show="sagaStep === 3">3. B notifica el fallo a Kafka → Kafka alerta a A.</strong>
+                            <strong x-show="sagaStep === 4">4. A recibe el fallo y realiza la acción compensatoria (Rollback).</strong>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -643,8 +706,60 @@
             </div>
         </div>
 
-        <!-- SLIDE 4: Kafka en Fintech/Banca -->
+        <!-- SLIDE 4: Consumer Groups & Particiones -->
         <div class="slide" :class="{ 'active': currentSlide === 3, 'prev': currentSlide > 3 }">
+            <div class="slide-content">
+                <h2 class="slide-title">Asignación de Particiones</h2>
+                <p class="slide-subtitle">¿Cómo escala Kafka la lectura usando Consumer Groups?</p>
+
+                <div class="row g-4">
+                    <div class="col-md-5">
+                        <div class="feature-card h-100">
+                            <h5 class="section-title"><i class="bi bi-people-fill"></i> Reglas de Asignación</h5>
+                            <ul class="mt-3">
+                                <li class="mb-3"><strong>Exclusividad:</strong> Cada partición es procesada por <strong>un solo</strong> consumidor dentro de un mismo grupo.</li>
+                                <li class="mb-3"><strong>Paralelismo:</strong> El número de particiones define el límite máximo de consumidores activos.</li>
+                                <li class="mb-3"><strong>Consumidores Extra:</strong> Si hay más consumidores que particiones, los extras quedan en <em>IDLE</em> (espera).</li>
+                                <li><strong>Rebalanceo:</strong> Si un consumidor falla, Kafka reasigna sus particiones automáticamente.</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="diagram-box">
+                            <h5 class="section-title mb-4"><i class="bi bi-diagram-3"></i> Escenario: 4 Particiones / 3 Consumidores</h5>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <!-- Particiones -->
+                                <div class="d-flex flex-column gap-2">
+                                    <div class="partition-box" style="width: 100px;">P0</div>
+                                    <div class="partition-box" style="width: 100px;">P1</div>
+                                    <div class="partition-box" style="width: 100px;">P2</div>
+                                    <div class="partition-box" style="width: 100px;">P3</div>
+                                </div>
+                                <!-- Conectores -->
+                                <div class="flex-grow-1 px-3 d-flex flex-column justify-content-center" style="height: 200px;">
+                                    <div style="border-top: 2px solid var(--primary-color); width: 100%; transform: rotate(15deg);"></div>
+                                    <div style="border-top: 2px solid var(--primary-color); width: 100%; margin-top: 20px;"></div>
+                                    <div style="border-top: 2px solid var(--primary-color); width: 100%; margin-top: 30px;"></div>
+                                    <div style="border-top: 2px solid var(--primary-color); width: 100%; transform: rotate(-15deg); margin-top: 20px;"></div>
+                                </div>
+                                <!-- Consumidores -->
+                                <div class="d-flex flex-column gap-4">
+                                    <div class="node-consumer" style="width: 180px;"><i class="bi bi-person-fill"></i> Consumidor A<br><small>(Lee P0)</small></div>
+                                    <div class="node-consumer" style="width: 180px;"><i class="bi bi-person-fill"></i> Consumidor B<br><small>(Lee P1)</small></div>
+                                    <div class="node-consumer" style="width: 180px;"><i class="bi bi-person-fill"></i> Consumidor C<br><small>(Lee P2 y P3)</small></div>
+                                </div>
+                            </div>
+                            <div class="highlight-box mt-4 py-2 text-center">
+                                <i class="bi bi-info-circle-fill me-2"></i> Un consumidor puede leer varias particiones, pero una partición solo tiene un dueño.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5: Kafka en Fintech/Banca -->
+        <div class="slide" :class="{ 'active': currentSlide === 4, 'prev': currentSlide > 4 }">
             <div class="slide-content">
                 <h2 class="slide-title">Kafka en Fintech & Banca</h2>
                 <p class="slide-subtitle">El backbone de la transformación digital financiera</p>
@@ -743,8 +858,8 @@
             </div>
         </div>
 
-        <!-- SLIDE 5: Event Sourcing & CQRS -->
-        <div class="slide" :class="{ 'active': currentSlide === 4, 'prev': currentSlide > 4 }">
+        <!-- SLIDE 6: Event Sourcing & CQRS -->
+        <div class="slide" :class="{ 'active': currentSlide === 5, 'prev': currentSlide > 5 }">
             <div class="slide-content">
                 <h2 class="slide-title">Event Sourcing & CQRS</h2>
                 <p class="slide-subtitle">Patrones arquitectónicos para sistemas financieros escalables</p>
@@ -834,8 +949,8 @@
             </div>
         </div>
 
-        <!-- SLIDE 6: Microservicios -->
-        <div class="slide" :class="{ 'active': currentSlide === 5, 'prev': currentSlide > 5 }">
+        <!-- SLIDE 7: Microservicios -->
+        <div class="slide" :class="{ 'active': currentSlide === 6, 'prev': currentSlide > 6 }">
             <div class="slide-content">
                 <h2 class="slide-title">Microservicios & Kafka</h2>
                 <p class="slide-subtitle">Comunicación asíncrona y desacoplada entre servicios</p>
@@ -931,8 +1046,8 @@
             </div>
         </div>
 
-        <!-- SLIDE 7: Logs & Auditoría -->
-        <div class="slide" :class="{ 'active': currentSlide === 6, 'prev': currentSlide > 6 }">
+        <!-- SLIDE 8: Logs & Auditoría -->
+        <div class="slide" :class="{ 'active': currentSlide === 7, 'prev': currentSlide > 7 }">
             <div class="slide-content">
                 <h2 class="slide-title">Logs, Auditoría & Cumplimiento</h2>
                 <p class="slide-subtitle">Centralización y análisis de logs en tiempo real</p>
@@ -1031,9 +1146,8 @@
             </div>
         </div>
 
-        <!-- SLIDE 8: Demo Code & Conclusión -->
-        <!-- SLIDE 8: Patrón Saga -->
-        <div class="slide" :class="{ 'active': currentSlide === 7, 'prev': currentSlide > 7 }">
+        <!-- SLIDE 9: Patrón Saga -->
+        <div class="slide" :class="{ 'active': currentSlide === 8, 'prev': currentSlide > 8 }">
             <div class="slide-content d-flex flex-column justify-content-center">
                 <h2 class="slide-title">Patrón Saga (muy importante)</h2>
                 <p class="slide-subtitle">Gestión de consistencia en sistemas distribuidos</p>
@@ -1069,8 +1183,8 @@
             </div>
         </div>
 
-        <!-- SLIDE 9: Demo Code & Conclusión -->
-        <div class="slide" :class="{ 'active': currentSlide === 8, 'prev': currentSlide > 8 }">
+        <!-- SLIDE 10: Demo Code & Conclusión -->
+        <div class="slide" :class="{ 'active': currentSlide === 9, 'prev': currentSlide > 9 }">
             <div class="slide-content">
                 <h2 class="slide-title">Implementación & Conclusión</h2>
                 <p class="slide-subtitle">De la teoría a la práctica</p>
@@ -1183,8 +1297,7 @@ streams.start();
         function presentation() {
             return {
                 currentSlide: 0,
-                totalSlides: 8,
-                totalSlides: 9,
+                totalSlides: 10,
                 
                 init() {
                     // Keyboard navigation
