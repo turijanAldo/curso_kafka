@@ -1,0 +1,2180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KAFKA ADVANCED — Curso Técnico Parte II</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===== RESET & VARIABLES ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #050709;
+  --bg2:     #080c10;
+  --bg3:     #0d1218;
+  --bg4:     #111820;
+  --border:  #162030;
+  --cyan:    #00e5ff;
+  --cyan2:   #00bcd4;
+  --green:   #39ff14;
+  --green2:  #1de984;
+  --amber:   #ffab00;
+  --red:     #ff3d71;
+  --purple:  #c77dff;
+  --blue:    #448aff;
+  --text:    #b8cfe8;
+  --muted:   #4a6080;
+  --mono:    'Space Mono', monospace;
+  --display: 'Bebas Neue', sans-serif;
+  --sans:    'DM Sans', sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Noise texture overlay */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 9998; opacity: 0.4;
+}
+
+/* ===== HERO ===== */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  position: relative; overflow: hidden; padding: 2rem;
+}
+
+/* Animated particles background */
+.particles { position: absolute; inset: 0; overflow: hidden; }
+.particle {
+  position: absolute; width: 2px; height: 2px;
+  background: var(--cyan); border-radius: 50%;
+  animation: float linear infinite;
+  opacity: 0;
+}
+@keyframes float {
+  0%   { transform: translateY(100vh) translateX(0); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.3; }
+  100% { transform: translateY(-10vh) translateX(40px); opacity: 0; }
+}
+
+.hero-arc {
+  position: absolute; width: 800px; height: 800px;
+  border: 1px solid rgba(0,229,255,0.06);
+  border-radius: 50%; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  animation: rotate 30s linear infinite;
+}
+.hero-arc:nth-child(2) {
+  width: 600px; height: 600px;
+  border-color: rgba(57,255,20,0.05);
+  animation-duration: 20s; animation-direction: reverse;
+}
+.hero-arc:nth-child(3) {
+  width: 400px; height: 400px;
+  border-color: rgba(0,229,255,0.08);
+  animation-duration: 15s;
+}
+@keyframes rotate { to { transform: translate(-50%,-50%) rotate(360deg); } }
+
+.part-badge {
+  font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.3em;
+  color: var(--cyan); border: 1px solid rgba(0,229,255,0.3);
+  padding: 4px 16px; margin-bottom: 1.5rem;
+  position: relative; z-index: 1;
+  animation: fadeIn 1s ease both;
+  background: rgba(0,229,255,0.05);
+}
+
+.hero-eyebrow {
+  font-family: var(--mono); font-size: 0.7rem;
+  color: var(--muted); letter-spacing: 0.2em;
+  position: relative; z-index: 1; margin-bottom: 0.5rem;
+  animation: fadeIn 1s 0.1s ease both;
+}
+
+.hero-title {
+  font-family: var(--display); font-size: clamp(4rem, 10vw, 9rem);
+  line-height: 0.88; color: var(--text);
+  position: relative; z-index: 1;
+  animation: fadeIn 1s 0.2s ease both; text-align: center;
+}
+.hero-title .t-cyan { color: var(--cyan); text-shadow: 0 0 40px rgba(0,229,255,0.4); }
+.hero-title .t-green { color: var(--green); text-shadow: 0 0 40px rgba(57,255,20,0.3); }
+
+.hero-desc {
+  font-size: 0.9rem; color: var(--muted); margin-top: 2rem;
+  max-width: 520px; text-align: center; line-height: 1.8;
+  position: relative; z-index: 1;
+  animation: fadeIn 1s 0.3s ease both;
+}
+.hero-desc strong { color: var(--text); }
+
+.hero-modules {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  justify-content: center; margin-top: 2.5rem;
+  position: relative; z-index: 1;
+  animation: fadeIn 1s 0.4s ease both;
+}
+.module-chip {
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.12em;
+  border: 1px solid var(--border); color: var(--muted);
+  padding: 4px 10px; transition: all 0.3s;
+}
+.module-chip:hover { border-color: var(--cyan); color: var(--cyan); }
+
+.hero-cta {
+  margin-top: 3rem; position: relative; z-index: 1;
+  animation: fadeIn 1s 0.5s ease both; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+}
+
+.btn-start {
+  background: var(--cyan); color: #000; border: none;
+  font-family: var(--mono); font-weight: 700; font-size: 0.78rem;
+  padding: 0.85rem 2.2rem; cursor: pointer; letter-spacing: 0.15em;
+  transition: all 0.25s; position: relative; overflow: hidden;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+.btn-start:hover { background: #fff; box-shadow: 0 0 30px rgba(0,229,255,0.5); }
+
+.btn-prev {
+  background: none; color: var(--muted); border: 1px solid var(--border);
+  font-family: var(--mono); font-size: 0.78rem;
+  padding: 0.85rem 2rem; cursor: pointer; letter-spacing: 0.1em;
+  transition: all 0.25s;
+}
+.btn-prev:hover { border-color: var(--cyan); color: var(--cyan); }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== NAV ===== */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 500;
+  background: rgba(5,7,9,0.92); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  height: 52px; display: flex; align-items: center;
+  padding: 0 1.5rem; gap: 1rem;
+  transform: translateY(-100%); transition: transform 0.3s;
+}
+.nav.visible { transform: translateY(0); }
+.nav-logo {
+  font-family: var(--display); font-size: 1.3rem;
+  color: var(--cyan); white-space: nowrap; letter-spacing: 0.05em;
+}
+.nav-sep { width: 1px; height: 20px; background: var(--border); }
+.nav-links { display: flex; gap: 2px; overflow-x: auto; flex: 1; }
+.nl {
+  background: none; border: none; font-family: var(--mono);
+  font-size: 0.6rem; color: var(--muted); cursor: pointer;
+  padding: 4px 8px; white-space: nowrap; transition: color 0.2s;
+  letter-spacing: 0.08em;
+}
+.nl:hover, .nl.active { color: var(--cyan); }
+.nav-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.progress-ring { width: 28px; height: 28px; }
+.progress-ring circle { fill: none; stroke-width: 2; }
+.pr-bg  { stroke: var(--border); }
+.pr-fill { stroke: var(--cyan); stroke-dasharray: 75.4; stroke-dashoffset: 75.4; transition: stroke-dashoffset 0.4s; transform: rotate(-90deg); transform-origin: center; }
+.pr-text { font-family: var(--mono); font-size: 0.5rem; fill: var(--cyan); }
+
+/* ===== SECTIONS ===== */
+.section {
+  max-width: 1040px; margin: 0 auto; padding: 6rem 2rem;
+  opacity: 0; transform: translateY(24px);
+  transition: opacity 0.6s, transform 0.6s;
+}
+.section.visible { opacity: 1; transform: translateY(0); }
+
+.sec-header { margin-bottom: 3.5rem; }
+.sec-kicker {
+  font-family: var(--mono); font-size: 0.6rem;
+  letter-spacing: 0.35em; color: var(--cyan);
+  display: flex; align-items: center; gap: 10px; margin-bottom: 0.8rem;
+}
+.sec-kicker::before { content: ''; width: 24px; height: 1px; background: var(--cyan); }
+.sec-num { font-family: var(--display); font-size: 7rem; color: var(--border); line-height: 1; }
+.sec-title { font-family: var(--display); font-size: clamp(2.5rem, 5vw, 4rem); line-height: 1; margin-top: -0.5rem; }
+.sec-title .acc { color: var(--cyan); }
+.sec-title .acc2 { color: var(--green); }
+
+p { font-size: 0.88rem; line-height: 1.9; color: var(--text); margin-bottom: 1rem; }
+p strong { color: var(--cyan); font-weight: 600; }
+
+/* ===== TERMINAL ===== */
+.term {
+  background: var(--bg2); border: 1px solid var(--border);
+  margin: 1.5rem 0; position: relative; overflow: hidden;
+}
+.term::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.4;
+}
+.term-bar {
+  background: var(--bg3); border-bottom: 1px solid var(--border);
+  padding: 0.5rem 1rem; display: flex; align-items: center; gap: 6px;
+}
+.td { width: 9px; height: 9px; border-radius: 50%; }
+.td1 { background: #ff5f57; } .td2 { background: #febc2e; } .td3 { background: #28c840; }
+.tt { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); margin-left: auto; }
+.term-body { padding: 1.5rem; font-family: var(--mono); font-size: 0.78rem; line-height: 1.9; overflow-x: auto; }
+.tk  { color: var(--cyan); }
+.tv  { color: var(--amber); }
+.tc  { color: var(--muted); font-style: italic; }
+.to  { color: var(--green2); }
+.te  { color: var(--red); }
+.th  { color: var(--purple); }
+.tp  { color: #ff8a65; }
+
+/* ===== CALLOUT BOXES ===== */
+.callout {
+  border: 1px solid; padding: 1.2rem 1.5rem;
+  margin: 1.2rem 0; font-size: 0.83rem; line-height: 1.75;
+  position: relative; overflow: hidden;
+}
+.callout::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; }
+.callout.info  { border-color: rgba(0,229,255,0.2); background: rgba(0,229,255,0.04); }
+.callout.info::before { background: var(--cyan); }
+.callout.warn  { border-color: rgba(255,171,0,0.2); background: rgba(255,171,0,0.04); }
+.callout.warn::before { background: var(--amber); }
+.callout.danger{ border-color: rgba(255,61,113,0.25); background: rgba(255,61,113,0.05); }
+.callout.danger::before { background: var(--red); }
+.callout.success{ border-color: rgba(57,255,20,0.2); background: rgba(57,255,20,0.04); }
+.callout.success::before { background: var(--green); }
+.callout-icon { font-size: 1rem; margin-right: 8px; }
+
+/* ===== CONCEPT CARDS ===== */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; background: var(--border); margin: 1.5rem 0; border: 1px solid var(--border); }
+.cc {
+  background: var(--bg2); padding: 1.5rem;
+  transition: background 0.3s; cursor: default;
+  position: relative; overflow: hidden;
+}
+.cc::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: var(--cyan); transform: scaleX(0); transition: transform 0.4s; transform-origin: left;
+}
+.cc:hover::after { transform: scaleX(1); }
+.cc:hover { background: var(--bg3); }
+.cc-icon { font-size: 1.6rem; margin-bottom: 0.8rem; }
+.cc-name { font-family: var(--display); font-size: 1.1rem; letter-spacing: 0.05em; margin-bottom: 0.5rem; color: var(--text); }
+.cc-name span { color: var(--cyan); }
+.cc-desc { font-size: 0.75rem; color: var(--muted); line-height: 1.7; font-family: var(--sans); }
+.cc-tag {
+  display: inline-block; margin-top: 0.8rem;
+  font-family: var(--mono); font-size: 0.55rem; letter-spacing: 0.15em;
+  border: 1px solid; padding: 2px 7px;
+}
+.tag-cyan   { border-color: var(--cyan);   color: var(--cyan); }
+.tag-green  { border-color: var(--green);  color: var(--green); }
+.tag-amber  { border-color: var(--amber);  color: var(--amber); }
+.tag-purple { border-color: var(--purple); color: var(--purple); }
+.tag-red    { border-color: var(--red);    color: var(--red); }
+.tag-blue   { border-color: var(--blue);   color: var(--blue); }
+
+/* ===== DIVIDER ===== */
+.divider {
+  max-width: 1040px; margin: 0 auto;
+  border: none; border-top: 1px solid var(--border);
+}
+
+/* ===== EOS SIMULATOR ===== */
+.eos-board {
+  background: var(--bg2); border: 1px solid var(--border);
+  margin: 1.5rem 0; overflow: hidden;
+}
+.eos-header {
+  background: var(--bg3); border-bottom: 1px solid var(--border);
+  padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between;
+}
+.eos-title { font-family: var(--display); font-size: 1rem; letter-spacing: 0.1em; }
+.eos-badge {
+  font-family: var(--mono); font-size: 0.6rem; padding: 3px 10px;
+  border: 1px solid; letter-spacing: 0.12em;
+}
+.badge-eos { border-color: var(--green); color: var(--green); background: rgba(57,255,20,0.08); }
+.badge-at-least { border-color: var(--amber); color: var(--amber); background: rgba(255,171,0,0.08); }
+.badge-at-most  { border-color: var(--red);   color: var(--red);   background: rgba(255,61,113,0.08); }
+
+.eos-body { padding: 1.5rem; }
+.eos-tabs { display: flex; gap: 1px; margin-bottom: 1.5rem; background: var(--border); }
+.eos-tab {
+  flex: 1; background: var(--bg3); border: none; font-family: var(--mono);
+  font-size: 0.65rem; color: var(--muted); padding: 0.6rem; cursor: pointer;
+  transition: all 0.2s; letter-spacing: 0.08em;
+}
+.eos-tab.active { background: var(--bg2); color: var(--cyan); }
+.eos-panel { display: none; }
+.eos-panel.active { display: block; }
+
+/* EOS Timeline */
+.eos-timeline { position: relative; padding: 1rem 0; }
+.eos-row { display: flex; align-items: center; gap: 0; margin-bottom: 8px; }
+.eos-actor { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); width: 90px; flex-shrink: 0; text-align: right; padding-right: 10px; }
+.eos-line { flex: 1; position: relative; height: 32px; }
+.eos-line-base { position: absolute; top: 50%; width: 100%; height: 1px; background: var(--border); }
+.eos-event {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  font-family: var(--mono); font-size: 0.55rem; padding: 3px 6px;
+  border: 1px solid; white-space: nowrap; cursor: help;
+  transition: all 0.2s;
+}
+.ev-send  { border-color: var(--cyan);   color: var(--cyan);   background: rgba(0,229,255,0.08); }
+.ev-ack   { border-color: var(--green2); color: var(--green2); background: rgba(29,233,132,0.08); }
+.ev-fail  { border-color: var(--red);    color: var(--red);    background: rgba(255,61,113,0.12); }
+.ev-retry { border-color: var(--amber);  color: var(--amber);  background: rgba(255,171,0,0.08); }
+.ev-dup   { border-color: var(--purple); color: var(--purple); background: rgba(199,125,255,0.1); }
+.ev-commit{ border-color: var(--green);  color: var(--green);  background: rgba(57,255,20,0.06); }
+
+/* ===== LOG COMPACTION SIMULATOR ===== */
+.compact-sim { background: var(--bg2); border: 1px solid var(--border); margin: 1.5rem 0; }
+.compact-header { background: var(--bg3); border-bottom: 1px solid var(--border); padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+.compact-body { padding: 1.5rem; }
+.compact-label { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.25em; color: var(--muted); margin-bottom: 0.8rem; }
+
+.log-slots { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 1rem; }
+.ls {
+  width: 68px; height: 60px; border: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 0.55rem; transition: all 0.5s;
+  position: relative; cursor: default;
+}
+.ls-off { font-size: 0.45rem; color: var(--muted); position: absolute; top: 3px; left: 4px; }
+.ls-key { color: var(--cyan); font-size: 0.58rem; }
+.ls-val { color: var(--amber); font-size: 0.55rem; margin-top: 2px; }
+.ls.stale { opacity: 0.25; border-style: dashed; }
+.ls.kept  { border-color: var(--green); background: rgba(57,255,20,0.06); }
+.ls.deleted { opacity: 0; transform: scale(0.5); }
+.ls.tombstone { border-color: var(--red); background: rgba(255,61,113,0.06); }
+.ls.tombstone .ls-key { color: var(--red); }
+.ls.tombstone .ls-val { color: var(--red); }
+
+.compact-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn-compact {
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  font-family: var(--mono); font-size: 0.65rem; padding: 6px 14px;
+  cursor: pointer; transition: all 0.2s; letter-spacing: 0.06em;
+}
+.btn-compact:hover { border-color: var(--cyan); color: var(--cyan); }
+.btn-compact.go { background: var(--cyan); border-color: var(--cyan); color: #000; font-weight: 700; }
+.btn-compact.go:hover { background: #fff; }
+.compact-note { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); padding: 0.6rem; border: 1px solid var(--border); background: var(--bg); }
+
+/* ===== KAFKA STREAMS TOPOLOGY BUILDER ===== */
+.topology-builder { background: var(--bg2); border: 1px solid var(--border); margin: 1.5rem 0; }
+.topology-header { background: var(--bg3); border-bottom: 1px solid var(--border); padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.topology-body { padding: 1.5rem; }
+.topo-canvas { min-height: 160px; border: 1px solid var(--border); background: var(--bg); padding: 1rem; margin-bottom: 1rem; display: flex; align-items: center; overflow-x: auto; gap: 0; position: relative; }
+.topo-node {
+  background: var(--bg2); border: 1px solid var(--border);
+  padding: 0.6rem 0.9rem; white-space: nowrap; flex-shrink: 0;
+  font-family: var(--mono); font-size: 0.65rem; text-align: center;
+  transition: border-color 0.3s; position: relative;
+}
+.topo-node.source  { border-color: var(--cyan);   color: var(--cyan); }
+.topo-node.proc    { border-color: var(--purple);  color: var(--purple); }
+.topo-node.store   { border-color: var(--amber);   color: var(--amber); }
+.topo-node.sink    { border-color: var(--green2);  color: var(--green2); }
+.topo-node .tn-type{ font-size: 0.45rem; display: block; margin-bottom: 2px; opacity: 0.7; }
+.topo-arrow-wrap { display: flex; align-items: center; padding: 0 4px; }
+.topo-arrow { color: var(--muted); font-size: 0.8rem; }
+
+.topo-ops { display: flex; gap: 6px; flex-wrap: wrap; }
+.topo-op {
+  background: none; border: 1px solid var(--border); font-family: var(--mono);
+  font-size: 0.6rem; color: var(--muted); padding: 5px 10px; cursor: pointer;
+  transition: all 0.2s; letter-spacing: 0.06em;
+}
+.topo-op:hover { border-color: var(--purple); color: var(--purple); }
+.topo-op.source-op:hover  { border-color: var(--cyan);   color: var(--cyan); }
+.topo-op.sink-op:hover    { border-color: var(--green2); color: var(--green2); }
+.topo-op.store-op:hover   { border-color: var(--amber);  color: var(--amber); }
+.topo-op.reset-op:hover   { border-color: var(--red);    color: var(--red); }
+
+.topo-code-out { background: var(--bg); border: 1px solid var(--border); padding: 1rem; font-family: var(--mono); font-size: 0.72rem; line-height: 1.8; margin-top: 1rem; max-height: 200px; overflow-y: auto; }
+.topo-hint { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); font-style: italic; }
+
+/* ===== CONNECT PIPELINE ===== */
+.connect-flow {
+  display: grid; grid-template-columns: 1fr auto 1fr auto 1fr;
+  gap: 0; align-items: center; margin: 1.5rem 0;
+}
+.connect-box {
+  background: var(--bg2); border: 1px solid var(--border);
+  padding: 1.2rem; text-align: center; transition: border-color 0.3s;
+}
+.connect-box:hover { border-color: var(--cyan); }
+.connect-box .cb-icon { font-size: 2rem; }
+.connect-box .cb-type { font-family: var(--mono); font-size: 0.55rem; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 4px; }
+.connect-box .cb-name { font-family: var(--display); font-size: 1rem; letter-spacing: 0.05em; }
+.connect-box select {
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+  font-family: var(--mono); font-size: 0.65rem; padding: 4px 6px;
+  margin-top: 8px; width: 100%; cursor: pointer; outline: none;
+}
+.connect-box select:focus { border-color: var(--cyan); }
+.connect-mid { font-size: 1.2rem; color: var(--muted); padding: 0 12px; }
+.connect-btn {
+  background: var(--cyan); color: #000; border: none;
+  font-family: var(--mono); font-size: 0.7rem; font-weight: 700;
+  padding: 0.7rem 1.5rem; cursor: pointer; margin-top: 1rem;
+  letter-spacing: 0.1em; transition: all 0.2s; display: block; width: 100%;
+}
+.connect-btn:hover { background: #fff; }
+.connect-output {
+  margin-top: 1rem; background: var(--bg); border: 1px solid var(--border);
+  padding: 1rem; font-family: var(--mono); font-size: 0.72rem; line-height: 1.8;
+  display: none;
+}
+.connect-output.show { display: block; }
+
+/* ===== PERFORMANCE LAB ===== */
+.perf-lab { background: var(--bg2); border: 1px solid var(--border); margin: 1.5rem 0; }
+.perf-header { background: var(--bg3); border-bottom: 1px solid var(--border); padding: 1rem 1.5rem; }
+.perf-body { padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+@media(max-width: 640px) { .perf-body { grid-template-columns: 1fr; } }
+
+.perf-sliders { display: flex; flex-direction: column; gap: 1.5rem; }
+.slider-group {}
+.slider-label {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 6px;
+}
+.sl-name { font-family: var(--mono); font-size: 0.65rem; color: var(--text); }
+.sl-val  { font-family: var(--mono); font-size: 0.65rem; color: var(--cyan); }
+.slider-desc { font-size: 0.68rem; color: var(--muted); margin-bottom: 8px; line-height: 1.5; }
+input[type=range] {
+  width: 100%; -webkit-appearance: none; height: 3px;
+  background: var(--border); outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  background: var(--cyan); border-radius: 50%; cursor: pointer;
+  box-shadow: 0 0 8px rgba(0,229,255,0.5);
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px;
+  background: var(--cyan); border-radius: 50%; border: none; cursor: pointer;
+}
+
+.perf-metrics { display: flex; flex-direction: column; gap: 1rem; }
+.pm-title { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 0.5rem; }
+.metric-row { display: flex; flex-direction: column; gap: 4px; }
+.metric-label { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); display: flex; justify-content: space-between; }
+.metric-val { color: var(--text); }
+.metric-bar-wrap { height: 6px; background: var(--border); position: relative; }
+.metric-bar { height: 100%; transition: width 0.5s, background 0.5s; }
+.bar-good { background: var(--green2); }
+.bar-mid  { background: var(--amber); }
+.bar-bad  { background: var(--red); }
+
+.perf-summary {
+  grid-column: 1 / -1; background: var(--bg); border: 1px solid var(--border);
+  padding: 1rem 1.5rem; font-family: var(--mono); font-size: 0.72rem; line-height: 1.8;
+}
+.ps-label { color: var(--muted); margin-bottom: 0.3rem; font-size: 0.58rem; letter-spacing: 0.2em; }
+.ps-row { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+.ps-item { }
+.ps-item-val { font-size: 1.2rem; font-family: var(--display); letter-spacing: 0.05em; }
+.ps-item-lbl { font-size: 0.55rem; color: var(--muted); }
+
+/* ===== SAGA PATTERN ===== */
+.saga-viz { background: var(--bg2); border: 1px solid var(--border); margin: 1.5rem 0; }
+.saga-header { background: var(--bg3); border-bottom: 1px solid var(--border); padding: 1rem 1.5rem; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.saga-body { padding: 1.5rem; }
+.saga-flow { display: flex; flex-direction: column; gap: 8px; }
+.saga-step {
+  display: flex; align-items: stretch; gap: 0;
+  opacity: 0.3; transition: opacity 0.4s;
+}
+.saga-step.active { opacity: 1; }
+.saga-step.fail { opacity: 1; }
+.ss-num {
+  width: 36px; background: var(--bg3); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  flex-shrink: 0;
+}
+.ss-num.done  { background: rgba(57,255,20,0.08);  border-color: var(--green);  color: var(--green); }
+.ss-num.fail  { background: rgba(255,61,113,0.08); border-color: var(--red);    color: var(--red); }
+.ss-num.comp  { background: rgba(255,171,0,0.08);  border-color: var(--amber);  color: var(--amber); }
+.ss-body {
+  flex: 1; border: 1px solid var(--border); border-left: none;
+  padding: 0.8rem 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+}
+.ss-service { font-family: var(--mono); font-size: 0.65rem; color: var(--cyan); }
+.ss-action  { font-size: 0.78rem; color: var(--text); }
+.ss-event   { font-family: var(--mono); font-size: 0.6rem; padding: 2px 8px; border: 1px solid; }
+.ev-published { border-color: var(--green2); color: var(--green2); }
+.ev-compensate { border-color: var(--amber); color: var(--amber); }
+.saga-controls { display: flex; gap: 8px; margin-top: 1rem; flex-wrap: wrap; }
+.btn-saga {
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  font-family: var(--mono); font-size: 0.65rem; padding: 7px 16px;
+  cursor: pointer; transition: all 0.2s; letter-spacing: 0.08em;
+}
+.btn-saga:hover  { border-color: var(--cyan);  color: var(--cyan); }
+.btn-saga.danger:hover { border-color: var(--red); color: var(--red); }
+.btn-saga.go { background: var(--cyan); border-color: var(--cyan); color: #000; font-weight: 700; }
+.btn-saga.go:hover { background: #fff; }
+
+/* ===== MONITORING DASHBOARD ===== */
+.mon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); margin: 1.5rem 0; }
+.mon-cell { background: var(--bg2); padding: 1.2rem; }
+.mon-label { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 0.5rem; }
+.mon-value { font-family: var(--display); font-size: 2rem; letter-spacing: 0.05em; }
+.mon-sub   { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); margin-top: 2px; }
+.mv-green  { color: var(--green2); }
+.mv-amber  { color: var(--amber); }
+.mv-red    { color: var(--red); }
+.mv-cyan   { color: var(--cyan); }
+
+.lag-chart { background: var(--bg2); border: 1px solid var(--border); padding: 1.5rem; margin: 1.5rem 0; }
+.lag-title { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 1.2rem; }
+.lag-bars { display: flex; align-items: flex-end; gap: 6px; height: 100px; padding-bottom: 4px; }
+.lag-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.lag-bar {
+  width: 100%; transition: height 0.6s ease, background 0.6s;
+  min-height: 2px;
+}
+.lag-bar-label { font-family: var(--mono); font-size: 0.5rem; color: var(--muted); }
+.lag-bar-val   { font-family: var(--mono); font-size: 0.55rem; }
+
+.mon-controls { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+.btn-mon {
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  font-family: var(--mono); font-size: 0.62rem; padding: 5px 12px;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-mon:hover    { border-color: var(--cyan); color: var(--cyan); }
+.btn-mon.active   { border-color: var(--cyan); color: var(--cyan); background: rgba(0,229,255,0.06); }
+.btn-mon.danger:hover { border-color: var(--red); color: var(--red); }
+
+/* ===== QUIZ ADVANCED ===== */
+.quiz-wrap { margin: 1.5rem 0; }
+.qbar { height: 2px; background: var(--border); margin-bottom: 2rem; }
+.qbar-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--green)); transition: width 0.4s; }
+.qbox { background: var(--bg2); border: 1px solid var(--border); padding: 2rem; display: none; }
+.qbox.active { display: block; }
+.q-meta { display: flex; gap: 12px; align-items: center; margin-bottom: 1.2rem; }
+.q-num  { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.25em; color: var(--muted); }
+.q-diff {
+  font-family: var(--mono); font-size: 0.55rem; padding: 2px 8px;
+  border: 1px solid; letter-spacing: 0.1em;
+}
+.diff-med  { border-color: var(--amber); color: var(--amber); }
+.diff-hard { border-color: var(--red); color: var(--red); }
+.diff-exp  { border-color: var(--purple); color: var(--purple); }
+.q-text { font-family: var(--display); font-size: 1.2rem; letter-spacing: 0.03em; line-height: 1.3; margin-bottom: 1.5rem; }
+.q-code {
+  background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--purple);
+  padding: 0.8rem 1rem; font-family: var(--mono); font-size: 0.72rem; line-height: 1.7;
+  margin-bottom: 1.2rem; white-space: pre; overflow-x: auto;
+}
+.q-opts { display: flex; flex-direction: column; gap: 6px; }
+.q-opt {
+  background: var(--bg3); border: 1px solid var(--border);
+  padding: 0.85rem 1.2rem; cursor: pointer; font-size: 0.82rem;
+  transition: all 0.2s; display: flex; gap: 10px; align-items: flex-start;
+  font-family: var(--sans);
+}
+.q-opt:hover { border-color: var(--cyan); background: rgba(0,229,255,0.04); }
+.q-opt.correct { border-color: var(--green); background: rgba(57,255,20,0.08); color: var(--green); }
+.q-opt.wrong   { border-color: var(--red);   background: rgba(255,61,113,0.08); color: var(--red); }
+.q-opt.disabled { pointer-events: none; }
+.q-letter {
+  width: 22px; height: 22px; border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 0.62rem; flex-shrink: 0; margin-top: 1px;
+}
+.q-exp {
+  margin-top: 1rem; padding: 1rem 1.2rem; background: var(--bg);
+  border-left: 3px solid var(--cyan); font-size: 0.78rem; line-height: 1.75;
+  display: none;
+}
+.q-exp.show { display: block; }
+.q-nav { display: flex; justify-content: flex-end; margin-top: 1.5rem; }
+.btn-next {
+  background: var(--cyan); color: #000; border: none;
+  font-family: var(--mono); font-size: 0.7rem; font-weight: 700;
+  padding: 0.7rem 1.8rem; cursor: pointer; letter-spacing: 0.1em;
+  transition: all 0.2s; display: none;
+}
+.btn-next:hover { background: #fff; }
+
+/* Quiz Result */
+.qresult { background: var(--bg2); border: 1px solid var(--border); padding: 3.5rem 2rem; text-align: center; display: none; }
+.qresult.show { display: block; }
+.qr-score { font-family: var(--display); font-size: 6rem; line-height: 1; }
+.qr-score.expert { color: var(--green); text-shadow: 0 0 40px rgba(57,255,20,0.4); }
+.qr-score.mid    { color: var(--cyan);  text-shadow: 0 0 40px rgba(0,229,255,0.3); }
+.qr-score.low    { color: var(--amber); text-shadow: 0 0 30px rgba(255,171,0,0.3); }
+.qr-label { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.3em; color: var(--muted); margin-top: 0.5rem; }
+.qr-msg   { font-size: 0.88rem; color: var(--muted); line-height: 1.7; margin-top: 1.5rem; max-width: 500px; margin-left: auto; margin-right: auto; }
+.qr-certs { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 2rem; }
+.cert {
+  border: 1px solid var(--cyan); color: var(--cyan);
+  font-family: var(--mono); font-size: 0.62rem; padding: 6px 14px;
+  letter-spacing: 0.15em;
+  animation: certPop 0.5s ease both;
+}
+@keyframes certPop {
+  from { opacity:0; transform:scale(0.7) translateY(10px); }
+  to   { opacity:1; transform:scale(1)   translateY(0); }
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); }
+::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:640px) {
+  .connect-flow { grid-template-columns: 1fr; }
+  .connect-mid  { display: none; }
+  .nl { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- PARTICLES -->
+<div class="particles" id="particles"></div>
+
+<!-- NAV -->
+<nav class="nav" id="nav">
+  <div class="nav-logo">KAFKA II</div>
+  <div class="nav-sep"></div>
+  <div class="nav-links">
+    <button class="nl" onclick="goTo('s8')">08 EOS</button>
+    <button class="nl" onclick="goTo('s9')">09 COMPACTION</button>
+    <button class="nl" onclick="goTo('s10')">10 STREAMS</button>
+    <button class="nl" onclick="goTo('s11')">11 CONNECT</button>
+    <button class="nl" onclick="goTo('s12')">12 PERF</button>
+    <button class="nl" onclick="goTo('s13')">13 PATRONES</button>
+    <button class="nl" onclick="goTo('s14')">14 MONITORING</button>
+    <button class="nl" onclick="goTo('s15')">15 QUIZ</button>
+  </div>
+  <div class="nav-right">
+    <svg class="progress-ring" viewBox="0 0 28 28">
+      <circle class="pr-bg"   cx="14" cy="14" r="12"/>
+      <circle class="pr-fill" id="prFill" cx="14" cy="14" r="12"/>
+      <text class="pr-text" x="14" y="17" text-anchor="middle" id="prText">0%</text>
+    </svg>
+  </div>
+</nav>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-arc"></div>
+  <div class="hero-arc"></div>
+  <div class="hero-arc"></div>
+  <div class="part-badge">PARTE II · NIVEL AVANZADO · PRODUCCIÓN</div>
+  <div class="hero-eyebrow">CONTINUACIÓN DE KAFKA CORE</div>
+  <h1 class="hero-title"><span class="t-cyan">KAFKA</span><br><span class="t-green">ADVANCED</span></h1>
+  <p class="hero-desc">
+    De principiante a arquitecto. Aprende los mecanismos internos que hacen a Kafka confiable a escala — <strong>EOS, Compaction, Streams, Connect</strong>, performance tuning y patrones de arquitectura para producción real.
+  </p>
+  <div class="hero-modules">
+    <div class="module-chip">08 · EXACTLY-ONCE SEMANTICS</div>
+    <div class="module-chip">09 · LOG COMPACTION</div>
+    <div class="module-chip">10 · KAFKA STREAMS</div>
+    <div class="module-chip">11 · KAFKA CONNECT</div>
+    <div class="module-chip">12 · PERFORMANCE LAB</div>
+    <div class="module-chip">13 · CQRS / EVENT SOURCING / SAGA</div>
+    <div class="module-chip">14 · MONITORING & LAG</div>
+    <div class="module-chip">15 · QUIZ EXPERTO</div>
+  </div>
+  <div class="hero-cta">
+    <button class="btn-start" onclick="goTo('s8')">▶ ENTRAR AL NIVEL AVANZADO</button>
+    <button class="btn-prev">← VOLVER A PARTE I</button>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- MÓDULO 08 — EXACTLY-ONCE SEMANTICS -->
+<!-- ================================================================ -->
+<section class="section" id="s8">
+  <div class="sec-header">
+    <div class="sec-kicker">MÓDULO 8 · GARANTÍAS DE ENTREGA</div>
+    <div class="sec-num">08</div>
+    <div class="sec-title">Exactly-Once<br><span class="acc">Semantics</span></div>
+  </div>
+
+  <p>Una de las preguntas más importantes en sistemas distribuidos es: <strong>¿cuántas veces se procesa un mensaje?</strong> Kafka ofrece tres niveles de garantía, cada uno con sus trade-offs de rendimiento y complejidad. Entender cuál usar según tu caso de uso es una habilidad crítica de producción.</p>
+
+  <div class="card-grid">
+    <div class="cc">
+      <div class="cc-icon">📨</div>
+      <div class="cc-name">At-Most-<span>Once</span></div>
+      <div class="cc-desc">El mensaje se envía una vez. Si hay un fallo antes del ACK, el mensaje se pierde. El producer no reintenta. Offset se confirma antes de procesar.</div>
+      <div class="cc-tag tag-amber">RIESGO: PÉRDIDA</div>
+    </div>
+    <div class="cc">
+      <div class="cc-icon">📬</div>
+      <div class="cc-name">At-Least-<span>Once</span></div>
+      <div class="cc-desc">El producer reintenta en caso de fallo. El mensaje llegará mínimo una vez, pero puede llegar duplicado si el ACK se pierde. El consumer debe ser <em>idempotente</em>.</div>
+      <div class="cc-tag tag-amber">RIESGO: DUPLICADOS</div>
+    </div>
+    <div class="cc">
+      <div class="cc-icon">🎯</div>
+      <div class="cc-name">Exactly-<span>Once</span></div>
+      <div class="cc-desc">El mensaje se procesa exactamente una vez. Requiere producers idempotentes + transacciones Kafka. Más lento, pero sin pérdidas ni duplicados. Es el estándar en fintech.</div>
+      <div class="cc-tag tag-green">IDEAL: PRODUCCIÓN</div>
+    </div>
+  </div>
+
+  <div class="eos-board">
+    <div class="eos-header">
+      <div class="eos-title">SIMULADOR DE SEMÁNTICAS DE ENTREGA</div>
+      <div style="display:flex; gap:8px;">
+        <div class="eos-badge badge-at-most">AT-MOST-ONCE</div>
+        <div class="eos-badge badge-at-least">AT-LEAST-ONCE</div>
+        <div class="eos-badge badge-eos">EXACTLY-ONCE</div>
+      </div>
+    </div>
+    <div class="eos-body">
+      <div class="eos-tabs">
+        <button class="eos-tab active" onclick="eosTab('amo')">At-Most-Once</button>
+        <button class="eos-tab" onclick="eosTab('alo')">At-Least-Once</button>
+        <button class="eos-tab" onclick="eosTab('eos')">Exactly-Once (EOS)</button>
+      </div>
+
+      <!-- AT MOST ONCE -->
+      <div class="eos-panel active" id="eos-amo">
+        <div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);margin-bottom:1rem;">
+          acks=0 · retries=0 · offset se confirma ANTES de procesar
+        </div>
+        <div class="eos-timeline">
+          <div class="eos-row">
+            <div class="eos-actor">Producer</div>
+            <div class="eos-line">
+              <div class="eos-line-base"></div>
+              <div class="eos-event ev-send" style="left:5%">send()</div>
+              <div class="eos-event ev-retry" style="left:40%">⚡ NO retry</div>
+            </div>
+          </div>
+          <div class="eos-row">
+            <div class="eos-actor">Broker</div>
+            <div class="eos-line">
+              <div class="eos-line-base"></div>
+              <div class="eos-event ev-fail" style="left:25%" data-tip="El broker falla antes de escribir en disco">💀 CRASH</div>
+            </div>
+          </div>
+          <div class="eos-row">
+            <div class="eos-actor">Consumer</div>
+            <div class="eos-line">
+              <div class="eos-line-base"></div>
+              <div class="eos-event ev-fail" style="left:55%">❌ Mensaje perdido</div>
+            </div>
+          </div>
+        </div>
+        <div class="callout warn"><span class="callout-icon">⚠️</span> <strong>Cuándo usarlo:</strong> Métricas de telemetría donde perder algunos puntos es aceptable (ej: logs de analytics). <strong>Nunca</strong> para transacciones financieras o eventos de negocio críticos.</div>
+      </div>
+
+      <!-- AT LEAST ONCE -->
+      <div class="eos-panel" id="eos-alo">
+        <div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);margin-bottom:1rem;">
+          acks=all · retries=Integer.MAX_VALUE · enable.idempotence=false
+        </div>
+        <div class="eos-timeline">
+          <div class="eos-row">
+            <div class="eos-actor">Producer</div>
+            <div class="eos-line">
+              <div class="eos-line-base"></div>
+              <div class="eos-event ev-send" style="left:5%">send(MSG)</div>
+              <div class="eos-event ev-retry" style="left:50%" data-tip="El producer no recibió ACK y reintenta automáticamente">RETRY send(MSG)</div>
+            </div>
+          </div>
+          <div class="eos-row">
+            <div class="eos-actor">Network</div>
+            <div class="eos-line">
+              <div class="eos-line-base"></div>
+              <div class="eos-event ev-ack" style="left:22%">ACK enviado</div>
+              <div class="eos-event ev-fail" style="left:35%" data-tip="El ACK se pierde en la red — el producer no sabe si llegó">ACK PERDIDO 🔥</div>
+            </div>
+          </div>
+          <div class="eos-row">
+            <div class="eos-actor">Broker</div>
+            <div class="eos-line">
+              <div class="eos-line-base"></div>
+              <div class="eos-event ev-ack" style="left:12%" data-tip="Primera escritura exitosa">offset=42 ✓</div>
+              <div class="eos-event ev-dup" style="left:60%" data-tip="El mismo mensaje llega de nuevo por el retry">offset=43 ⚠️DUP</div>
+            </div>
+          </div>
+          <div class="eos-row">
+            <div class="eos-actor">Consumer</div>
+            <div class="eos-line">
+              <div class="eos-line-base"></div>
+              <div class="eos-event ev-dup" style="left:70%">MSG procesado 2x</div>
+            </div>
+          </div>
+        </div>
+        <div class="callout info"><span class="callout-icon">💡</span> <strong>Solución:</strong> Tu consumer debe ser <strong>idempotente</strong> — procesar el mismo mensaje dos veces debe tener el mismo efecto que procesarlo una vez. Técnica común: usar un campo <code style="color:var(--cyan)">messageId</code> único y verificar en BD si ya fue procesado antes de actuar.</div>
+      </div>
+
+      <!-- EXACTLY ONCE -->
+      <div class="eos-panel" id="eos-eos">
+        <div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);margin-bottom:1rem;">
+          enable.idempotence=true · transactional.id=my-tx · isolation.level=read_committed
+        </div>
+        <div class="eos-timeline">
+          <div class="eos-row">
+            <div class="eos-actor">Producer</div>
+            <div class="eos-line">
+              <div class="eos-line-base"></div>
+              <div class="eos-event ev-send" style="left:3%">beginTx()</div>
+              <div class="eos-event ev-send" style="left:22%">send(PID=7,seq=1)</div>
+              <div class="eos-event ev-retry" style="left:52%">RETRY(PID=7,seq=1)</div>
+              <div class="eos-event ev-commit" style="left:78%">commitTx()</div>
+            </div>
+          </div>
+          <div class="eos-row">
+            <div class="eos-actor">Broker</div>
+            <div class="eos-line">
+              <div class="eos-line-base"></div>
+              <div class="eos-event ev-ack" style="left:30%" data-tip="El broker asigna un Producer ID (PID) y número de secuencia">offset=42 ✓</div>
+              <div class="eos-event ev-ack" style="left:60%" data-tip="Broker detecta seq=1 duplicado → descarta silenciosamente">DUP detectado → SKIP</div>
+              <div class="eos-event ev-commit" style="left:82%">TX commit ✓</div>
+            </div>
+          </div>
+          <div class="eos-row">
+            <div class="eos-actor">Consumer</div>
+            <div class="eos-line">
+              <div class="eos-line-base"></div>
+              <div class="eos-event ev-ack" style="left:85%" data-tip="El consumer solo ve mensajes de transacciones COMMITTED">MSG procesado 1x ✓</div>
+            </div>
+          </div>
+        </div>
+        <div class="callout success"><span class="callout-icon">✅</span> El broker usa el <strong>Producer ID (PID)</strong> y un número de secuencia para detectar duplicados automáticamente. Con <code style="color:var(--cyan)">isolation.level=read_committed</code>, el consumer solo ve mensajes de transacciones completadas — nunca mensajes de transacciones abortadas.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="term">
+    <div class="term-bar"><div class="td td1"></div><div class="td td2"></div><div class="td td3"></div><div class="tt">Producer transaccional · Spring Boot</div></div>
+    <div class="term-body">
+<span class="tc"># application.properties</span>
+<span class="tk">spring.kafka.producer.properties.enable.idempotence</span>=<span class="tv">true</span>
+<span class="tk">spring.kafka.producer.properties.transactional.id</span>=<span class="tv">mi-app-tx-1</span>
+<span class="tk">spring.kafka.producer.acks</span>=<span class="tv">all</span>
+<span class="tk">spring.kafka.producer.retries</span>=<span class="tv">Integer.MAX_VALUE</span>
+
+<span class="tc">// En el KafkaTemplate — executeInTransaction garantiza atomicidad</span>
+<span class="th">@Autowired</span>
+<span class="to">private</span> KafkaTemplate&lt;String, String&gt; kafkaTemplate;
+
+<span class="to">public void</span> <span class="tp">procesarPedidoAtomico</span>(Pedido p) {
+    kafkaTemplate.executeInTransaction(ops -&gt; {
+        <span class="tc">// Ambos mensajes se publican o ninguno — atomicidad garantizada</span>
+        ops.send(<span class="tv">"pedidos-confirmados"</span>, p.getId(), p.toJson());
+        ops.send(<span class="tv">"inventario-reservar"</span>,  p.getId(), p.getItemsJson());
+        <span class="to">return</span> <span class="tv">true</span>;
+    });
+}
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ================================================================ -->
+<!-- MÓDULO 09 — LOG COMPACTION -->
+<!-- ================================================================ -->
+<section class="section" id="s9">
+  <div class="sec-header">
+    <div class="sec-kicker">MÓDULO 9 · ALMACENAMIENTO</div>
+    <div class="sec-num">09</div>
+    <div class="sec-title">Log <span class="acc">Compaction</span></div>
+  </div>
+
+  <p>Por defecto, Kafka elimina mensajes después de que expira el tiempo de retención (<code style="color:var(--cyan)">log.retention.hours</code>). Pero hay casos donde necesitas <strong>guardar siempre el último estado de cada entidad</strong>, sin importar cuándo ocurrió — como la dirección actual de un usuario o el saldo actual de una cuenta. Para esto existe <strong>Log Compaction</strong>.</p>
+
+  <p>Con compaction activado, Kafka garantiza que siempre habrá al menos el <strong>último mensaje de cada key</strong> en el log. Los mensajes más antiguos con la misma key son eliminados automáticamente por un proceso interno llamado <em>log cleaner</em>. Esto convierte a Kafka en algo similar a una base de datos key-value replicada y distribuida.</p>
+
+  <div class="compact-sim">
+    <div class="compact-header">
+      <div style="font-family:var(--display);font-size:1rem;letter-spacing:0.1em;">SIMULADOR · LOG COMPACTION</div>
+      <div style="font-family:var(--mono);font-size:0.58rem;color:var(--muted);">cleanup.policy=compact</div>
+    </div>
+    <div class="compact-body">
+      <div class="compact-label">ANTES DE COMPACTION — log completo</div>
+      <div class="log-slots" id="beforeSlots"></div>
+      <div class="compact-controls">
+        <button class="btn-compact go" onclick="runCompaction()">▶ EJECUTAR LOG CLEANER</button>
+        <button class="btn-compact" onclick="addTombstone()">+ TOMBSTONE (delete)</button>
+        <button class="btn-compact" onclick="resetCompaction()">⟳ RESET</button>
+      </div>
+      <div class="compact-label" style="margin-top:1.5rem;" id="afterLabel">RESULTADO (aparecerá aquí)</div>
+      <div class="log-slots" id="afterSlots"></div>
+      <div class="compact-note" id="compactNote" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <span class="callout-icon">⚠️</span>
+    <div><strong>Tombstone:</strong> Para <em>eliminar</em> una key de un topic compactado, publicas un mensaje con esa key y <code style="color:var(--cyan)">value=null</code>. Kafka mantiene ese "tombstone" durante un período (configurable con <code style="color:var(--cyan)">delete.retention.ms</code>) antes de eliminarlo definitivamente. Esto garantiza que los consumers que están atrás en el log puedan ver que la key fue eliminada.</div>
+  </div>
+
+  <div class="term">
+    <div class="term-bar"><div class="td td1"></div><div class="td td2"></div><div class="td td3"></div><div class="tt">Topic compactado — configuración</div></div>
+    <div class="term-body">
+<span class="tc"># Crear topic con compaction via CLI</span>
+kafka-topics.sh --create \
+  --topic <span class="tv">user-profiles</span> \
+  --partitions <span class="tv">6</span> \
+  --replication-factor <span class="tv">3</span> \
+  --config <span class="tk">cleanup.policy</span>=<span class="tv">compact</span> \
+  --config <span class="tk">min.cleanable.dirty.ratio</span>=<span class="tv">0.1</span> \
+  --config <span class="tk">segment.ms</span>=<span class="tv">3600000</span> <span class="tc">// compactar segmentos cada 1 hora</span>
+
+<span class="tc"># Publicar un "tombstone" para eliminar la key user-42</span>
+kafka-console-producer.sh --topic user-profiles \
+  --property "parse.key=true" \
+  --property "key.separator=:" \
+  &lt;&lt;&lt; <span class="tv">"user-42:"</span>  <span class="tc"># value vacío = tombstone</span>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ================================================================ -->
+<!-- MÓDULO 10 — KAFKA STREAMS -->
+<!-- ================================================================ -->
+<section class="section" id="s10">
+  <div class="sec-header">
+    <div class="sec-kicker">MÓDULO 10 · STREAM PROCESSING</div>
+    <div class="sec-num">10</div>
+    <div class="sec-title">Kafka <span class="acc2">Streams</span></div>
+  </div>
+
+  <p>Hasta ahora hemos hablado de producers y consumers que simplemente mueven mensajes de A a B. <strong>Kafka Streams</strong> es una librería Java incluida en Kafka que te permite <strong>transformar, filtrar, agregar y enriquecer</strong> streams de datos en tiempo real — todo dentro de tu aplicación, sin necesidad de un cluster externo (como Spark o Flink).</p>
+
+  <div class="card-grid">
+    <div class="cc">
+      <div class="cc-icon">🌊</div>
+      <div class="cc-name"><span>KStream</span></div>
+      <div class="cc-desc">Representa un flujo de eventos — cada registro es independiente. Como una lista infinita: pagos, clicks, mensajes. Cada evento importa por sí mismo.</div>
+      <div class="cc-tag tag-cyan">APPEND-ONLY</div>
+    </div>
+    <div class="cc">
+      <div class="cc-icon">📊</div>
+      <div class="cc-name"><span>KTable</span></div>
+      <div class="cc-desc">Representa el estado actual de algo — como una tabla de base de datos. Cada mensaje actualiza el valor de su key. Solo importa el último valor por key.</div>
+      <div class="cc-tag tag-amber">CHANGELOG</div>
+    </div>
+    <div class="cc">
+      <div class="cc-icon">🏪</div>
+      <div class="cc-name">State <span>Store</span></div>
+      <div class="cc-desc">Almacén local (RocksDB) donde Streams guarda el estado de agregaciones, conteos o joins. Automáticamente respaldado en un topic compactado de Kafka.</div>
+      <div class="cc-tag tag-purple">LOCAL + REPLICADO</div>
+    </div>
+    <div class="cc">
+      <div class="cc-icon">🔗</div>
+      <div class="cc-name">Stream <span>Join</span></div>
+      <div class="cc-desc">Combina dos streams o un stream con una tabla. Ejemplo: enriquecer un stream de pedidos con datos de usuario de una KTable, en tiempo real.</div>
+      <div class="cc-tag tag-blue">ENRIQUECIMIENTO</div>
+    </div>
+  </div>
+
+  <div class="topology-builder">
+    <div class="topology-header">
+      <div style="font-family:var(--display);font-size:1rem;letter-spacing:0.1em;">TOPOLOGY BUILDER INTERACTIVO</div>
+      <div class="topo-ops">
+        <button class="topo-op source-op" onclick="topoAdd('source')">+ SOURCE</button>
+        <button class="topo-op" onclick="topoAdd('filter')">+ filter()</button>
+        <button class="topo-op" onclick="topoAdd('map')">+ mapValues()</button>
+        <button class="topo-op" onclick="topoAdd('groupBy')">+ groupBy()</button>
+        <button class="topo-op" onclick="topoAdd('count')">+ count()</button>
+        <button class="topo-op store-op" onclick="topoAdd('store')">+ StateStore</button>
+        <button class="topo-op sink-op" onclick="topoAdd('sink')">+ SINK</button>
+        <button class="topo-op reset-op" onclick="topoReset()">⟳ RESET</button>
+      </div>
+    </div>
+    <div class="topology-body">
+      <div class="topo-canvas" id="topoCanvas">
+        <div class="topo-hint" id="topoHint">← Usa los botones para construir tu topología de Kafka Streams paso a paso</div>
+      </div>
+      <div class="topo-code-out" id="topoCode">
+        <span style="color:var(--muted);font-family:var(--mono);font-size:0.65rem;">// El código Java aparecerá aquí conforme construyes la topología</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="term">
+    <div class="term-bar"><div class="td td1"></div><div class="td td2"></div><div class="td td3"></div><div class="tt">Kafka Streams — conteo de pedidos por categoría en tiempo real</div></div>
+    <div class="term-body">
+<span class="to">StreamsBuilder</span> builder = <span class="to">new</span> StreamsBuilder();
+
+<span class="tc">// SOURCE: leer del topic de pedidos (JSON deserializado)</span>
+KStream&lt;String, Pedido&gt; pedidosStream = builder
+    .stream(<span class="tv">"pedidos-ecommerce"</span>, Consumed.with(Serdes.String(), pedidoSerde));
+
+<span class="tc">// FILTER: solo pedidos pagados</span>
+KStream&lt;String, Pedido&gt; pagados = pedidosStream
+    .filter((key, pedido) -&gt; pedido.getEstado().equals(<span class="tv">"PAGADO"</span>));
+
+<span class="tc">// MAP: extraer la categoría como nueva key</span>
+KStream&lt;String, Long&gt; porCategoria = pagados
+    .map((key, p) -&gt; KeyValue.pair(p.getCategoria(), p.getMonto()));
+
+<span class="tc">// GROUP + AGGREGATE: contar pedidos por categoría</span>
+KTable&lt;String, Long&gt; conteoCategoria = porCategoria
+    .groupByKey(Grouped.with(Serdes.String(), Serdes.Long()))
+    .count(Materialized.as(<span class="tv">"conteo-por-categoria-store"</span>));
+
+<span class="tc">// SINK: publicar resultado a otro topic</span>
+conteoCategoria.toStream()
+    .to(<span class="tv">"conteo-categorias"</span>, Produced.with(Serdes.String(), Serdes.Long()));
+
+<span class="tc">// Levantar la aplicación</span>
+KafkaStreams streams = <span class="to">new</span> KafkaStreams(builder.build(), props);
+streams.start();
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ================================================================ -->
+<!-- MÓDULO 11 — KAFKA CONNECT -->
+<!-- ================================================================ -->
+<section class="section" id="s11">
+  <div class="sec-header">
+    <div class="sec-kicker">MÓDULO 11 · INTEGRACIÓN</div>
+    <div class="sec-num">11</div>
+    <div class="sec-title">Kafka <span class="acc">Connect</span></div>
+  </div>
+
+  <p>Integrar Kafka con bases de datos, data warehouses o servicios externos requiere código repetitivo y frágil. <strong>Kafka Connect</strong> es un framework para mover datos <em>hacia</em> y <em>desde</em> Kafka usando <strong>conectores</strong> preconstruidos, configurados con JSON — sin escribir código de producer/consumer.</p>
+
+  <div class="connect-flow">
+    <div class="connect-box">
+      <div class="cb-type">SOURCE SYSTEM</div>
+      <div class="cb-icon">🗄️</div>
+      <select id="sourceSelect">
+        <option>MySQL / MariaDB</option>
+        <option>PostgreSQL</option>
+        <option>MongoDB</option>
+        <option>REST API</option>
+        <option>S3 / GCS</option>
+        <option>Salesforce</option>
+      </select>
+    </div>
+    <div class="connect-mid">→</div>
+    <div class="connect-box" style="border-color:rgba(0,229,255,0.3);background:rgba(0,229,255,0.04);">
+      <div class="cb-type">KAFKA CONNECT</div>
+      <div class="cb-icon">⚡</div>
+      <div class="cb-name" style="color:var(--cyan);font-size:0.9rem;margin-top:4px;">SOURCE Connector</div>
+      <div style="font-family:var(--mono);font-size:0.55rem;color:var(--muted);margin-top:4px;">+ SMT (transformaciones)</div>
+    </div>
+    <div class="connect-mid">→</div>
+    <div class="connect-box" style="border-color:rgba(57,255,20,0.3);background:rgba(57,255,20,0.04);">
+      <div class="cb-type">KAFKA TOPIC</div>
+      <div class="cb-icon">📁</div>
+      <div class="cb-name" style="color:var(--green2);">db.users</div>
+    </div>
+  </div>
+  <div style="text-align:center;">
+    <button class="connect-btn" onclick="generateConnectorConfig()">▶ GENERAR CONFIGURACIÓN JSON</button>
+  </div>
+  <div class="connect-output" id="connectOutput"></div>
+
+  <div style="margin-top:1.5rem;">
+    <div class="connect-flow">
+      <div class="connect-box">
+        <div class="cb-type">KAFKA TOPIC</div>
+        <div class="cb-icon">📁</div>
+        <div class="cb-name" style="font-family:var(--mono);font-size:0.8rem;">analytics-events</div>
+      </div>
+      <div class="connect-mid">→</div>
+      <div class="connect-box" style="border-color:rgba(199,125,255,0.3);background:rgba(199,125,255,0.04);">
+        <div class="cb-type">KAFKA CONNECT</div>
+        <div class="cb-icon">⚡</div>
+        <div class="cb-name" style="color:var(--purple);font-size:0.9rem;margin-top:4px;">SINK Connector</div>
+      </div>
+      <div class="connect-mid">→</div>
+      <div class="connect-box">
+        <div class="cb-type">DESTINATION</div>
+        <div class="cb-icon">🏗️</div>
+        <select id="sinkSelect">
+          <option>BigQuery</option>
+          <option>Elasticsearch</option>
+          <option>Snowflake</option>
+          <option>S3 (Data Lake)</option>
+          <option>PostgreSQL</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <span class="callout-icon">💡</span>
+    <div><strong>Debezium — CDC con Kafka Connect:</strong> Es el conector más poderoso. Captura cada INSERT, UPDATE y DELETE de tu base de datos leyendo el <em>transaction log</em> (binlog en MySQL, WAL en Postgres) y los publica en Kafka en tiempo real. Esto se llama <strong>Change Data Capture (CDC)</strong> y permite sincronizar múltiples sistemas sin polling.</div>
+  </div>
+
+  <div class="term">
+    <div class="term-bar"><div class="td td1"></div><div class="td td2"></div><div class="td td3"></div><div class="tt">Debezium MySQL CDC — configuración mínima</div></div>
+    <div class="term-body">
+<span class="tc"># POST /connectors — registrar el conector via REST API de Connect</span>
+{
+  <span class="tk">"name"</span>: <span class="tv">"mysql-cdc-connector"</span>,
+  <span class="tk">"config"</span>: {
+    <span class="tk">"connector.class"</span>: <span class="tv">"io.debezium.connector.mysql.MySqlConnector"</span>,
+    <span class="tk">"database.hostname"</span>:   <span class="tv">"mysql-host"</span>,
+    <span class="tk">"database.port"</span>:       <span class="tv">"3306"</span>,
+    <span class="tk">"database.user"</span>:       <span class="tv">"debezium"</span>,
+    <span class="tk">"database.password"</span>:   <span class="tv">"${file:/secrets.properties:db.password}"</span>,
+    <span class="tk">"database.server.id"</span>:  <span class="tv">"1"</span>,
+    <span class="tk">"topic.prefix"</span>:        <span class="tv">"myapp"</span>,
+    <span class="tk">"database.include.list"</span>: <span class="tv">"ecommerce"</span>,
+    <span class="tk">"table.include.list"</span>:   <span class="tv">"ecommerce.pedidos,ecommerce.users"</span>,
+    <span class="tc">// Publica en: myapp.ecommerce.pedidos, myapp.ecommerce.users</span>
+    <span class="tk">"transforms"</span>: <span class="tv">"unwrap"</span>,
+    <span class="tk">"transforms.unwrap.type"</span>: <span class="tv">"io.debezium.transforms.ExtractNewRecordState"</span>
+  }
+}
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ================================================================ -->
+<!-- MÓDULO 12 — PERFORMANCE TUNING -->
+<!-- ================================================================ -->
+<section class="section" id="s12">
+  <div class="sec-header">
+    <div class="sec-kicker">MÓDULO 12 · OPTIMIZACIÓN</div>
+    <div class="sec-num">12</div>
+    <div class="sec-title">Performance <span class="acc2">Tuning</span> Lab</div>
+  </div>
+
+  <p>Kafka funciona bien out-of-the-box, pero en producción a alta escala, los parámetros de configuración marcan la diferencia entre 50K msg/s y 500K msg/s. Este laboratorio te permite <strong>ajustar los parámetros más impactantes</strong> y ver en tiempo real cómo afectan al throughput, la latencia y la seguridad.</p>
+
+  <div class="perf-lab">
+    <div class="perf-header">
+      <div style="font-family:var(--display);font-size:1rem;letter-spacing:0.1em;">⚡ PERFORMANCE LAB — PRODUCER</div>
+    </div>
+    <div class="perf-body">
+      <div class="perf-sliders">
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="sl-name">batch.size</span>
+            <span class="sl-val" id="v-batch">16 KB</span>
+          </div>
+          <div class="slider-desc">Tamaño máximo del lote de mensajes que el producer envía juntos. Mayor batch = mejor throughput, mayor latencia.</div>
+          <input type="range" id="s-batch" min="1" max="100" value="16" oninput="updatePerf()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="sl-name">linger.ms</span>
+            <span class="sl-val" id="v-linger">0 ms</span>
+          </div>
+          <div class="slider-desc">Tiempo que el producer espera para acumular mensajes antes de enviar. 0 = envío inmediato. 5-20ms = mejor batching.</div>
+          <input type="range" id="s-linger" min="0" max="100" value="0" oninput="updatePerf()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="sl-name">compression.type</span>
+            <span class="sl-val" id="v-comp">none</span>
+          </div>
+          <div class="slider-desc">Algoritmo de compresión. none=sin overhead, snappy=balance, lz4=más rápido, zstd=mejor ratio.</div>
+          <input type="range" id="s-comp" min="0" max="3" value="0" step="1" oninput="updatePerf()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="sl-name">acks</span>
+            <span class="sl-val" id="v-acks">1</span>
+          </div>
+          <div class="slider-desc">Confirmaciones requeridas. 0=sin espera (peligroso), 1=solo líder, all=todos los réplicas (más seguro, más lento).</div>
+          <input type="range" id="s-acks" min="0" max="2" value="1" step="1" oninput="updatePerf()">
+        </div>
+      </div>
+
+      <div class="perf-metrics">
+        <div class="pm-title">MÉTRICAS ESTIMADAS EN TIEMPO REAL</div>
+        <div class="metric-row">
+          <div class="metric-label"><span>THROUGHPUT</span><span class="metric-val" id="m-tp">—</span></div>
+          <div class="metric-bar-wrap"><div class="metric-bar bar-good" id="b-tp" style="width:0%"></div></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label"><span>LATENCIA P99</span><span class="metric-val" id="m-lat">—</span></div>
+          <div class="metric-bar-wrap"><div class="metric-bar bar-good" id="b-lat" style="width:0%"></div></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label"><span>RIESGO DE PÉRDIDA</span><span class="metric-val" id="m-risk">—</span></div>
+          <div class="metric-bar-wrap"><div class="metric-bar bar-good" id="b-risk" style="width:0%"></div></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label"><span>USO RED</span><span class="metric-val" id="m-net">—</span></div>
+          <div class="metric-bar-wrap"><div class="metric-bar bar-good" id="b-net" style="width:0%"></div></div>
+        </div>
+        <div style="margin-top:1rem;font-family:var(--mono);font-size:0.62rem;color:var(--muted);border:1px solid var(--border);padding:0.8rem;" id="perfAdvice">
+          Ajusta los sliders para ver recomendaciones...
+        </div>
+      </div>
+
+      <div class="perf-summary">
+        <div class="ps-label">CONFIGURACIÓN ACTUAL — RESUMEN</div>
+        <div class="ps-row" id="perfSummaryRow">
+          <div class="ps-item"><div class="ps-item-val" id="ps-tp" style="color:var(--cyan)">—</div><div class="ps-item-lbl">THROUGHPUT</div></div>
+          <div class="ps-item"><div class="ps-item-val" id="ps-lat" style="color:var(--green2)">—</div><div class="ps-item-lbl">LATENCIA</div></div>
+          <div class="ps-item"><div class="ps-item-val" id="ps-safe" style="color:var(--amber)">—</div><div class="ps-item-lbl">SEGURIDAD</div></div>
+          <div class="ps-item"><div class="ps-item-val" id="ps-use" style="color:var(--purple)">—</div><div class="ps-item-lbl">CASO DE USO</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <span class="callout-icon">🏎️</span>
+    <div><strong>Regla práctica de alto rendimiento:</strong> Para máximo throughput en producción usa <code style="color:var(--cyan)">batch.size=65536</code> (64KB), <code style="color:var(--cyan)">linger.ms=20</code>, <code style="color:var(--cyan)">compression.type=lz4</code>, y aumenta el <code style="color:var(--cyan)">buffer.memory</code> a 64MB. Esta combinación puede multiplicar el throughput por 10x comparado con la configuración default.</div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ================================================================ -->
+<!-- MÓDULO 13 — PATRONES AVANZADOS -->
+<!-- ================================================================ -->
+<section class="section" id="s13">
+  <div class="sec-header">
+    <div class="sec-kicker">MÓDULO 13 · ARQUITECTURA</div>
+    <div class="sec-num">13</div>
+    <div class="sec-title">CQRS · Event Sourcing<br><span class="acc">& Saga Pattern</span></div>
+  </div>
+
+  <p>Kafka no es solo un bus de mensajes — es la base sobre la que se construyen algunos de los patrones de arquitectura más poderosos en microservicios modernos. Estos tres patrones están profundamente interrelacionados y juntos resuelven los problemas más complejos de sistemas distribuidos.</p>
+
+  <div class="card-grid">
+    <div class="cc">
+      <div class="cc-icon">✂️</div>
+      <div class="cc-name"><span>CQRS</span></div>
+      <div class="cc-desc">Command Query Responsibility Segregation. Separa las operaciones de escritura (Commands) de las de lectura (Queries) en modelos distintos. Los Commands publican eventos en Kafka. Las Queries leen de proyecciones optimizadas.</div>
+      <div class="cc-tag tag-cyan">SEPARACIÓN LECTURA/ESCRITURA</div>
+    </div>
+    <div class="cc">
+      <div class="cc-icon">📜</div>
+      <div class="cc-name">Event <span>Sourcing</span></div>
+      <div class="cc-desc">En lugar de guardar el estado actual en BD, guardas la secuencia de eventos que lo produjeron. El topic de Kafka IS la base de datos. Puedes reconstruir cualquier estado pasado reproduciendo el log.</div>
+      <div class="cc-tag tag-purple">EL LOG ES LA VERDAD</div>
+    </div>
+    <div class="cc">
+      <div class="cc-icon">🎭</div>
+      <div class="cc-name">Saga <span>Pattern</span></div>
+      <div class="cc-desc">Coordina transacciones distribuidas entre múltiples microservicios usando eventos. Si un paso falla, se ejecutan "transacciones compensatorias" para deshacer los pasos previos. Sin Two-Phase Commit.</div>
+      <div class="cc-tag tag-red">CONSISTENCIA EVENTUAL</div>
+    </div>
+  </div>
+
+  <div class="saga-viz">
+    <div class="saga-header">
+      <div style="font-family:var(--display);font-size:1rem;letter-spacing:0.08em;">SAGA SIMULADA — PROCESO DE PEDIDO</div>
+      <div class="saga-controls">
+        <button class="btn-saga go" onclick="runSaga(false)">▶ EJECUTAR SAGA (éxito)</button>
+        <button class="btn-saga danger" onclick="runSaga(true)">⚡ SIMULAR FALLO en Paso 3</button>
+        <button class="btn-saga" onclick="resetSaga()">⟳ RESET</button>
+      </div>
+    </div>
+    <div class="saga-body">
+      <div class="saga-flow" id="sagaFlow">
+        <div class="saga-step" id="step-s1">
+          <div class="ss-num" id="num-s1">1</div>
+          <div class="ss-body">
+            <div><div class="ss-service">ORDER-SERVICE</div><div class="ss-action">Crear pedido → estado: PENDING</div></div>
+            <span class="ss-event ev-published" id="ev-s1" style="display:none">OrderCreated →</span>
+          </div>
+        </div>
+        <div class="saga-step" id="step-s2">
+          <div class="ss-num" id="num-s2">2</div>
+          <div class="ss-body">
+            <div><div class="ss-service">PAYMENT-SERVICE</div><div class="ss-action">Reservar fondos en cuenta</div></div>
+            <span class="ss-event ev-published" id="ev-s2" style="display:none">PaymentReserved →</span>
+          </div>
+        </div>
+        <div class="saga-step" id="step-s3">
+          <div class="ss-num" id="num-s3">3</div>
+          <div class="ss-body">
+            <div><div class="ss-service">INVENTORY-SERVICE</div><div class="ss-action">Reservar stock del producto</div></div>
+            <span class="ss-event ev-published" id="ev-s3" style="display:none"></span>
+          </div>
+        </div>
+        <div class="saga-step" id="step-s4">
+          <div class="ss-num" id="num-s4">4</div>
+          <div class="ss-body">
+            <div><div class="ss-service">SHIPPING-SERVICE</div><div class="ss-action">Crear guía de envío</div></div>
+            <span class="ss-event ev-published" id="ev-s4" style="display:none">ShipmentCreated →</span>
+          </div>
+        </div>
+        <div class="saga-step" id="step-s5">
+          <div class="ss-num" id="num-s5">5</div>
+          <div class="ss-body">
+            <div><div class="ss-service">ORDER-SERVICE</div><div class="ss-action">Actualizar pedido → estado: CONFIRMED</div></div>
+            <span class="ss-event ev-published" id="ev-s5" style="display:none"></span>
+          </div>
+        </div>
+      </div>
+      <div id="sagaResult" style="margin-top:1rem;font-family:var(--mono);font-size:0.72rem;display:none;padding:0.8rem;border:1px solid;line-height:1.7;"></div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <span class="callout-icon">⚠️</span>
+    <div><strong>Consistencia eventual vs ACID:</strong> El patrón Saga garantiza que el sistema <em>eventualmente</em> llega a un estado consistente, pero durante la ejecución puede haber inconsistencias temporales. En sistemas críticos como banca, esto requiere diseño cuidadoso — por ejemplo, reservar fondos (no debitar) hasta que todos los pasos confirmen.</div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ================================================================ -->
+<!-- MÓDULO 14 — MONITORING -->
+<!-- ================================================================ -->
+<section class="section" id="s14">
+  <div class="sec-header">
+    <div class="sec-kicker">MÓDULO 14 · OBSERVABILIDAD</div>
+    <div class="sec-num">14</div>
+    <div class="sec-title">Monitoring &<br><span class="acc">Consumer Lag</span></div>
+  </div>
+
+  <p>Un sistema Kafka en producción sin monitoreo es una bomba de tiempo. La métrica más importante a vigilar es el <strong>consumer lag</strong> — la diferencia entre el offset del último mensaje publicado y el último offset procesado por el consumer. Un lag creciente significa que tus consumers no están siguiendo el ritmo de los producers.</p>
+
+  <div class="mon-controls">
+    <button class="btn-mon active" id="mon-normal" onclick="setMonMode('normal')">🟢 SISTEMA NORMAL</button>
+    <button class="btn-mon" id="mon-lag" onclick="setMonMode('lag')">🟡 LAG CRECIENTE</button>
+    <button class="btn-mon" id="mon-crisis" onclick="setMonMode('crisis')">🔴 CRISIS: CONSUMER CAÍDO</button>
+  </div>
+
+  <div class="mon-grid">
+    <div class="mon-cell">
+      <div class="mon-label">CONSUMER LAG TOTAL</div>
+      <div class="mon-value mv-green" id="mon-lag-val">247</div>
+      <div class="mon-sub" id="mon-lag-sub">mensajes pendientes</div>
+    </div>
+    <div class="mon-cell">
+      <div class="mon-label">THROUGHPUT PRODUCER</div>
+      <div class="mon-value mv-cyan" id="mon-tp-val">12.4K</div>
+      <div class="mon-sub">msg/s</div>
+    </div>
+    <div class="mon-cell">
+      <div class="mon-label">THROUGHPUT CONSUMER</div>
+      <div class="mon-value mv-green" id="mon-con-val">12.1K</div>
+      <div class="mon-sub" id="mon-con-sub">msg/s</div>
+    </div>
+    <div class="mon-cell">
+      <div class="mon-label">BROKERS ACTIVOS</div>
+      <div class="mon-value mv-green" id="mon-br-val">3/3</div>
+      <div class="mon-sub" id="mon-br-sub">cluster saludable</div>
+    </div>
+    <div class="mon-cell">
+      <div class="mon-label">LATENCIA P99</div>
+      <div class="mon-value mv-green" id="mon-lat-val">4.2ms</div>
+      <div class="mon-sub">end-to-end</div>
+    </div>
+    <div class="mon-cell">
+      <div class="mon-label">REPLICACIÓN</div>
+      <div class="mon-value mv-green" id="mon-rep-val">0</div>
+      <div class="mon-sub" id="mon-rep-sub">under-replicated partitions</div>
+    </div>
+  </div>
+
+  <div class="lag-chart">
+    <div class="lag-title">LAG POR PARTICIÓN — CONSUMER GROUP: grupo-facturacion</div>
+    <div class="lag-bars" id="lagBars"></div>
+  </div>
+
+  <div class="callout info">
+    <span class="callout-icon">📊</span>
+    <div><strong>Alertas recomendadas:</strong> Configura alertas en Prometheus/Grafana para: <code style="color:var(--cyan)">kafka_consumer_group_lag > 10000</code> (lag crítico), <code style="color:var(--cyan)">kafka_brokers_count < 3</code> (broker caído), y <code style="color:var(--cyan)">kafka_topic_partitions_underreplicated > 0</code> (problema de replicación). El stack Prometheus + JMX Exporter + Grafana es el estándar de la industria para monitoreo Kafka.</div>
+  </div>
+
+  <div class="term">
+    <div class="term-bar"><div class="td td1"></div><div class="td td2"></div><div class="td td3"></div><div class="tt">Comandos CLI para diagnóstico</div></div>
+    <div class="term-body">
+<span class="tc"># Ver consumer lag de todos los grupos</span>
+kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
+  --describe --all-groups
+
+<span class="tc"># Output esperado:</span>
+<span class="to">GROUP               TOPIC              PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG</span>
+<span class="to">grupo-facturacion   pedidos-ecommerce  0          10847           10847           0</span>
+<span class="to">grupo-facturacion   pedidos-ecommerce  1          9234            9240            6</span>
+<span class="te">grupo-notificaciones pedidos-ecommerce  0         3100            10847           7747</span>
+
+<span class="tc"># Verificar brokers y líderes de particiones</span>
+kafka-topics.sh --bootstrap-server localhost:9092 \
+  --describe --topic pedidos-ecommerce
+
+<span class="tc"># Resetear offset de un consumer group (úsalo con cuidado)</span>
+kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
+  --group grupo-facturacion --reset-offsets \
+  --to-earliest --topic pedidos-ecommerce --execute
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ================================================================ -->
+<!-- MÓDULO 15 — QUIZ EXPERTO -->
+<!-- ================================================================ -->
+<section class="section" id="s15">
+  <div class="sec-header">
+    <div class="sec-kicker">MÓDULO 15 · EVALUACIÓN EXPERTA</div>
+    <div class="sec-num">15</div>
+    <div class="sec-title">Quiz <span class="acc">Experto</span></div>
+  </div>
+
+  <p>Estas preguntas van más allá de los conceptos básicos. Evalúan tu capacidad de tomar decisiones técnicas en escenarios reales de producción — el tipo de preguntas que aparecen en entrevistas para roles de arquitecto de software.</p>
+
+  <div class="quiz-wrap">
+    <div class="qbar"><div class="qbar-fill" id="qBarFill" style="width:0%"></div></div>
+
+    <!-- Q1 -->
+    <div class="qbox active" id="qq1">
+      <div class="q-meta">
+        <span class="q-num">PREGUNTA 1 DE 8</span>
+        <span class="q-diff diff-med">MEDIO</span>
+      </div>
+      <div class="q-text">Un producer tiene enable.idempotence=true pero NO configura transactional.id. ¿Qué garantía tiene realmente?</div>
+      <div class="q-opts">
+        <div class="q-opt" onclick="qAnswer('qq1',this,false)"><span class="q-letter">A</span>Exactly-once completo incluyendo el consumer</div>
+        <div class="q-opt" onclick="qAnswer('qq1',this,true)"><span class="q-letter">B</span>No habrá duplicados dentro de una sola sesión del producer, pero sin atomicidad multi-topic</div>
+        <div class="q-opt" onclick="qAnswer('qq1',this,false)"><span class="q-letter">C</span>Nada — idempotence sin transactional.id lanza excepción al iniciar</div>
+        <div class="q-opt" onclick="qAnswer('qq1',this,false)"><span class="q-letter">D</span>Lo mismo que transactional.id configurado, son equivalentes</div>
+      </div>
+      <div class="q-exp" id="qexp-qq1">
+        <strong>Respuesta B.</strong> <code>enable.idempotence=true</code> activa un Producer ID (PID) y números de secuencia que el broker usa para deduplicar reintentos dentro de la misma sesión del producer. Esto elimina duplicados causados por reintentos de red. Sin embargo, <strong>no</strong> garantiza atomicidad entre múltiples topics/particiones ni visibilidad transaccional para los consumers. Para eso necesitas <code>transactional.id</code> + <code>isolation.level=read_committed</code> en el consumer.
+      </div>
+      <div class="q-nav"><button class="btn-next" id="qnext-qq1" onclick="qNext('qq1','qq2')">SIGUIENTE →</button></div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="qbox" id="qq2">
+      <div class="q-meta"><span class="q-num">PREGUNTA 2 DE 8</span><span class="q-diff diff-hard">DIFÍCIL</span></div>
+      <div class="q-text">Tienes este código Kafka Streams. ¿Cuál es el problema potencial?</div>
+      <div class="q-code"><span style="color:var(--cyan)">KStream</span>&lt;String, Order&gt; orders = builder.stream(<span style="color:var(--amber)">"orders"</span>);
+<span style="color:var(--cyan)">KTable</span>&lt;String, User&gt; users = builder.table(<span style="color:var(--amber)">"users"</span>);
+
+<span style="color:var(--cyan)">KStream</span>&lt;String, EnrichedOrder&gt; enriched = orders
+    .join(users, (order, user) -> enrich(order, user));
+
+enriched.to(<span style="color:var(--amber)">"enriched-orders"</span>);</div>
+      <div class="q-opts">
+        <div class="q-opt" onclick="qAnswer('qq2',this,false)"><span class="q-letter">A</span>No se puede hacer join entre KStream y KTable en Kafka Streams</div>
+        <div class="q-opt" onclick="qAnswer('qq2',this,true)"><span class="q-letter">B</span>Si la key del order no coincide con la key del user, el join retornará null silenciosamente</div>
+        <div class="q-opt" onclick="qAnswer('qq2',this,false)"><span class="q-letter">C</span>El join fallará porque KTable no soporta joins con streams en tiempo real</div>
+        <div class="q-opt" onclick="qAnswer('qq2',this,false)"><span class="q-letter">D</span>El código es correcto y no tiene problemas</div>
+      </div>
+      <div class="q-exp" id="qexp-qq2">
+        <strong>Respuesta B.</strong> El join KStream-KTable en Kafka Streams es un <em>left join</em> basado en <strong>key</strong>. Si la key del stream de orders (ej: orderId) no coincide con la key de la KTable de users (ej: userId), el join producirá <code>null</code> para el user — y si tu función <code>enrich()</code> no maneja null, el stream fallará en runtime. La solución es hacer <code>orders.selectKey((k, order) -> order.getUserId())</code> antes del join para re-keyear por userId.
+      </div>
+      <div class="q-nav"><button class="btn-next" id="qnext-qq2" onclick="qNext('qq2','qq3')">SIGUIENTE →</button></div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="qbox" id="qq3">
+      <div class="q-meta"><span class="q-num">PREGUNTA 3 DE 8</span><span class="q-diff diff-hard">DIFÍCIL</span></div>
+      <div class="q-text">Tu consumer group tiene un lag creciente de 500K mensajes. Agregas 5 consumers más al grupo, pero el lag sigue creciendo. ¿Cuál es la causa más probable?</div>
+      <div class="q-opts">
+        <div class="q-opt" onclick="qAnswer('qq3',this,false)"><span class="q-letter">A</span>Hay un bug en el código del consumer que causa memory leak</div>
+        <div class="q-opt" onclick="qAnswer('qq3',this,true)"><span class="q-letter">B</span>El número de particiones del topic es menor que el número total de consumers activos</div>
+        <div class="q-opt" onclick="qAnswer('qq3',this,false)"><span class="q-letter">C</span>El broker está caído y no puede entregar mensajes</div>
+        <div class="q-opt" onclick="qAnswer('qq3',this,false)"><span class="q-letter">D</span>Kafka no permite agregar consumers a un grupo con lag activo</div>
+      </div>
+      <div class="q-exp" id="qexp-qq3">
+        <strong>Respuesta B.</strong> Si el topic tiene, digamos, 3 particiones y ya tenías 3 consumers, agregar 5 más no ayuda — los 5 quedan IDLE. El paralelismo real está limitado por el número de particiones. La solución correcta es <strong>aumentar las particiones</strong> del topic (operación que requiere precaución en producción, ya que puede alterar el particionado por key) y luego agregar consumers. Regla: <em>más consumers que particiones = consumers de sobra</em>.
+      </div>
+      <div class="q-nav"><button class="btn-next" id="qnext-qq3" onclick="qNext('qq3','qq4')">SIGUIENTE →</button></div>
+    </div>
+
+    <!-- Q4 -->
+    <div class="qbox" id="qq4">
+      <div class="q-meta"><span class="q-num">PREGUNTA 4 DE 8</span><span class="q-diff diff-exp">EXPERTO</span></div>
+      <div class="q-text">¿Qué problema resuelve el patrón "Outbox Pattern" en sistemas con Kafka?</div>
+      <div class="q-opts">
+        <div class="q-opt" onclick="qAnswer('qq4',this,false)"><span class="q-letter">A</span>Permite a los consumers leer mensajes sin confirmación de offset automática</div>
+        <div class="q-opt" onclick="qAnswer('qq4',this,false)"><span class="q-letter">B</span>Optimiza el uso de memoria del broker al comprimir mensajes antiguos</div>
+        <div class="q-opt" onclick="qAnswer('qq4',this,true)"><span class="q-letter">C</span>Garantiza que los eventos se publiquen a Kafka solo si la transacción de BD local también fue exitosa</div>
+        <div class="q-opt" onclick="qAnswer('qq4',this,false)"><span class="q-letter">D</span>Permite escalar particiones sin reiniciar el broker</div>
+      </div>
+      <div class="q-exp" id="qexp-qq4">
+        <strong>Respuesta C.</strong> El Outbox Pattern resuelve el problema del "dual write": si guardas en BD Y publicas en Kafka en la misma operación, pueden desincronizarse si uno falla. La solución: en la misma transacción de BD, guardas el evento en una tabla <em>outbox</em>. Un proceso separado (o Debezium vía CDC) lee esa tabla y publica en Kafka. Así, publicar en Kafka solo ocurre si la transacción de BD fue exitosa. Es el patrón de oro para consistency en microservicios.
+      </div>
+      <div class="q-nav"><button class="btn-next" id="qnext-qq4" onclick="qNext('qq4','qq5')">SIGUIENTE →</button></div>
+    </div>
+
+    <!-- Q5 -->
+    <div class="qbox" id="qq5">
+      <div class="q-meta"><span class="q-num">PREGUNTA 5 DE 8</span><span class="q-diff diff-hard">DIFÍCIL</span></div>
+      <div class="q-text">Configuras cleanup.policy=compact en un topic. Un consumer reinicia desde el offset 0. ¿Qué mensajes verá?</div>
+      <div class="q-opts">
+        <div class="q-opt" onclick="qAnswer('qq5',this,false)"><span class="q-letter">A</span>Todos los mensajes históricos desde el inicio del topic</div>
+        <div class="q-opt" onclick="qAnswer('qq5',this,true)"><span class="q-letter">B</span>Al menos el último mensaje de cada key que existe actualmente, más mensajes recientes no compactados aún</div>
+        <div class="q-opt" onclick="qAnswer('qq5',this,false)"><span class="q-letter">C</span>Solo los mensajes de las últimas 24 horas</div>
+        <div class="q-opt" onclick="qAnswer('qq5',this,false)"><span class="q-letter">D</span>Un error — cleanup.policy=compact impide leer desde offset 0</div>
+      </div>
+      <div class="q-exp" id="qexp-qq5">
+        <strong>Respuesta B.</strong> Con Log Compaction, el broker garantiza retener <strong>al menos</strong> el último mensaje de cada key — pero el compaction no ocurre instantáneamente. Los segmentos más nuevos aún no compactados tendrán múltiples versiones de una key. Un consumer leyendo desde el inicio verá: los valores más recientes de keys ya compactadas (solo el último) + todos los mensajes de segmentos recientes aún sin compactar. Esto hace al topic compactado ideal como fuente de verdad para reconstruir estado.
+      </div>
+      <div class="q-nav"><button class="btn-next" id="qnext-qq5" onclick="qNext('qq5','qq6')">SIGUIENTE →</button></div>
+    </div>
+
+    <!-- Q6 -->
+    <div class="qbox" id="qq6">
+      <div class="q-meta"><span class="q-num">PREGUNTA 6 DE 8</span><span class="q-diff diff-exp">EXPERTO</span></div>
+      <div class="q-text">En un Kafka Streams con state store, ¿dónde se almacena físicamente el estado y cómo sobrevive a un reinicio?</div>
+      <div class="q-opts">
+        <div class="q-opt" onclick="qAnswer('qq6',this,false)"><span class="q-letter">A</span>En memoria RAM del consumer — no sobrevive a reinicios</div>
+        <div class="q-opt" onclick="qAnswer('qq6',this,false)"><span class="q-letter">B</span>En una base de datos externa que debes configurar</div>
+        <div class="q-opt" onclick="qAnswer('qq6',this,true)"><span class="q-letter">C</span>En RocksDB local + un changelog topic en Kafka que permite reconstruir el store tras un reinicio</div>
+        <div class="q-opt" onclick="qAnswer('qq6',this,false)"><span class="q-letter">D</span>En ZooKeeper como coordinador de estado distribuido</div>
+      </div>
+      <div class="q-exp" id="qexp-qq6">
+        <strong>Respuesta C.</strong> Kafka Streams usa <strong>RocksDB</strong> como motor de almacenamiento local en disco. Cada operación que modifica el state store también publica el cambio en un <em>changelog topic</em> interno en Kafka (con compaction activado). Al reiniciar una instancia, Streams restaura el RocksDB leyendo el changelog topic desde el principio — esto puede tardar si el estado es grande. Por eso en producción se usan <em>standby replicas</em> (<code>num.standby.replicas</code>) que mantienen copias calientes del state store.
+      </div>
+      <div class="q-nav"><button class="btn-next" id="qnext-qq6" onclick="qNext('qq6','qq7')">SIGUIENTE →</button></div>
+    </div>
+
+    <!-- Q7 -->
+    <div class="qbox" id="qq7">
+      <div class="q-meta"><span class="q-num">PREGUNTA 7 DE 8</span><span class="q-diff diff-hard">DIFÍCIL</span></div>
+      <div class="q-text">¿Cuál es la diferencia fundamental entre usar Kafka Connect vs escribir un consumer/producer manual para integrar Kafka con una base de datos externa?</div>
+      <div class="q-opts">
+        <div class="q-opt" onclick="qAnswer('qq7',this,false)"><span class="q-letter">A</span>Connect es más rápido porque usa protocolos binarios propietarios</div>
+        <div class="q-opt" onclick="qAnswer('qq7',this,true)"><span class="q-letter">B</span>Connect gestiona automáticamente offset tracking, escalado, reintentos, schemas y fault-tolerance — un consumer manual requiere implementar todo esto</div>
+        <div class="q-opt" onclick="qAnswer('qq7',this,false)"><span class="q-letter">C</span>Connect solo funciona con bases de datos relacionales, no con NoSQL</div>
+        <div class="q-opt" onclick="qAnswer('qq7',this,false)"><span class="q-letter">D</span>No hay diferencia funcional, es solo preferencia del desarrollador</div>
+      </div>
+      <div class="q-exp" id="qexp-qq7">
+        <strong>Respuesta B.</strong> Kafka Connect es un framework completo que maneja: tracking de offsets (qué se leyó ya), distribución de carga entre workers, reintentos automáticos en fallos, integración con Schema Registry para evolución de schemas, métricas JMX, REST API de administración, y transformaciones (SMT) sin código. Un consumer manual requiere implementar todo esto desde cero — lo cual es trabajo considerable y propenso a errores. Connect brilla especialmente con Debezium para CDC.
+      </div>
+      <div class="q-nav"><button class="btn-next" id="qnext-qq7" onclick="qNext('qq7','qq8')">SIGUIENTE →</button></div>
+    </div>
+
+    <!-- Q8 -->
+    <div class="qbox" id="qq8">
+      <div class="q-meta"><span class="q-num">PREGUNTA 8 DE 8</span><span class="q-diff diff-exp">EXPERTO</span></div>
+      <div class="q-text">En el patrón Saga con Kafka, el paso de pago falla. ¿Qué mecanismo garantiza que el pedido creado en el paso 1 sea revertido?</div>
+      <div class="q-opts">
+        <div class="q-opt" onclick="qAnswer('qq8',this,false)"><span class="q-letter">A</span>Kafka hace rollback automático usando transacciones Two-Phase Commit entre servicios</div>
+        <div class="q-opt" onclick="qAnswer('qq8',this,true)"><span class="q-letter">B</span>El payment-service publica un evento de fallo; el order-service lo consume y ejecuta su propia transacción compensatoria</div>
+        <div class="q-opt" onclick="qAnswer('qq8',this,false)"><span class="q-letter">C</span>El Saga orchestrator llama directamente via REST al order-service para cancelar</div>
+        <div class="q-opt" onclick="qAnswer('qq8',this,false)"><span class="q-letter">D</span>Kafka Streams detecta automáticamente el fallo y revierte los mensajes previos</div>
+      </div>
+      <div class="q-exp" id="qexp-qq8">
+        <strong>Respuesta B.</strong> En el patrón Saga coreografiado con Kafka, no hay un coordinador central ni Two-Phase Commit (que no escala). Cada servicio escucha los eventos de los otros y reacciona. Si payment publica <code>PaymentFailed</code>, el order-service tiene un consumer que escucha ese evento y ejecuta su propia <em>transacción compensatoria</em> local (cancelar el pedido). Esta cadena de compensaciones se propaga hacia atrás. La clave: cada servicio es responsable de su propia compensación — diseño que escala horizontalmente sin coordinación centralizada.
+      </div>
+      <div class="q-nav"><button class="btn-next" id="qnext-qq8" onclick="showQResult()">VER RESULTADO FINAL →</button></div>
+    </div>
+
+    <!-- RESULT -->
+    <div class="qresult" id="qResult">
+      <div class="qr-label">PUNTUACIÓN FINAL · NIVEL AVANZADO</div>
+      <div class="qr-score" id="qrScore">0/8</div>
+      <div class="qr-msg" id="qrMsg"></div>
+      <div class="qr-certs" id="qrCerts"></div>
+      <div style="margin-top:2.5rem; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+        <button class="btn-start" onclick="resetQQuiz()">↺ REPETIR QUIZ</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer style="border-top:1px solid var(--border);padding:3rem 2rem;text-align:center;max-width:1040px;margin:0 auto;">
+  <div style="font-family:var(--display);font-size:2rem;color:var(--cyan);margin-bottom:0.5rem;letter-spacing:0.1em;">KAFKA ADVANCED</div>
+  <div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);">Parte II del Curso Interactivo · Conceptos de producción · Kafka 3.x+</div>
+  <div style="display:flex;justify-content:center;gap:2rem;margin-top:1.5rem;flex-wrap:wrap;">
+    <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);cursor:pointer;" onmouseover="this.style.color='var(--cyan)'" onmouseout="this.style.color='var(--muted)'">kafka.apache.org/documentation</span>
+    <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);cursor:pointer;" onmouseover="this.style.color='var(--cyan)'" onmouseout="this.style.color='var(--muted)'">debezium.io</span>
+    <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);cursor:pointer;" onmouseover="this.style.color='var(--cyan)'" onmouseout="this.style.color='var(--muted)'">kafka.apache.org/documentation/streams</span>
+  </div>
+</footer>
+
+<!-- ================================================================ -->
+<!-- JAVASCRIPT -->
+<!-- ================================================================ -->
+<script>
+// ===== PARTICLES =====
+(function(){
+  const c = document.getElementById('particles');
+  for(let i=0;i<40;i++){
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random()*100+'%';
+    p.style.animationDuration = (8+Math.random()*15)+'s';
+    p.style.animationDelay = -(Math.random()*20)+'s';
+    p.style.width = p.style.height = (1+Math.random()*2)+'px';
+    p.style.opacity = 0.3+Math.random()*0.5;
+    if(Math.random()>0.7) p.style.background = 'var(--green)';
+    c.appendChild(p);
+  }
+})();
+
+// ===== NAV & SCROLL =====
+const nav = document.getElementById('nav');
+const sections = document.querySelectorAll('.section');
+
+window.addEventListener('scroll', ()=>{
+  const sy = window.scrollY;
+  if(sy>300) nav.classList.add('visible');
+  else nav.classList.remove('visible');
+
+  const docH = document.documentElement.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, Math.round((sy/docH)*100));
+  const circ = 75.4;
+  document.getElementById('prFill').style.strokeDashoffset = circ - (circ*pct/100);
+  document.getElementById('prText').textContent = pct+'%';
+
+  sections.forEach(s=>{
+    if(s.getBoundingClientRect().top < window.innerHeight*0.85) s.classList.add('visible');
+  });
+});
+
+function goTo(id){ document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'}); }
+window.dispatchEvent(new Event('scroll'));
+
+// ===== EOS TABS =====
+function eosTab(id){
+  document.querySelectorAll('.eos-tab').forEach((t,i)=>{
+    t.classList.remove('active');
+    document.querySelectorAll('.eos-panel')[i].classList.remove('active');
+  });
+  const tabs = {amo:0, alo:1, eos:2};
+  document.querySelectorAll('.eos-tab')[tabs[id]].classList.add('active');
+  document.getElementById('eos-'+id).classList.add('active');
+}
+
+// ===== LOG COMPACTION SIMULATOR =====
+const compactionData = [
+  {key:'user-1', val:'Alice',  offset:0},
+  {key:'user-2', val:'Bob',    offset:1},
+  {key:'user-1', val:'Alicia', offset:2},
+  {key:'user-3', val:'Carlos', offset:3},
+  {key:'user-2', val:'Roberto',offset:4},
+  {key:'user-4', val:'Diana',  offset:5},
+  {key:'user-1', val:'Ali',    offset:6},
+  {key:'user-3', val:'Carl',   offset:7},
+];
+let compData = [...compactionData];
+let hasTombstone = false;
+
+function renderBeforeSlots(){
+  const el = document.getElementById('beforeSlots');
+  el.innerHTML = '';
+  compData.forEach(d=>{
+    const ls = document.createElement('div');
+    ls.className = 'ls';
+    ls.innerHTML = `<span class="ls-off">off:${d.offset}</span><span class="ls-key">${d.key}</span><span class="ls-val">"${d.val}"</span>`;
+    if(d.tombstone) ls.classList.add('tombstone'), ls.querySelector('.ls-val').textContent = 'null';
+    el.appendChild(ls);
+  });
+}
+
+function addTombstone(){
+  if(hasTombstone) return;
+  hasTombstone = true;
+  compData.push({key:'user-4', val:'null', offset: compData.length, tombstone: true});
+  renderBeforeSlots();
+  document.getElementById('afterSlots').innerHTML = '';
+  document.getElementById('afterLabel').textContent = 'RESULTADO (aparecerá aquí)';
+  document.getElementById('compactNote').style.display = 'none';
+}
+
+function runCompaction(){
+  const afterEl = document.getElementById('afterSlots');
+  afterEl.innerHTML = '';
+  document.getElementById('afterLabel').textContent = 'DESPUÉS DE COMPACTION — solo últimos valores por key';
+
+  // Find latest per key
+  const latest = {};
+  compData.forEach(d=> latest[d.key] = d);
+
+  // Mark stale in before
+  const beforeEls = document.getElementById('beforeSlots').children;
+  compData.forEach((d,i)=>{
+    const el = beforeEls[i];
+    if(latest[d.key] !== d){ el.classList.add('stale'); }
+    else { el.classList.add('kept'); }
+  });
+
+  // Build after (without tombstones)
+  const note = document.getElementById('compactNote');
+  let kept=0, removed=0, tombs=0;
+  setTimeout(()=>{
+    Object.values(latest).forEach(d=>{
+      if(d.tombstone){ tombs++; return; } // tombstones eliminated after retention period
+      const ls = document.createElement('div');
+      ls.className = 'ls kept';
+      ls.style.opacity = '0'; ls.style.transition = 'opacity 0.4s '+kept*0.1+'s';
+      ls.innerHTML = `<span class="ls-off">off:${d.offset}</span><span class="ls-key">${d.key}</span><span class="ls-val">"${d.val}"</span>`;
+      afterEl.appendChild(ls);
+      requestAnimationFrame(()=> ls.style.opacity = '1');
+      kept++;
+    });
+    removed = compData.length - Object.keys(latest).length - tombs;
+    note.style.display = 'block';
+    note.textContent = `✅ Compaction completado: ${kept} mensajes retenidos (último por key) · ${removed} mensajes eliminados · ${tombs} tombstone(s) eliminado(s) después de delete.retention.ms`;
+  }, 300);
+}
+
+function resetCompaction(){
+  compData = [...compactionData]; hasTombstone = false;
+  renderBeforeSlots();
+  document.getElementById('afterSlots').innerHTML = '';
+  document.getElementById('afterLabel').textContent = 'RESULTADO (aparecerá aquí)';
+  document.getElementById('compactNote').style.display = 'none';
+}
+renderBeforeSlots();
+
+// ===== TOPOLOGY BUILDER =====
+const topoOps = [];
+const topoNodeDefs = {
+  source:  {label:'stream("input-topic")', type:'SOURCE',  cls:'source'},
+  filter:  {label:'filter(condition)',     type:'PROCESSOR', cls:'proc'},
+  map:     {label:'mapValues(fn)',         type:'PROCESSOR', cls:'proc'},
+  groupBy: {label:'groupByKey()',          type:'PROCESSOR', cls:'proc'},
+  count:   {label:'count()',              type:'PROCESSOR', cls:'proc'},
+  store:   {label:'StateStore\n(RocksDB)',type:'STORE',    cls:'store'},
+  sink:    {label:'to("output-topic")',   type:'SINK',     cls:'sink'},
+};
+
+const topoCode = {
+  source:  `StreamsBuilder builder = new StreamsBuilder();\nKStream<String, String> stream =\n  builder.stream("input-topic");`,
+  filter:  `\n\nKStream<String, String> filtered =\n  stream.filter((k, v) -> v != null && !v.isEmpty());`,
+  map:     `\n\nKStream<String, String> mapped =\n  filtered.mapValues(v -> v.toUpperCase());`,
+  groupBy: `\n\nKGroupedStream<String, String> grouped =\n  mapped.groupByKey();`,
+  count:   `\n\nKTable<String, Long> counts =\n  grouped.count(Materialized.as("counts-store"));`,
+  store:   `\n\n// StateStore se crea automáticamente con el count()\n// Accede vía: streams.store("counts-store", QueryableStoreTypes.keyValueStore())`,
+  sink:    `\n\ncounts.toStream().to("output-topic",\n  Produced.with(Serdes.String(), Serdes.Long()));\n\n// Iniciar:\nKafkaStreams app = new KafkaStreams(builder.build(), props);\napp.start();`,
+};
+
+function topoAdd(op){
+  topoOps.push(op);
+  renderTopo();
+}
+function topoReset(){ topoOps.length=0; renderTopo(); }
+
+function renderTopo(){
+  const canvas = document.getElementById('topoCanvas');
+  const codeEl = document.getElementById('topoCode');
+  const hint   = document.getElementById('topoHint');
+
+  if(topoOps.length===0){
+    canvas.innerHTML = '<div class="topo-hint" id="topoHint">← Usa los botones para construir tu topología de Kafka Streams paso a paso</div>';
+    codeEl.innerHTML = '<span style="color:var(--muted);font-family:var(--mono);font-size:0.65rem;">// El código Java aparecerá aquí conforme construyes la topología</span>';
+    return;
+  }
+
+  canvas.innerHTML = '';
+  let fullCode = '';
+  topoOps.forEach((op, i)=>{
+    const def = topoNodeDefs[op];
+    const node = document.createElement('div');
+    node.className = `topo-node ${def.cls}`;
+    node.innerHTML = `<span class="tn-type">${def.type}</span>${def.label.replace('\n','<br>')}`;
+    canvas.appendChild(node);
+    if(i < topoOps.length-1){
+      const aw = document.createElement('div');
+      aw.className = 'topo-arrow-wrap';
+      aw.innerHTML = '<span class="topo-arrow">→</span>';
+      canvas.appendChild(aw);
+    }
+    fullCode += topoCode[op] || '';
+  });
+
+  codeEl.innerHTML = fullCode
+    .replace(/StreamsBuilder|KStream|KTable|KGroupedStream|KafkaStreams/g, m=>`<span style="color:var(--cyan)">${m}</span>`)
+    .replace(/"[^"]+"/g, m=>`<span style="color:var(--amber)">${m}</span>`)
+    .replace(/(\/\/.*)/g, m=>`<span style="color:var(--muted);font-style:italic">${m}</span>`);
+}
+
+// ===== CONNECT CONFIG GENERATOR =====
+function generateConnectorConfig(){
+  const src = document.getElementById('sourceSelect').value;
+  const configs = {
+    'MySQL / MariaDB': `{
+  <span class="tk">"name"</span>: <span class="tv">"mysql-source-connector"</span>,
+  <span class="tk">"config"</span>: {
+    <span class="tk">"connector.class"</span>: <span class="tv">"io.debezium.connector.mysql.MySqlConnector"</span>,
+    <span class="tk">"database.hostname"</span>: <span class="tv">"YOUR_MYSQL_HOST"</span>,
+    <span class="tk">"database.port"</span>:     <span class="tv">"3306"</span>,
+    <span class="tk">"database.user"</span>:     <span class="tv">"kafka_user"</span>,
+    <span class="tk">"database.password"</span>: <span class="tv">"YOUR_PASSWORD"</span>,
+    <span class="tk">"topic.prefix"</span>:      <span class="tv">"mysql"</span>,
+    <span class="tk">"table.include.list"</span>: <span class="tv">"mydb.users,mydb.orders"</span>
+  }
+}`,
+    'PostgreSQL': `{
+  <span class="tk">"name"</span>: <span class="tv">"postgres-source-connector"</span>,
+  <span class="tk">"config"</span>: {
+    <span class="tk">"connector.class"</span>: <span class="tv">"io.debezium.connector.postgresql.PostgresConnector"</span>,
+    <span class="tk">"database.hostname"</span>: <span class="tv">"YOUR_PG_HOST"</span>,
+    <span class="tk">"database.port"</span>:     <span class="tv">"5432"</span>,
+    <span class="tk">"database.dbname"</span>:   <span class="tv">"mydb"</span>,
+    <span class="tk">"plugin.name"</span>:       <span class="tv">"pgoutput"</span>,
+    <span class="tk">"slot.name"</span>:         <span class="tv">"kafka_slot"</span>
+  }
+}`,
+    'MongoDB': `{
+  <span class="tk">"name"</span>: <span class="tv">"mongodb-source-connector"</span>,
+  <span class="tk">"config"</span>: {
+    <span class="tk">"connector.class"</span>:     <span class="tv">"io.debezium.connector.mongodb.MongoDbConnector"</span>,
+    <span class="tk">"mongodb.hosts"</span>:       <span class="tv">"rs0/mongo:27017"</span>,
+    <span class="tk">"mongodb.name"</span>:        <span class="tv">"mongo-cluster"</span>,
+    <span class="tk">"collection.include.list"</span>: <span class="tv">"mydb.users"</span>
+  }
+}`,
+    'REST API': `{
+  <span class="tk">"name"</span>: <span class="tv">"http-source-connector"</span>,
+  <span class="tk">"config"</span>: {
+    <span class="tk">"connector.class"</span>:  <span class="tv">"io.confluent.kafka.connect.http.HttpSourceConnector"</span>,
+    <span class="tk">"http.api.url"</span>:     <span class="tv">"https://api.example.com/events"</span>,
+    <span class="tk">"kafka.topic"</span>:      <span class="tv">"api-events"</span>,
+    <span class="tk">"http.poll.interval"</span>: <span class="tv">"5000"</span>
+  }
+}`,
+    'S3 / GCS': `{
+  <span class="tk">"name"</span>: <span class="tv">"s3-source-connector"</span>,
+  <span class="tk">"config"</span>: {
+    <span class="tk">"connector.class"</span>: <span class="tv">"io.confluent.connect.s3.source.S3SourceConnector"</span>,
+    <span class="tk">"s3.bucket.name"</span>:  <span class="tv">"my-data-bucket"</span>,
+    <span class="tk">"s3.region"</span>:       <span class="tv">"us-east-1"</span>,
+    <span class="tk">"kafka.topic"</span>:     <span class="tv">"s3-events"</span>,
+    <span class="tk">"format.class"</span>:    <span class="tv">"io.confluent.connect.s3.format.json.JsonFormat"</span>
+  }
+}`,
+    'Salesforce': `{
+  <span class="tk">"name"</span>: <span class="tv">"salesforce-source-connector"</span>,
+  <span class="tk">"config"</span>: {
+    <span class="tk">"connector.class"</span>:        <span class="tv">"io.confluent.salesforce.SalesforcePushTopicSourceConnector"</span>,
+    <span class="tk">"salesforce.username"</span>:    <span class="tv">"user@example.com"</span>,
+    <span class="tk">"salesforce.push.topic.name"</span>: <span class="tv">"LeadTopic"</span>,
+    <span class="tk">"kafka.topic"</span>:            <span class="tv">"salesforce-leads"</span>
+  }
+}`
+  };
+
+  const out = document.getElementById('connectOutput');
+  out.classList.add('show');
+  out.innerHTML = `<div style="color:var(--muted);font-size:0.6rem;letter-spacing:0.2em;margin-bottom:0.8rem;">▶ CONFIGURACIÓN GENERADA — POST /connectors</div>${configs[src] || '// Configuración no disponible'}`;
+}
+
+// ===== PERFORMANCE LAB =====
+function updatePerf(){
+  const batch  = parseInt(document.getElementById('s-batch').value);
+  const linger = parseInt(document.getElementById('s-linger').value);
+  const comp   = parseInt(document.getElementById('s-comp').value);
+  const acks   = parseInt(document.getElementById('s-acks').value);
+
+  const compNames = ['none','snappy','lz4','zstd'];
+  const acksNames = ['0 (fire-forget)','1 (líder)','all (todos)'];
+
+  document.getElementById('v-batch').textContent  = batch + ' KB';
+  document.getElementById('v-linger').textContent = linger + ' ms';
+  document.getElementById('v-comp').textContent   = compNames[comp];
+  document.getElementById('v-acks').textContent   = acksNames[acks];
+
+  // Calculate estimated metrics (0-100)
+  const tpScore   = Math.min(100, (batch/100)*40 + (linger/100)*40 + comp*8);
+  const latScore  = Math.min(100, (linger/100)*60 + (acks/2)*30 + (batch/100)*10);
+  const riskScore = Math.max(0, 100 - (acks/2)*60 - 20);
+  const netScore  = Math.max(0, 100 - comp*20);
+
+  const tpK = Math.round(20 + tpScore*4.8);
+  const latMs = Math.round(1 + latScore*2);
+  const riskPct = Math.round(riskScore);
+
+  document.getElementById('m-tp').textContent   = tpK + 'K msg/s';
+  document.getElementById('m-lat').textContent  = latMs + ' ms';
+  document.getElementById('m-risk').textContent = riskPct + '%';
+  document.getElementById('m-net').textContent  = Math.round(100-netScore) + '% ahorrado';
+
+  setBar('b-tp',  tpScore,  true);
+  setBar('b-lat', latScore, false);
+  setBar('b-risk',riskScore,false);
+  setBar('b-net', 100-netScore, true);
+
+  document.getElementById('ps-tp').textContent   = tpK+'K/s';
+  document.getElementById('ps-lat').textContent  = latMs+'ms';
+  document.getElementById('ps-safe').textContent = acks===2?'ALTO':acks===1?'MEDIO':'BAJO';
+  document.getElementById('ps-safe').style.color = acks===2?'var(--green2)':acks===1?'var(--amber)':'var(--red)';
+
+  const useCase = acks===0?'TELEMETRÍA':acks===1&&batch>50?'ANALYTICS':acks===2?'FINTECH':'GENERAL';
+  document.getElementById('ps-use').textContent = useCase;
+
+  let advice = [];
+  if(linger===0 && batch>32) advice.push('⚠️ batch.size grande con linger.ms=0 puede no aprovechar el batching. Sube linger a 5-20ms.');
+  if(acks===0) advice.push('❌ acks=0 en producción es muy peligroso — pérdida de mensajes garantizada en fallos.');
+  if(comp===0 && batch>32) advice.push('💡 Con batches grandes, habilitar compresión (lz4 recomendado) reduce el uso de red significativamente.');
+  if(acks===2 && linger===0) advice.push('📌 Con acks=all el throughput ya es menor, considera linger.ms=5 para compensar sin afectar mucho la latencia.');
+  if(advice.length===0) advice.push('✅ Configuración razonable para el caso de uso detectado.');
+
+  document.getElementById('perfAdvice').textContent = advice.join('\n');
+}
+
+function setBar(id, val, invert){
+  const el = document.getElementById(id);
+  const pct = Math.min(100, Math.max(0, val));
+  el.style.width = pct + '%';
+  const green = invert ? pct > 60 : pct < 30;
+  const amber = invert ? (pct>30&&pct<60) : (pct>=30&&pct<60);
+  el.className = 'metric-bar ' + (green?'bar-good':amber?'bar-mid':'bar-bad');
+}
+
+updatePerf();
+
+// ===== SAGA SIMULATOR =====
+let sagaRunning = false;
+
+async function runSaga(fail){
+  if(sagaRunning) return;
+  sagaRunning = true;
+  resetSaga();
+  await sleep(200);
+
+  const steps  = ['s1','s2','s3','s4','s5'];
+  const events = ['OrderCreated →','PaymentReserved →','StockReserved →','ShipmentCreated →','OrderConfirmed ✓'];
+  const labels = ['ACTIVE','DONE','DONE','DONE','DONE'];
+
+  for(let i=0;i<steps.length;i++){
+    const sId = 'step-s'+(i+1);
+    const nId = 'num-s'+(i+1);
+    const eId = 'ev-s'+(i+1);
+    document.getElementById(sId).classList.add('active');
+
+    await sleep(700);
+
+    if(fail && i===2){
+      // Fallo en paso 3
+      document.getElementById(nId).className = 'ss-num fail';
+      document.getElementById(nId).textContent = '✗';
+      document.getElementById(eId).textContent = 'StockOutOfStock →';
+      document.getElementById(eId).className = 'ss-event ev-compensate';
+      document.getElementById(eId).style.display = 'inline-block';
+
+      await sleep(500);
+      // Compensations
+      for(let j=i-1;j>=0;j--){
+        const cId = 'num-s'+(j+1);
+        const ceId = 'ev-s'+(j+1);
+        await sleep(600);
+        document.getElementById(cId).className = 'ss-num comp';
+        document.getElementById(cId).textContent = '↩';
+        document.getElementById(ceId).textContent = j===1?'PaymentReleased ↩':'OrderCancelled ↩';
+        document.getElementById(ceId).className = 'ss-event ev-compensate';
+        document.getElementById(ceId).style.display = 'inline-block';
+      }
+
+      const res = document.getElementById('sagaResult');
+      res.style.display = 'block';
+      res.style.borderColor = 'var(--red)';
+      res.style.color = 'var(--red)';
+      res.textContent = '❌ SAGA FALLIDA — Compensaciones ejecutadas: Stock no disponible → Pago liberado → Pedido cancelado. Estado final: CONSISTENTE (eventual).';
+      break;
+    } else {
+      document.getElementById(nId).className = 'ss-num done';
+      document.getElementById(nId).textContent = '✓';
+      document.getElementById(eId).textContent = events[i];
+      document.getElementById(eId).className = 'ss-event ev-published';
+      document.getElementById(eId).style.display = 'inline-block';
+
+      if(i===steps.length-1){
+        const res = document.getElementById('sagaResult');
+        res.style.display = 'block';
+        res.style.borderColor = 'var(--green)';
+        res.style.color = 'var(--green2)';
+        res.textContent = '✅ SAGA COMPLETADA — Todos los servicios confirmaron. Pedido estado: CONFIRMED. Sin coordinador central, sin 2PC. Solo eventos Kafka.';
+      }
+    }
+  }
+  sagaRunning = false;
+}
+
+function resetSaga(){
+  ['s1','s2','s3','s4','s5'].forEach(s=>{
+    document.getElementById('step-'+s).classList.remove('active');
+    const n = document.getElementById('num-'+s);
+    n.className = 'ss-num'; n.textContent = s.replace('s','');
+    const e = document.getElementById('ev-'+s);
+    e.style.display = 'none'; e.className = 'ss-event ev-published';
+  });
+  const r = document.getElementById('sagaResult');
+  r.style.display = 'none'; r.textContent = '';
+  sagaRunning = false;
+}
+
+// ===== MONITORING DASHBOARD =====
+let monInterval = null;
+const monModes = {
+  normal: {
+    lag: ()=>Math.round(200+Math.random()*100),
+    tp:  ()=>(12+Math.random()*0.5).toFixed(1)+'K',
+    con: ()=>(12+Math.random()*0.4).toFixed(1)+'K',
+    br:  ()=>'3/3', brSub:'cluster saludable',
+    lat: ()=>(4+Math.random()*0.5).toFixed(1)+'ms',
+    rep: ()=>'0', repSub:'under-replicated partitions',
+    lagCls:'mv-green', tpCls:'mv-cyan', conCls:'mv-green', brCls:'mv-green', latCls:'mv-green', repCls:'mv-green',
+    lagData: ()=> Array.from({length:6},()=>Math.round(50+Math.random()*150))
+  },
+  lag: {
+    lag: ()=>Math.round(5000+Math.random()*2000),
+    tp:  ()=>(15+Math.random()*0.5).toFixed(1)+'K',
+    con: ()=>(8+Math.random()*0.4).toFixed(1)+'K',
+    br:  ()=>'3/3', brSub:'cluster saludable',
+    lat: ()=>(15+Math.random()*5).toFixed(1)+'ms',
+    rep: ()=>'0', repSub:'under-replicated partitions',
+    lagCls:'mv-amber', tpCls:'mv-cyan', conCls:'mv-amber', brCls:'mv-green', latCls:'mv-amber', repCls:'mv-green',
+    lagData: ()=> [1200,2400,4100,6200,7800,9100]
+  },
+  crisis: {
+    lag: ()=>Math.round(80000+Math.random()*10000),
+    tp:  ()=>(14+Math.random()*0.5).toFixed(1)+'K',
+    con: ()=>'0',
+    br:  ()=>'2/3', brSub:'⚠️ 1 broker caído',
+    lat: ()=>(80+Math.random()*20).toFixed(1)+'ms',
+    rep: ()=>'4', repSub:'⚠️ particiones sub-replicadas',
+    lagCls:'mv-red', tpCls:'mv-cyan', conCls:'mv-red', brCls:'mv-amber', latCls:'mv-red', repCls:'mv-red',
+    lagData: ()=> [8000,18000,30000,45000,62000,80000]
+  }
+};
+
+let currentMode = 'normal';
+
+function setMonMode(mode){
+  currentMode = mode;
+  document.querySelectorAll('.btn-mon').forEach(b=>b.classList.remove('active'));
+  document.getElementById('mon-'+mode).classList.add('active');
+  updateMon();
+}
+
+function updateMon(){
+  const m = monModes[currentMode];
+  document.getElementById('mon-lag-val').textContent = m.lag().toLocaleString();
+  document.getElementById('mon-tp-val').textContent  = m.tp();
+  document.getElementById('mon-con-val').textContent = m.con();
+  document.getElementById('mon-br-val').textContent  = m.br();
+  document.getElementById('mon-br-sub').textContent  = m.brSub;
+  document.getElementById('mon-lat-val').textContent = m.lat();
+  document.getElementById('mon-rep-val').textContent = m.rep();
+  document.getElementById('mon-rep-sub').textContent = m.repSub;
+
+  ['mon-lag-val','mon-con-val','mon-br-val','mon-lat-val','mon-rep-val'].forEach((id,i)=>{
+    const classes = ['lagCls','conCls','brCls','latCls','repCls'];
+    document.getElementById(id).className = 'mon-value '+m[classes[i]];
+  });
+
+  renderLagBars(m.lagData());
+}
+
+function renderLagBars(data){
+  const el = document.getElementById('lagBars');
+  el.innerHTML = '';
+  const max = Math.max(...data, 1);
+  const colors = ['var(--cyan)','var(--blue)','var(--purple)'];
+  data.forEach((v,i)=>{
+    const pct = Math.round((v/max)*100);
+    const color = v > 10000 ? 'var(--red)' : v > 2000 ? 'var(--amber)' : colors[i%3];
+    el.innerHTML += `
+      <div class="lag-bar-wrap">
+        <span class="lag-bar-val" style="color:${color}">${v>1000?(v/1000).toFixed(0)+'K':v}</span>
+        <div class="lag-bar" style="height:${pct}%;background:${color};width:100%"></div>
+        <span class="lag-bar-label">P-${i}</span>
+      </div>`;
+  });
+}
+
+updateMon();
+setInterval(updateMon, 2000);
+
+// ===== QUIZ ADVANCED =====
+let qScore = 0, qAnswered = 0;
+
+function qAnswer(qId, el, correct){
+  const opts = el.parentElement.querySelectorAll('.q-opt');
+  opts.forEach(o=>o.classList.add('disabled'));
+  el.classList.add(correct?'correct':'wrong');
+  if(!correct) opts.forEach(o=>{ if(o.onclick.toString().includes('true')) o.classList.add('correct'); });
+  if(correct) qScore++;
+  qAnswered++;
+  document.getElementById('qexp-'+qId).classList.add('show');
+  document.getElementById('qnext-'+qId).style.display = 'inline-block';
+  document.getElementById('qBarFill').style.width = (qAnswered/8*100)+'%';
+}
+
+function qNext(cur, next){
+  document.getElementById(cur).classList.remove('active');
+  document.getElementById(next).classList.add('active');
+}
+
+function showQResult(){
+  document.getElementById('qq8').classList.remove('active');
+  const res = document.getElementById('qResult');
+  res.classList.add('show');
+  const score = document.getElementById('qrScore');
+  score.textContent = qScore+'/8';
+  score.className = 'qr-score ' + (qScore>=7?'expert':qScore>=5?'mid':'low');
+
+  const msgs = {
+    8: 'Arquitecto Kafka. Puedes diseñar sistemas de producción críticos y liderar decisiones técnicas complejas. Dominas EOS, Streams, Connect y patrones de arquitectura.',
+    7: 'Nivel Senior. Excelente comprensión de los mecanismos internos. Revisa el tema donde fallaste y estarás listo para producción.',
+    6: 'Nivel Mid-Senior. Sólida comprensión general. Los temas de EOS y Saga son los que más vale profundizar.',
+    5: 'Buen fundamento. Repasa los módulos de Kafka Streams y Exactly-Once — son los más complejos y los que más peso tienen en arquitecturas reales.',
+    0: 'Este nivel es genuinamente difícil. Revisa la Parte I primero y vuelve a esta cuando tengas los fundamentos sólidos.'
+  };
+  document.getElementById('qrMsg').textContent = msgs[qScore] || msgs[qScore>=4?5:0] || msgs[0];
+
+  const certs = document.getElementById('qrCerts');
+  certs.innerHTML = '';
+  if(qScore>=5) addCert(certs,'KAFKA ADVANCED',0);
+  if(qScore>=6) addCert(certs,'STREAMS ARCHITECT',200);
+  if(qScore>=7) addCert(certs,'PRODUCTION READY',400);
+  if(qScore>=8) addCert(certs,'KAFKA EXPERT',600);
+}
+
+function addCert(el, txt, delay){
+  const c = document.createElement('div');
+  c.className = 'cert'; c.textContent = txt;
+  c.style.animationDelay = delay+'ms';
+  el.appendChild(c);
+}
+
+function resetQQuiz(){
+  qScore=0; qAnswered=0;
+  document.getElementById('qBarFill').style.width='0%';
+  document.getElementById('qResult').classList.remove('show');
+  for(let i=1;i<=8;i++){
+    const q = document.getElementById('qq'+i);
+    q.classList.remove('active');
+    q.querySelectorAll('.q-opt').forEach(o=>o.classList.remove('correct','wrong','disabled'));
+    const ex = document.getElementById('qexp-qq'+i);
+    if(ex) ex.classList.remove('show');
+    const nb = document.getElementById('qnext-qq'+i);
+    if(nb) nb.style.display='none';
+  }
+  document.getElementById('qq1').classList.add('active');
+}
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+</script>
+</body>
+</html>

@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apache Kafka - Event Streaming Platform</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org"></script>
+
+    <style>
+        :root {
+            --primary-color: #21b1c9;
+            --primary-dark: #1a8fa3;
+            --primary-light: #e6f7fa;
+            --secondary-color: #ffffff;
+            --text-dark: #2c3e50;
+            --text-light: #6c757d;
+            --bg-gradient-start: #f8fdfe;
+            --bg-gradient-end: #e0f4f8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Slide Container */
+        .slide-container {
+            position: relative;
+            width: 100%;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+        }
+
+        .slide.active {
+            opacity: 1;
+            transform: translateX(0);
+            z-index: 10;
+        }
+
+        .slide.prev {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+
+        /* Custom Scrollbar */
+        .slide-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .slide-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .slide-content::-webkit-scrollbar-track {
+            background: rgba(33, 177, 201, 0.1);
+            border-radius: 4px;
+        }
+
+        .slide-content::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        /* Cards & Components */
+        .feature-card {
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(33, 177, 201, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(33, 177, 201, 0.2);
+        }
+
+        .icon-box {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 20px rgba(33, 177, 201, 0.3);
+        }
+
+        /* Diagrams */
+        .diagram-box {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(33, 177, 201, 0.1);
+            position: relative;
+        }
+
+        .node {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(33, 177, 201, 0.3);
+            position: relative;
+            z-index: 2;
+        }
+
+        .node-secondary {
+            background: linear-gradient(135deg, #ffffff, #f8fdfe);
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(33, 177, 201, 0.1);
+        }
+
+        .node-consumer {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(44, 62, 80, 0.3);
+        }
+
+        .arrow-connector {
+            position: relative;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .arrow-connector::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--primary-color), var(--primary-dark));
+        }
+
+        .arrow-connector::before {
+            content: '▼';
+            position: absolute;
+            bottom: -5px;
+            color: var(--primary-color);
+            font-size: 0.8rem;
+        }
+
+        .horizontal-connector {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 80px;
+        }
+
+        .horizontal-connector::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, var(--primary-color), var(--primary-dark));
+        }
+
+        .horizontal-connector::before {
+            content: '▶';
+            position: absolute;
+            right: -5px;
+            color: var(--primary-color);
+            font-size: 0.8rem;
+        }
+
+        .partition-box {
+            background: linear-gradient(135deg, #e6f7fa, #d1f0f5);
+            border: 2px dashed var(--primary-color);
+            border-radius: 8px;
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        /* Navigation */
+        .nav-controls {
+            position: relative;
+            margin: 1rem auto;
+            display: flex;
+            gap: 1rem;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            box-shadow: 0 10px 40px rgba(33, 177, 201, 0.2);
+            backdrop-filter: blur(10px);
+            width: fit-content;
+        }
+
+        .nav-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid var(--primary-color);
+            background: transparent;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .slide-counter {
+            display: flex;
+            align-items: center;
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            min-width: 80px;
+            justify-content: center;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(33, 177, 201, 0.1);
+            z-index: 1000;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
+            transition: width 0.4s ease;
+        }
+
+        /* Typography */
+        .slide-title {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .slide-subtitle {
+            font-size: 1.3rem;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+            font-weight: 400;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, var(--primary-light), #d1f0f5);
+            border-left: 4px solid var(--primary-color);
+            padding: 1.5rem;
+            border-radius: 0 12px 12px 0;
+            margin: 1rem 0;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(1.3); opacity: 0; }
+        }
+
+        .pulse-dot {
+            position: relative;
+        }
+
+        .pulse-dot::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: var(--primary-color);
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+
+        .dot-animation {
+            width: 14px;
+            height: 14px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 0 10px var(--primary-color);
+            z-index: 5;
+        }
+
+        @keyframes moveRight {
+            0% { left: 0; }
+            100% { left: 100%; }
+        }
+
+        /* Code blocks */
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1.5rem;
+            border-radius: 12px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            border: 1px solid #333;
+        }
+
+        .code-keyword { color: #569cd6; }
+        .code-string { color: #ce9178; }
+        .code-comment { color: #6a9955; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .slide-title { font-size: 2rem; }
+            .slide-subtitle { font-size: 1rem; }
+            .slide-content { padding: 1rem; }
+            .feature-card { padding: 1.5rem; }
+        }
+
+        /* Timeline */
+        .timeline-item {
+            position: relative;
+            padding-left: 2rem;
+            border-left: 3px solid var(--primary-color);
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -9px;
+            top: 0;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            border: 3px solid white;
+            box-shadow: 0 0 0 3px var(--primary-color);
+        }
+
+        /* Stats */
+        .stat-card {
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(33, 177, 201, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            line-height: 1;
+        }
+
+        .stat-label {
+            color: var(--text-light);
+            font-size: 0.95rem;
+            margin-top: 0.5rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body x-data="presentation()" x-init="init()">
+
+    <!-- Progress Bar -->
+    <div class="progress-container">
+        <div class="progress-bar" :style="'width: ' + ((currentSlide + 1) / totalSlides * 100) + '%'"></div>
+    </div>
+
+    <!-- Slide Container -->
+    <div class="slide-container">
+
+        <!-- SLIDE 1: Portada -->
+        <div class="slide" :class="{ 'active': currentSlide === 0, 'prev': currentSlide > 0 }">
+            <div class="slide-content d-flex flex-column justify-content-center align-items-center text-center">
+                <div class="mb-4 pulse-dot">
+                    <div class="icon-box float-animation" style="width: 120px; height: 120px; font-size: 3rem;">
+                        <i class="bi bi-diagram-3-fill"></i>
+                    </div>
+                </div>
+                <h1 class="slide-title" style="font-size: 4rem;">Apache Kafka</h1>
+                <p class="slide-subtitle" style="font-size: 1.5rem; max-width: 700px;">
+                    La Plataforma de Event Streaming para la Era Digital
+                </p>
+                <div class="d-flex gap-3 mt-4">
+                    <span class="badge rounded-pill" style="background: var(--primary-color); font-size: 1rem; padding: 0.6rem 1.2rem;">
+                        <i class="bi bi-bank me-2"></i>Fintech & Banca
+                    </span>
+                    <span class="badge rounded-pill" style="background: var(--primary-dark); font-size: 1rem; padding: 0.6rem 1.2rem;">
+                        <i class="bi bi-grid-3x3-gap me-2"></i>Microservicios
+                    </span>
+                    <span class="badge rounded-pill" style="background: var(--text-dark); font-size: 1rem; padding: 0.6rem 1.2rem;">
+                        <i class="bi bi-journal-text me-2"></i>Logs & Auditoría
+                    </span>
+                </div>
+                <div class="mt-5 text-muted">
+                    <p><i class="bi bi-mouse me-2"></i>Usa las flechas para navegar</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2: ¿Qué es Kafka? -->
+        <div class="slide" :class="{ 'active': currentSlide === 1, 'prev': currentSlide > 1 }">
+            <div class="slide-content">
+                <h2 class="slide-title">¿Qué es Apache Kafka?</h2>
+                <p class="slide-subtitle">Plataforma de streaming de eventos distribuida y de código abierto</p>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="feature-card h-100">
+                            <div class="icon-box"><i class="bi bi-lightning-charge-fill"></i></div>
+                            <h4>Event Streaming</h4>
+                            <p class="text-muted">
+                                Captura, almacena y procesa flujos de eventos en tiempo real. 
+                                Un <strong>evento</strong> es un registro inmutable de algo que ocurrió 
+                                (ej: una transacción bancaria, un clic, un sensor).
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="feature-card h-100">
+                            <div class="icon-box"><i class="bi bi-hdd-network-fill"></i></div>
+                            <h4>Distributed Commit Log</h4>
+                            <p class="text-muted">
+                                Almacena eventos de forma secuencial e inmutable en <strong>topics</strong> 
+                                particionados y replicados. Diseñado para alta disponibilidad y tolerancia a fallos.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-box mt-4">
+                    <h5 class="section-title mb-4"><i class="bi bi-diagram-2"></i>Arquitectura Conceptual</h5>
+                    <div class="row align-items-center text-center g-3">
+                        <div class="col-md-3">
+                            <div class="node-secondary">
+                                <i class="bi bi-box-arrow-in-right d-block mb-1"></i>
+                                Producers<br>
+                                <small class="text-muted">Apps/Servicios</small>
+                            </div>
+                        </div>
+                        <div class="col-md-1">
+                            <div class="horizontal-connector"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="node" style="padding: 2rem;">
+                                <i class="bi bi-diagram-3-fill d-block mb-2" style="font-size: 2rem;"></i>
+                                <strong>Kafka Cluster</strong><br>
+                                <small>Brokers • Topics • Partitions</small>
+                                <div class="row mt-3 g-2">
+                                    <div class="col-4"><div class="partition-box">P0</div></div>
+                                    <div class="col-4"><div class="partition-box">P1</div></div>
+                                    <div class="col-4"><div class="partition-box">P2</div></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-1">
+                            <div class="horizontal-connector" style="transform: rotate(180deg);"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="node-consumer">
+                                <i class="bi bi-box-arrow-right d-block mb-1"></i>
+                                Consumers<br>
+                                <small class="text-light">Apps/Microservicios</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diagrama Animado -->
+                <div class="diagram-box mt-4" x-data="{ sagaStep: 0 }">
+                    <h5 class="section-title mb-4"><i class="bi bi-play-circle-fill"></i> Flujo Animado: Transacción con Fallo</h5>
+                    <div class="d-flex align-items-center justify-content-around position-relative py-4">
+                        <!-- Servicio A -->
+                        <div class="text-center" style="width: 150px;">
+                            <div class="node" :class="sagaStep === 1 || sagaStep === 4 ? 'pulse-dot' : ''">Servicio A (Débito)</div>
+                            <div class="mt-2 small" :class="sagaStep === 4 ? 'text-success fw-bold' : 'text-muted'" x-text="sagaStep === 4 ? '¡Compensado!' : (sagaStep >= 1 ? 'OK' : 'Esperando')"></div>
+                        </div>
+
+                        <!-- Conector A -> Kafka -->
+                        <div class="flex-grow-1 mx-2 position-relative" style="height: 4px; background: #eee; border-radius: 2px;">
+                            <div class="dot-animation" x-show="sagaStep === 1" style="animation: moveRight 1.5s linear infinite;"></div>
+                            <div class="dot-animation bg-danger" x-show="sagaStep === 3" style="animation: moveRight 1.5s linear infinite reverse; right: 0;"></div>
+                        </div>
+
+                        <!-- Kafka -->
+                        <div class="node-secondary" style="border-style: dashed; padding: 0.5rem 1rem;">
+                            <i class="bi bi-diagram-3-fill d-block"></i> Kafka
+                        </div>
+
+                        <!-- Conector Kafka -> B -->
+                        <div class="flex-grow-1 mx-2 position-relative" style="height: 4px; background: #eee; border-radius: 2px;">
+                            <div class="dot-animation" x-show="sagaStep === 2" style="animation: moveRight 1.5s linear infinite;"></div>
+                        </div>
+
+                        <!-- Servicio B -->
+                        <div class="text-center" style="width: 150px;">
+                            <div class="node-consumer" :class="sagaStep >= 2 ? 'bg-danger' : ''">Servicio B (Crédito)</div>
+                            <div class="mt-2 small text-danger fw-bold" x-show="sagaStep >= 2">❌ Error</div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <button class="btn btn-sm btn-primary px-4 rounded-pill" @click="sagaStep = (sagaStep + 1) % 5">
+                            <span x-text="sagaStep === 0 ? 'Iniciar Animación' : (sagaStep === 4 ? 'Reiniciar' : 'Siguiente Paso')"></span>
+                        </button>
+                        <div class="mt-3 small text-muted" style="min-height: 24px;">
+                            <strong x-show="sagaStep === 1">1. Débito exitoso en A → Evento enviado a Kafka.</strong>
+                            <strong x-show="sagaStep === 2">2. B recibe el evento pero falla la acreditación.</strong>
+                            <strong x-show="sagaStep === 3">3. B notifica el fallo a Kafka → Kafka alerta a A.</strong>
+                            <strong x-show="sagaStep === 4">4. A recibe el fallo y realiza la acción compensatoria (Rollback).</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3: Componentes Core -->
+        <div class="slide" :class="{ 'active': currentSlide === 2, 'prev': currentSlide > 2 }">
+            <div class="slide-content">
+                <h2 class="slide-title">Componentes Fundamentales</h2>
+                <p class="slide-subtitle">Los bloques de construcción de la arquitectura Kafka</p>
+
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="feature-card">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="icon-box" style="width: 50px; height: 50px; font-size: 1.2rem; margin-bottom: 0; margin-right: 1rem;">
+                                    <i class="bi bi-journal-bookmark-fill"></i>
+                                </div>
+                                <h5 class="mb-0 fw-bold">Topics</h5>
+                            </div>
+                            <p class="text-muted small">
+                                Canales lógicos donde se publican eventos. Similar a una tabla en BD, 
+                                pero diseñado para streaming. Soportan retención configurable.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-card">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="icon-box" style="width: 50px; height: 50px; font-size: 1.2rem; margin-bottom: 0; margin-right: 1rem;">
+                                    <i class="bi bi-grid-1x2-fill"></i>
+                                </div>
+                                <h5 class="mb-0 fw-bold">Partitions</h5>
+                            </div>
+                            <p class="text-muted small">
+                                División horizontal de un topic para paralelismo. Cada partición es un 
+                                log ordenado e inmutable. Permite escalar horizontalmente el throughput.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-card">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="icon-box" style="width: 50px; height: 50px; font-size: 1.2rem; margin-bottom: 0; margin-right: 1rem;">
+                                    <i class="bi bi-hdd-fill"></i>
+                                </div>
+                                <h5 class="mb-0 fw-bold">Brokers</h5>
+                            </div>
+                            <p class="text-muted small">
+                                Servidores Kafka que almacenan datos y sirven clientes. Múltiples brokers 
+                                forman un cluster. Cada partición tiene un líder y réplicas ISR.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-box mt-4">
+                    <h5 class="section-title mb-4"><i class="bi bi-layers"></i>Topic con Particiones y Replicación (RF=3)</h5>
+                    <div class="row g-4">
+                        <div class="col-md-4">
+                            <div class="border rounded-3 p-3" style="border-color: var(--primary-color) !important; border-width: 2px !important;">
+                                <h6 class="text-center fw-bold mb-3" style="color: var(--primary-color);">Partition 0</h6>
+                                <div class="node mb-2" style="padding: 0.5rem; font-size: 0.85rem;">Leader: Broker A</div>
+                                <div class="node-secondary mb-2" style="padding: 0.5rem; font-size: 0.85rem;">Replica: Broker B</div>
+                                <div class="node-secondary" style="padding: 0.5rem; font-size: 0.85rem;">Replica: Broker C</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded-3 p-3" style="border-color: var(--primary-color) !important; border-width: 2px !important;">
+                                <h6 class="text-center fw-bold mb-3" style="color: var(--primary-color);">Partition 1</h6>
+                                <div class="node mb-2" style="padding: 0.5rem; font-size: 0.85rem;">Leader: Broker B</div>
+                                <div class="node-secondary mb-2" style="padding: 0.5rem; font-size: 0.85rem;">Replica: Broker C</div>
+                                <div class="node-secondary" style="padding: 0.5rem; font-size: 0.85rem;">Replica: Broker D</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded-3 p-3" style="border-color: var(--primary-color) !important; border-width: 2px !important;">
+                                <h6 class="text-center fw-bold mb-3" style="color: var(--primary-color);">Partition 2</h6>
+                                <div class="node mb-2" style="padding: 0.5rem; font-size: 0.85rem;">Leader: Broker C</div>
+                                <div class="node-secondary mb-2" style="padding: 0.5rem; font-size: 0.85rem;">Replica: Broker A</div>
+                                <div class="node-secondary" style="padding: 0.5rem; font-size: 0.85rem;">Replica: Broker D</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="highlight-box mt-3">
+                        <strong><i class="bi bi-info-circle me-2"></i>Tolerancia a Fallos:</strong> 
+                        Si un broker cae, un ISR (In-Sync Replica) es promovido a líder automáticamente sin pérdida de datos.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4: Consumer Groups & Particiones -->
+        <div class="slide" :class="{ 'active': currentSlide === 3, 'prev': currentSlide > 3 }">
+            <div class="slide-content">
+                <h2 class="slide-title">Asignación de Particiones</h2>
+                <p class="slide-subtitle">¿Cómo escala Kafka la lectura usando Consumer Groups?</p>
+
+                <div class="row g-4">
+                    <div class="col-md-5">
+                        <div class="feature-card h-100">
+                            <h5 class="section-title"><i class="bi bi-people-fill"></i> Reglas de Asignación</h5>
+                            <ul class="mt-3">
+                                <li class="mb-3"><strong>Exclusividad:</strong> Cada partición es procesada por <strong>un solo</strong> consumidor dentro de un mismo grupo.</li>
+                                <li class="mb-3"><strong>Paralelismo:</strong> El número de particiones define el límite máximo de consumidores activos.</li>
+                                <li class="mb-3"><strong>Consumidores Extra:</strong> Si hay más consumidores que particiones, los extras quedan en <em>IDLE</em> (espera).</li>
+                                <li><strong>Rebalanceo:</strong> Si un consumidor falla, Kafka reasigna sus particiones automáticamente.</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="diagram-box">
+                            <h5 class="section-title mb-4"><i class="bi bi-diagram-3"></i> Escenario: 4 Particiones / 3 Consumidores</h5>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <!-- Particiones -->
+                                <div class="d-flex flex-column gap-2">
+                                    <div class="partition-box" style="width: 100px;">P0</div>
+                                    <div class="partition-box" style="width: 100px;">P1</div>
+                                    <div class="partition-box" style="width: 100px;">P2</div>
+                                    <div class="partition-box" style="width: 100px;">P3</div>
+                                </div>
+                                <!-- Conectores -->
+                                <div class="flex-grow-1 px-3 d-flex flex-column justify-content-center" style="height: 200px;">
+                                    <div style="border-top: 2px solid var(--primary-color); width: 100%; transform: rotate(15deg);"></div>
+                                    <div style="border-top: 2px solid var(--primary-color); width: 100%; margin-top: 20px;"></div>
+                                    <div style="border-top: 2px solid var(--primary-color); width: 100%; margin-top: 30px;"></div>
+                                    <div style="border-top: 2px solid var(--primary-color); width: 100%; transform: rotate(-15deg); margin-top: 20px;"></div>
+                                </div>
+                                <!-- Consumidores -->
+                                <div class="d-flex flex-column gap-4">
+                                    <div class="node-consumer" style="width: 180px;"><i class="bi bi-person-fill"></i> Consumidor A<br><small>(Lee P0)</small></div>
+                                    <div class="node-consumer" style="width: 180px;"><i class="bi bi-person-fill"></i> Consumidor B<br><small>(Lee P1)</small></div>
+                                    <div class="node-consumer" style="width: 180px;"><i class="bi bi-person-fill"></i> Consumidor C<br><small>(Lee P2 y P3)</small></div>
+                                </div>
+                            </div>
+                            <div class="highlight-box mt-4 py-2 text-center">
+                                <i class="bi bi-info-circle-fill me-2"></i> Un consumidor puede leer varias particiones, pero una partición solo tiene un dueño.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5: Kafka en Fintech/Banca -->
+        <div class="slide" :class="{ 'active': currentSlide === 4, 'prev': currentSlide > 4 }">
+            <div class="slide-content">
+                <h2 class="slide-title">Kafka en Fintech & Banca</h2>
+                <p class="slide-subtitle">El backbone de la transformación digital financiera</p>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-3 col-sm-6">
+                        <div class="stat-card">
+                            <div class="stat-number">400B+</div>
+                            <div class="stat-label">Eventos/día en PayPal</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="stat-card">
+                            <div class="stat-number">ms</div>
+                            <div class="stat-label">Latencia Detección Fraude</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="stat-card">
+                            <div class="stat-number">100%</div>
+                            <div class="stat-label">Trazabilidad Auditoría</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="stat-card">
+                            <div class="stat-number">24/7</div>
+                            <div class="stat-label">Disponibilidad Crítica</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="feature-card h-100">
+                            <div class="icon-box"><i class="bi bi-shield-check"></i></div>
+                            <h5>Detección de Fraude en Tiempo Real</h5>
+                            <p class="text-muted small">
+                                Ingesta de millones de transacciones por segundo desde ATMs, POS y apps móviles. 
+                                Kafka Streams analiza patrones (velocidad, geo-localización, firmas) y bloquea 
+                                tarjetas en milisegundos.
+                            </p>
+                            <div class="mt-3">
+                                <span class="badge bg-light text-dark border">Velocity Check</span>
+                                <span class="badge bg-light text-dark border">Geo-anomaly</span>
+                                <span class="badge bg-light text-dark border">ML Scoring</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="feature-card h-100">
+                            <div class="icon-box"><i class="bi bi-cash-stack"></i></div>
+                            <h5>Orquestación de Pagos</h5>
+                            <p class="text-muted small">
+                                Flujo asíncrono de pagos: Autorización → Anti-fraude → Ledger → Clearing. 
+                                Cada paso es un evento Kafka, permitiendo reintentos, monitoreo y escalabilidad 
+                                desacoplada.
+                            </p>
+                            <div class="mt-3">
+                                <span class="badge bg-light text-dark border">Saga Pattern</span>
+                                <span class="badge bg-light text-dark border">Exactly-Once</span>
+                                <span class="badge bg-light text-dark border">Idempotency</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-box mt-4">
+                    <h5 class="section-title mb-4"><i class="bi bi-bank"></i>Arquitectura de Pagos con Kafka</h5>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <div class="node-secondary" style="min-width: 140px;">
+                            <i class="bi bi-phone d-block mb-1"></i>
+                            App Bancaria
+                        </div>
+                        <div class="horizontal-connector" style="min-width: 40px;"></div>
+                        <div class="node" style="min-width: 160px;">
+                            <i class="bi bi-arrow-right-circle d-block mb-1"></i>
+                            Topic: payments.auth
+                        </div>
+                        <div class="horizontal-connector" style="min-width: 40px;"></div>
+                        <div class="node-consumer" style="min-width: 140px;">
+                            <i class="bi bi-shield-lock d-block mb-1"></i>
+                            Fraud Service
+                        </div>
+                        <div class="horizontal-connector" style="min-width: 40px;"></div>
+                        <div class="node" style="min-width: 160px;">
+                            <i class="bi bi-check-circle d-block mb-1"></i>
+                            Topic: payments.ledger
+                        </div>
+                        <div class="horizontal-connector" style="min-width: 40px;"></div>
+                        <div class="node-consumer" style="min-width: 140px;">
+                            <i class="bi bi-journal-check d-block mb-1"></i>
+                            Ledger Service
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 6: Event Sourcing & CQRS -->
+        <div class="slide" :class="{ 'active': currentSlide === 5, 'prev': currentSlide > 5 }">
+            <div class="slide-content">
+                <h2 class="slide-title">Event Sourcing & CQRS</h2>
+                <p class="slide-subtitle">Patrones arquitectónicos para sistemas financieros escalables</p>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="feature-card h-100 border-start border-4" style="border-color: var(--primary-color) !important;">
+                            <h5 class="fw-bold mb-3" style="color: var(--primary-color);">
+                                <i class="bi bi-pencil-square me-2"></i>Command Side (Escritura)
+                            </h5>
+                            <ul class="list-unstyled text-muted small">
+                                <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Recibe comandos (PlaceOrder, TransferMoney)</li>
+                                <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Validación de reglas de negocio</li>
+                                <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Emite eventos al topic de Kafka</li>
+                                <li><i class="bi bi-check2 text-success me-2"></i>BD normalizada para consistencia</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="feature-card h-100 border-start border-4" style="border-color: var(--text-dark) !important;">
+                            <h5 class="fw-bold mb-3" style="color: var(--text-dark);">
+                                <i class="bi bi-eye me-2"></i>Query Side (Lectura)
+                            </h5>
+                            <ul class="list-unstyled text-muted small">
+                                <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Consume eventos de Kafka</li>
+                                <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Construye vistas materializadas</li>
+                                <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Optimizado para consultas específicas</li>
+                                <li><i class="bi bi-check2 text-success me-2"></i>PostgreSQL, Redis, Elasticsearch</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-box">
+                    <h5 class="section-title mb-4"><i class="bi bi-diagram-3"></i>Flujo CQRS con Kafka como Event Store</h5>
+                    <div class="row align-items-center g-3">
+                        <div class="col-md-3">
+                            <div class="node-secondary mb-3">
+                                <i class="bi bi-input-cursor d-block mb-1"></i>
+                                Command API<br>
+                                <small>HTTP/gRPC</small>
+                            </div>
+                            <div class="arrow-connector"></div>
+                            <div class="node-secondary">
+                                <i class="bi bi-database-check d-block mb-1"></i>
+                                Write Model<br>
+                                <small>PostgreSQL</small>
+                            </div>
+                        </div>
+                        <div class="col-md-1 text-center">
+                            <div class="horizontal-connector" style="transform: rotate(90deg); height: 60px;"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="node" style="padding: 2rem;">
+                                <i class="bi bi-journal-bookmark-fill d-block mb-2" style="font-size: 2rem;"></i>
+                                <strong>Kafka Event Store</strong>
+                                <div class="mt-3 text-start small">
+                                    <div class="partition-box mb-2">domain.events.account-created</div>
+                                    <div class="partition-box mb-2">domain.events.money-transferred</div>
+                                    <div class="partition-box">domain.events.balance-updated</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-1 text-center">
+                            <div class="horizontal-connector" style="transform: rotate(90deg); height: 60px;"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="node-consumer mb-3">
+                                <i class="bi bi-database d-block mb-1"></i>
+                                Projection Worker<br>
+                                <small>Kafka Streams</small>
+                            </div>
+                            <div class="arrow-connector"></div>
+                            <div class="node-consumer">
+                                <i class="bi bi-table d-block mb-1"></i>
+                                Read Model<br>
+                                <small>Redis/Elasticsearch</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="highlight-box mt-4">
+                        <strong><i class="bi bi-star-fill me-2"></i>Ventajas:</strong> 
+                        Auditabilidad completa (SOX, PCI-DSS), capacidad de replay para debugging, 
+                        escalabilidad independiente de lecturas/escrituras, y desacoplamiento total.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 7: Microservicios -->
+        <div class="slide" :class="{ 'active': currentSlide === 6, 'prev': currentSlide > 6 }">
+            <div class="slide-content">
+                <h2 class="slide-title">Microservicios & Kafka</h2>
+                <p class="slide-subtitle">Comunicación asíncrona y desacoplada entre servicios</p>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-4">
+                        <div class="feature-card text-center h-100">
+                            <div class="icon-box mx-auto"><i class="bi bi-link-45deg"></i></div>
+                            <h5>Desacoplamiento</h5>
+                            <p class="text-muted small">
+                                Los productores no conocen a los consumidores. 
+                                Cada microservicio usa su propia tecnología y escala independientemente.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-card text-center h-100">
+                            <div class="icon-box mx-auto"><i class="bi bi-arrow-repeat"></i></div>
+                            <h5>Resiliencia</h5>
+                            <p class="text-muted small">
+                                Si un servicio cae, los eventos se acumulan en Kafka. 
+                                Al recuperarse, continúa desde el último offset procesado.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-card text-center h-100">
+                            <div class="icon-box mx-auto"><i class="bi bi-speedometer2"></i></div>
+                            <h5>Escalabilidad</h5>
+                            <p class="text-muted small">
+                                Añade más particiones y consumidores para aumentar el throughput. 
+                                Consumer Groups permiten procesamiento paralelo.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-box">
+                    <h5 class="section-title mb-4"><i class="bi bi-grid-3x3-gap"></i>Arquitectura de Microservicios con Kafka</h5>
+                    <div class="row g-4">
+                        <div class="col-md-3">
+                            <h6 class="text-center fw-bold mb-3" style="color: var(--primary-color);">Servicios Productores</h6>
+                            <div class="node-secondary mb-3">
+                                <i class="bi bi-cart d-block mb-1"></i>Order Service
+                            </div>
+                            <div class="node-secondary mb-3">
+                                <i class="bi bi-person d-block mb-1"></i>User Service
+                            </div>
+                            <div class="node-secondary">
+                                <i class="bi bi-wallet2 d-block mb-1"></i>Payment Service
+                            </div>
+                        </div>
+                        <div class="col-md-1 d-flex align-items-center justify-content-center">
+                            <div class="d-flex flex-column gap-2">
+                                <div class="horizontal-connector"></div>
+                                <div class="horizontal-connector"></div>
+                                <div class="horizontal-connector"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="node h-100 d-flex flex-column justify-content-center" style="min-height: 250px;">
+                                <i class="bi bi-diagram-3-fill d-block mb-3" style="font-size: 2.5rem;"></i>
+                                <strong>Kafka Event Bus</strong>
+                                <div class="mt-3 w-100">
+                                    <div class="partition-box mb-2">orders.created</div>
+                                    <div class="partition-box mb-2">users.registered</div>
+                                    <div class="partition-box mb-2">payments.processed</div>
+                                    <div class="partition-box">notifications.send</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-1 d-flex align-items-center justify-content-center">
+                            <div class="d-flex flex-column gap-2">
+                                <div class="horizontal-connector" style="transform: rotate(180deg);"></div>
+                                <div class="horizontal-connector" style="transform: rotate(180deg);"></div>
+                                <div class="horizontal-connector" style="transform: rotate(180deg);"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-center fw-bold mb-3" style="color: var(--text-dark);">Servicios Consumidores</h6>
+                            <div class="node-consumer mb-3">
+                                <i class="bi bi-bell d-block mb-1"></i>Notification Svc
+                            </div>
+                            <div class="node-consumer mb-3">
+                                <i class="bi bi-graph-up d-block mb-1"></i>Analytics Svc
+                            </div>
+                            <div class="node-consumer">
+                                <i class="bi bi-box-seam d-block mb-1"></i>Inventory Svc
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 8: Logs & Auditoría -->
+        <div class="slide" :class="{ 'active': currentSlide === 7, 'prev': currentSlide > 7 }">
+            <div class="slide-content">
+                <h2 class="slide-title">Logs, Auditoría & Cumplimiento</h2>
+                <p class="slide-subtitle">Centralización y análisis de logs en tiempo real</p>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="feature-card h-100">
+                            <div class="icon-box"><i class="bi bi-journal-text"></i></div>
+                            <h5>Centralización de Logs</h5>
+                            <p class="text-muted">
+                                Agrega logs de APIs, sistemas transaccionales, gateways de autenticación 
+                                y microservicios en topics dedicados de Kafka.
+                            </p>
+                            <ul class="list-unstyled mt-3 small text-muted">
+                                <li><i class="bi bi-check-circle-fill text-success me-2"></i>Filebeat / Fluentd → Kafka</li>
+                                <li><i class="bi bi-check-circle-fill text-success me-2"></i>Topics por servicio/nivel</li>
+                                <li><i class="bi bi-check-circle-fill text-success me-2"></i>Retención configurable (días/semanas)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="feature-card h-100">
+                            <div class="icon-box"><i class="bi bi-shield-lock"></i></div>
+                            <h5>Cumplimiento Regulatorio</h5>
+                            <p class="text-muted">
+                                Streams seguros hacia almacenamiento archival (S3) con validación de schema, 
+                                versionado y garantías anti-manipulación.
+                            </p>
+                            <div class="mt-3">
+                                <span class="badge bg-light text-dark border me-2">AML</span>
+                                <span class="badge bg-light text-dark border me-2">KYC</span>
+                                <span class="badge bg-light text-dark border me-2">GDPR</span>
+                                <span class="badge bg-light text-dark border">SOX</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-box">
+                    <h5 class="section-title mb-4"><i class="bi bi-funnel"></i>Pipeline de Logs con Kafka</h5>
+                    <div class="row align-items-center g-3 text-center">
+                        <div class="col-md-2">
+                            <div class="node-secondary" style="font-size: 0.9rem;">
+                                <i class="bi bi-server d-block mb-1"></i>
+                                Apps<br>Microservicios
+                            </div>
+                        </div>
+                        <div class="col-md-1">
+                            <div class="horizontal-connector"></div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="node-secondary" style="font-size: 0.9rem;">
+                                <i class="bi bi-box-arrow-in-right d-block mb-1"></i>
+                                Filebeat /<br>Fluentd
+                            </div>
+                        </div>
+                        <div class="col-md-1">
+                            <div class="horizontal-connector"></div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="node" style="font-size: 0.9rem;">
+                                <i class="bi bi-diagram-3 d-block mb-1"></i>
+                                Kafka<br>Logs Cluster
+                            </div>
+                        </div>
+                        <div class="col-md-1">
+                            <div class="horizontal-connector"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <div class="node-consumer" style="font-size: 0.85rem; padding: 0.5rem;">
+                                        <i class="bi bi-search me-1"></i>Elasticsearch / Kibana
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="node-consumer" style="font-size: 0.85rem; padding: 0.5rem;">
+                                        <i class="bi bi-hdd me-1"></i>S3 Glacier (Archival)
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="node-consumer" style="font-size: 0.85rem; padding: 0.5rem;">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>Alert Manager
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="highlight-box mt-4">
+                    <strong><i class="bi bi-lightbulb me-2"></i>Tip:</strong> 
+                    Usa <strong>Kafka Connect</strong> con el sink connector de S3 para archivar logs automáticamente 
+                    y <strong>ksqlDB</strong> para consultas SQL en tiempo real sobre streams de logs sin escribir código.
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 9: Patrón Saga -->
+        <div class="slide" :class="{ 'active': currentSlide === 8, 'prev': currentSlide > 8 }">
+            <div class="slide-content d-flex flex-column justify-content-center">
+                <h2 class="slide-title">Patrón Saga (muy importante)</h2>
+                <p class="slide-subtitle">Gestión de consistencia en sistemas distribuidos</p>
+
+                <div class="row g-4 mt-2">
+                    <div class="col-md-6">
+                        <div class="feature-card h-100">
+                            <h5 class="section-title text-primary"><i class="bi bi-diagram-3-fill"></i> Para transacciones distribuidas</h5>
+                            <div class="highlight-box">
+                                <h6 class="fw-bold mb-3">Ejemplo:</h6>
+                                <div class="timeline-item">Debitar cuenta A</div>
+                                <div class="timeline-item">Acreditar cuenta B</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="feature-card h-100 border-start border-4 border-danger">
+                            <h5 class="section-title text-danger"><i class="bi bi-shield-fill-exclamation"></i> Manejo de Fallos</h5>
+                            <div class="p-3">
+                                <p class="fs-4 mb-4">Si falla:</p>
+                                <div class="alert alert-danger d-flex align-items-center" role="alert">
+                                    <span class="fs-3 me-3">👉</span>
+                                    <div><strong>Se compensan acciones</strong></div>
+                                </div>
+                                <div class="alert alert-info d-flex align-items-center mt-5" role="alert">
+                                    <span class="fs-3 me-3">💡</span>
+                                    <div><strong>Kafka coordina el flujo</strong></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 10: Demo Code & Conclusión -->
+        <div class="slide" :class="{ 'active': currentSlide === 9, 'prev': currentSlide > 9 }">
+            <div class="slide-content">
+                <h2 class="slide-title">Implementación & Conclusión</h2>
+                <p class="slide-subtitle">De la teoría a la práctica</p>
+
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <h5 class="section-title mb-3"><i class="bi bi-code-slash"></i>Ejemplo: Producer Java</h5>
+                        <div class="code-block">
+<span class="code-comment">// Configuración del Productor</span>
+Properties props = <span class="code-keyword">new</span> Properties();
+props.put(<span class="code-string">"bootstrap.servers"</span>, <span class="code-string">"kafka:9092"</span>);
+props.put(<span class="code-string">"key.serializer"</span>, 
+    <span class="code-string">"org.apache.kafka.common.serialization.StringSerializer"</span>);
+props.put(<span class="code-string">"value.serializer"</span>, 
+    <span class="code-string">"io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializer"</span>);
+props.put(<span class="code-string">"acks"</span>, <span class="code-string">"all"</span>); <span class="code-comment">// Durabilidad total</span>
+
+Producer&lt;String, PaymentEvent&gt; producer = 
+    <span class="code-keyword">new</span> KafkaProducer&lt;&gt;(props);
+
+<span class="code-comment">// Enviar evento de pago</span>
+PaymentEvent event = <span class="code-keyword">new</span> PaymentEvent(
+    transactionId, userId, amount, timestamp
+);
+
+producer.send(<span class="code-keyword">new</span> ProducerRecord&lt;&gt;(
+    <span class="code-string">"fintech.payments.processed"</span>, 
+    userId, <span class="code-comment">// Key para orden por usuario</span>
+    event
+));
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h5 class="section-title mb-3"><i class="bi bi-code-slash"></i>Ejemplo: Consumer con Streams</h5>
+                        <div class="code-block">
+<span class="code-comment">// Kafka Streams: Detección de fraude</span>
+StreamsBuilder builder = <span class="code-keyword">new</span> StreamsBuilder();
+
+KStream&lt;String, Transaction&gt; transactions = 
+    builder.stream(<span class="code-string">"fintech.transactions"</span>);
+
+transactions
+    .groupByKey()
+    .windowedBy(TimeWindows.of(Duration.ofMinutes(<span class="code-string">5</span>)))
+    .count()
+    .toStream()
+    .filter((key, count) -> count > <span class="code-string">10</span>) <span class="code-comment">// >10 tx en 5min</span>
+    .to(<span class="code-string">"fintech.alerts.fraud"</span>, 
+        Produced.with(
+            WindowedSerdes.timeWindowedSerdeFrom(String.<span class="code-keyword">class</span>),
+            Serdes.Long()
+        ));
+
+KafkaStreams streams = <span class="code-keyword">new</span> KafkaStreams(
+    builder.build(), config
+);
+streams.start();
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4 mt-2">
+                    <div class="col-md-12">
+                        <div class="feature-card text-center" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white;">
+                            <h3 class="fw-bold mb-3"><i class="bi bi-trophy me-2"></i>¿Por qué Kafka?</h3>
+                            <div class="row g-4 mt-2">
+                                <div class="col-md-3">
+                                    <i class="bi bi-lightning-charge" style="font-size: 2rem;"></i>
+                                    <h6 class="mt-2 fw-bold">Alta Throughput</h6>
+                                    <p class="small opacity-75">Millones de eventos/segundo con latencia de milisegundos</p>
+                                </div>
+                                <div class="col-md-3">
+                                    <i class="bi bi-shield-check" style="font-size: 2rem;"></i>
+                                    <h6 class="mt-2 fw-bold">Tolerancia a Fallos</h6>
+                                    <p class="small opacity-75">Replicación nativa y failover automático</p>
+                                </div>
+                                <div class="col-md-3">
+                                    <i class="bi bi-infinity" style="font-size: 2rem;"></i>
+                                    <h6 class="mt-2 fw-bold">Escalabilidad Horizontal</h6>
+                                    <p class="small opacity-75">Añade brokers y particiones bajo demanda</p>
+                                </div>
+                                <div class="col-md-3">
+                                    <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                                    <h6 class="mt-2 fw-bold">Replay & Retención</h6>
+                                    <p class="small opacity-75">Reprocesa eventos históricos para ML/auditoría</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Navigation Controls -->
+    <div class="nav-controls">
+        <button class="nav-btn" @click="prevSlide()" :disabled="currentSlide === 0">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+        <div class="slide-counter">
+            <span x-text="currentSlide + 1"></span> / <span x-text="totalSlides"></span>
+        </div>
+        <button class="nav-btn" @click="nextSlide()" :disabled="currentSlide === totalSlides - 1">
+            <i class="bi bi-chevron-right"></i>
+        </button>
+    </div>
+
+    <script>
+        function presentation() {
+            return {
+                currentSlide: 0,
+                totalSlides: 10,
+                
+                init() {
+                    // Keyboard navigation
+                    document.addEventListener('keydown', (e) => {
+                        if (e.key === 'ArrowRight' || e.key === ' ') {
+                            this.nextSlide();
+                        } else if (e.key === 'ArrowLeft') {
+                            this.prevSlide();
+                        }
+                    });
+                },
+                
+                nextSlide() {
+                    if (this.currentSlide < this.totalSlides - 1) {
+                        this.currentSlide++;
+                    }
+                },
+                
+                prevSlide() {
+                    if (this.currentSlide > 0) {
+                        this.currentSlide--;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

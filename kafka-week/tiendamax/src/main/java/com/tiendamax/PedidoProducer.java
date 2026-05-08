@@ -25,7 +25,7 @@ import java.util.Properties;
 public class PedidoProducer {
 
     private static final String TOPIC  = "pedidos-tiendamax";
-    private static final String BROKER = "localhost:9092";
+    private static final String BROKER = "209.2.15.10:9092";
 
     // ObjectMapper es thread-safe y costoso de crear → static
     private static final ObjectMapper MAPPER = new ObjectMapper();

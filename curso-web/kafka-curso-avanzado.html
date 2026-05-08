@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kafka Senior — M13-M16</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===== VARIABLES ===== */
+:root {
+  --bg: #0a0c0f;
+  --bg2: #0f1217;
+  --bg3: #161b24;
+  --border: #1e2736;
+  --kafka: #e87d0d;
+  --kafka2: #f5a23d;
+  --green: #22d57a;
+  --red: #f04f4f;
+  --blue: #4facf7;
+  --purple: #b97aff;
+  --yellow: #f5d957;
+  --text: #cdd6f4;
+  --muted: #6b7a99;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Syne', sans-serif;
+  --level: #f04f4f;
+}
+
+/* ===== RESET ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ===== NAV ===== */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(10,12,15,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0.75rem 2rem;
+  transition: transform 0.3s ease;
+}
+.nav.hidden { transform: translateY(-100%); }
+.nav-logo {
+  font-family: var(--mono); font-weight: 700; font-size: 0.85rem;
+  color: var(--kafka); letter-spacing: 0.1em; white-space: nowrap;
+}
+.nav-links {
+  display: flex; gap: 0.5rem; margin-right: auto;
+}
+.nav-links button {
+  background: none; border: 1px solid var(--border);
+  color: var(--muted); font-family: var(--mono); font-size: 0.7rem;
+  padding: 0.3rem 0.7rem; cursor: pointer; border-radius: 4px;
+  letter-spacing: 0.05em; transition: all 0.2s;
+}
+.nav-links button:hover { border-color: var(--kafka); color: var(--kafka); }
+.nav-links button.active { border-color: var(--red); color: var(--red); background: rgba(240,79,79,0.08); }
+.nav-jump { display: flex; gap: 4px; }
+.nav-jump button {
+  background: none; border: 1px solid var(--border);
+  color: var(--muted); font-family: var(--mono); font-size: 0.65rem;
+  padding: 0.25rem 0.5rem; cursor: pointer; border-radius: 3px;
+  transition: all 0.2s; letter-spacing: 0.05em;
+}
+.nav-jump button:hover { border-color: var(--red); color: var(--red); }
+
+/* ===== HERO ===== */
+.hero {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+  padding: 6rem 2rem 4rem;
+}
+.hero-glow {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(240,79,79,0.08) 0%, transparent 70%);
+}
+.hero-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 60px 60px;
+  opacity: 0.3;
+}
+.hero-content {
+  position: relative; z-index: 1; text-align: center; max-width: 900px;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  border: 1px solid rgba(240,79,79,0.4);
+  background: rgba(240,79,79,0.08);
+  color: var(--red); font-family: var(--mono); font-size: 0.65rem;
+  letter-spacing: 0.2em; padding: 0.4rem 1rem; border-radius: 2px;
+  margin-bottom: 2rem; font-weight: 700;
+}
+.hero-title {
+  font-family: var(--sans); font-weight: 800;
+  font-size: clamp(3.5rem, 10vw, 7rem);
+  line-height: 0.95; letter-spacing: -0.03em;
+  margin-bottom: 1.5rem;
+}
+.hero-title span { color: var(--red); }
+.hero-sub {
+  font-size: 1rem; color: var(--muted); max-width: 600px;
+  margin: 0 auto 2.5rem; line-height: 1.7; font-family: var(--mono);
+}
+.hero-stats {
+  display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap;
+  margin-top: 3rem;
+}
+.stat {
+  text-align: center;
+  border: 1px solid var(--border); background: var(--bg2);
+  padding: 1rem 1.5rem; border-radius: 4px; min-width: 120px;
+}
+.stat-num {
+  font-family: var(--mono); font-weight: 700; font-size: 1.8rem;
+  color: var(--red); display: block;
+}
+.stat-label {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--muted);
+  letter-spacing: 0.2em; margin-top: 0.2rem; display: block;
+}
+.btn-primary {
+  display: inline-block;
+  background: var(--red); color: #fff;
+  font-family: var(--mono); font-weight: 700; font-size: 0.75rem;
+  letter-spacing: 0.15em; padding: 0.9rem 2rem; border-radius: 3px;
+  border: none; cursor: pointer; transition: all 0.2s;
+}
+.btn-primary:hover { background: #d03e3e; transform: translateY(-1px); }
+
+/* ===== SECTION ===== */
+.section {
+  max-width: 1000px; margin: 0 auto;
+  padding: 5rem 2rem;
+  opacity: 0; transform: translateY(30px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.section.visible { opacity: 1; transform: translateY(0); }
+.section-header { margin-bottom: 3rem; }
+.section-tag {
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.3em;
+  color: var(--muted); margin-bottom: 0.6rem; font-weight: 700;
+}
+.section-num {
+  font-family: var(--mono); font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 0.1em; margin-bottom: 0.4rem;
+}
+.section-title {
+  font-family: var(--sans); font-weight: 800;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.1; letter-spacing: -0.02em;
+}
+.section-title span { color: var(--red); }
+.section-divider {
+  border: none; border-top: 1px solid var(--border);
+  margin: 0 2rem;
+}
+
+/* ===== TERMINAL ===== */
+.terminal {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden; margin: 1.5rem 0;
+  font-family: var(--mono);
+}
+.terminal-bar {
+  background: var(--bg3); border-bottom: 1px solid var(--border);
+  padding: 0.5rem 1rem; display: flex; align-items: center; gap: 6px;
+}
+.t-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+.t-dot:nth-child(1) { background: #f04f4f; }
+.t-dot:nth-child(2) { background: var(--yellow); }
+.t-dot:nth-child(3) { background: var(--green); }
+.terminal-label {
+  font-size: 0.62rem; color: var(--muted); letter-spacing: 0.1em; margin-left: auto;
+}
+.terminal-body { padding: 1.2rem 1.5rem; font-size: 0.78rem; line-height: 1.9; overflow-x: auto; }
+.t-cmd { color: var(--green); }
+.t-cmd::before { content: '$ '; color: var(--muted); }
+.t-out { color: var(--text); }
+.t-com { color: var(--muted); font-style: italic; }
+.t-key { color: var(--blue); }
+.t-val { color: var(--yellow); }
+.t-err { color: var(--red); }
+.t-ascii { color: var(--muted); font-size: 0.72rem; line-height: 1.6; }
+
+/* ===== ANALOGY ===== */
+.analogy {
+  border-left: 3px solid var(--red);
+  background: rgba(240,79,79,0.04);
+  padding: 1.2rem 1.5rem; margin: 1.5rem 0; border-radius: 0 4px 4px 0;
+}
+.analogy-label {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--red);
+  letter-spacing: 0.3em; font-weight: 700; margin-bottom: 0.5rem;
+}
+.analogy-text { font-size: 0.92rem; color: var(--text); line-height: 1.7; }
+
+/* ===== CONCEPT GRID ===== */
+.concept-grid {
+  display: grid; gap: 1rem; margin: 1.5rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.concept-card {
+  border: 1px solid var(--border); background: var(--bg2);
+  padding: 1.5rem; border-radius: 4px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.concept-card:hover { border-color: var(--red); transform: translateY(-2px); }
+.concept-icon { font-size: 1.8rem; margin-bottom: 0.8rem; display: block; }
+.concept-name {
+  font-family: var(--mono); font-weight: 700; font-size: 0.85rem;
+  color: var(--red); margin-bottom: 0.5rem; letter-spacing: 0.05em;
+}
+.concept-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.65; }
+.concept-desc strong { color: var(--text); }
+
+/* ===== INFO BOX ===== */
+.info-box {
+  border: 1px solid var(--border); background: var(--bg3);
+  padding: 1rem 1.2rem; margin: 1rem 0; border-radius: 4px;
+  display: flex; gap: 0.8rem; align-items: flex-start;
+  font-size: 0.85rem; line-height: 1.6;
+}
+.info-box.tip { border-color: rgba(34,213,122,0.3); background: rgba(34,213,122,0.04); }
+.info-box.warn { border-color: rgba(245,217,87,0.3); background: rgba(245,217,87,0.04); }
+.info-box.danger { border-color: rgba(240,79,79,0.3); background: rgba(240,79,79,0.04); }
+.info-icon { font-size: 1rem; flex-shrink: 0; margin-top: 0.1rem; }
+
+/* ===== SENIOR INSIGHT ===== */
+.senior-insight {
+  border: 1px solid rgba(245,217,87,0.5);
+  background: rgba(245,217,87,0.05);
+  padding: 1.2rem 1.5rem; margin: 1.2rem 0;
+  border-radius: 4px;
+}
+.senior-insight::before {
+  content: '🧠 SENIOR INSIGHT';
+  display: block; font-size: 0.6rem; letter-spacing: 0.3em;
+  color: var(--yellow); margin-bottom: 0.6rem; font-weight: 700;
+  font-family: var(--mono);
+}
+
+/* ===== TRAP BOX ===== */
+.trap-box {
+  border: 1px solid rgba(240,79,79,0.4);
+  background: rgba(240,79,79,0.06);
+  padding: 1.2rem 1.5rem; margin: 1.2rem 0;
+  border-radius: 4px;
+}
+.trap-box::before {
+  content: '⚠️ TRAMPA COMÚN';
+  display: block; font-size: 0.6rem; letter-spacing: 0.3em;
+  color: var(--red); margin-bottom: 0.6rem; font-weight: 700;
+  font-family: var(--mono);
+}
+
+/* ===== LAB SPECS ===== */
+.lab-specs {
+  border: 1px solid rgba(79,172,247,0.4);
+  background: rgba(79,172,247,0.05);
+  padding: 1.2rem 1.5rem; margin: 1.2rem 0;
+  border-radius: 4px;
+}
+.lab-specs::before {
+  content: '🧪 LAB PROPUESTO';
+  display: block; font-size: 0.6rem; letter-spacing: 0.3em;
+  color: var(--blue); margin-bottom: 0.6rem; font-weight: 700;
+  font-family: var(--mono);
+}
+
+/* ===== CODE BLOCK ===== */
+.code-block {
+  background: var(--bg2); border: 1px solid var(--border);
+  margin: 1.2rem 0; border-radius: 4px; overflow: hidden;
+}
+.code-bar {
+  background: var(--bg3); border-bottom: 1px solid var(--border);
+  padding: 0.5rem 1rem; display: flex; align-items: center; gap: 6px;
+}
+.code-bar .cdot { width: 10px; height: 10px; border-radius: 50%; }
+.code-bar .cdot:nth-child(1) { background: #f04f4f; }
+.code-bar .cdot:nth-child(2) { background: var(--yellow); }
+.code-bar .cdot:nth-child(3) { background: var(--green); }
+.code-bar-label {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--muted);
+  letter-spacing: 0.1em; margin-left: auto;
+}
+.code-body { overflow-x: auto; }
+.code-body pre {
+  padding: 1.2rem 1.5rem; font-size: 0.78rem;
+  line-height: 1.8; margin: 0; font-family: var(--mono);
+}
+
+/* Syntax colors */
+.tk { color: var(--blue); }
+.ts { color: var(--green); }
+.tc { color: var(--muted); font-style: italic; }
+.tn { color: var(--yellow); }
+.tv { color: var(--blue); }
+.tp { color: var(--purple); }
+
+/* ===== COMPARE TABLE ===== */
+.compare-table {
+  width: 100%; border-collapse: collapse; margin: 1.5rem 0;
+  font-family: var(--mono); font-size: 0.78rem;
+}
+.compare-table th {
+  background: var(--bg3); color: var(--muted);
+  padding: 0.7rem 1rem; text-align: left;
+  border: 1px solid var(--border); letter-spacing: 0.1em;
+  font-size: 0.65rem;
+}
+.compare-table td {
+  padding: 0.7rem 1rem; border: 1px solid var(--border);
+  vertical-align: top; line-height: 1.5;
+}
+.compare-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.compare-table tr:hover td { background: rgba(240,79,79,0.04); }
+
+/* ===== PARAMS TABLE ===== */
+.params-table {
+  width: 100%; border-collapse: collapse; margin: 1.5rem 0;
+  font-size: 0.82rem;
+}
+.params-table th {
+  background: var(--bg3); color: var(--muted);
+  padding: 0.6rem 1rem; text-align: left;
+  border: 1px solid var(--border); font-family: var(--mono);
+  font-size: 0.62rem; letter-spacing: 0.1em;
+}
+.params-table td {
+  padding: 0.7rem 1rem; border: 1px solid var(--border);
+  vertical-align: top; line-height: 1.5;
+}
+.params-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.param-name {
+  font-family: var(--mono); font-size: 0.75rem;
+  color: var(--blue); font-weight: 700;
+}
+.param-def {
+  font-family: var(--mono); font-size: 0.72rem;
+  color: var(--yellow);
+}
+.param-desc { color: var(--muted); font-size: 0.82rem; }
+
+/* ===== CHECKLIST ===== */
+.checklist {
+  border: 1px solid var(--border); background: var(--bg2);
+  border-radius: 4px; overflow: hidden; margin: 2rem 0;
+}
+.checklist-title {
+  background: var(--bg3); border-bottom: 1px solid var(--border);
+  padding: 0.8rem 1.2rem;
+  font-family: var(--mono); font-size: 0.7rem;
+  color: var(--muted); letter-spacing: 0.2em; font-weight: 700;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.checklist-progress-wrap {
+  height: 3px; background: var(--border);
+}
+.checklist-progress-bar {
+  height: 100%; background: var(--red);
+  transition: width 0.4s ease; border-radius: 0 2px 2px 0;
+}
+.check-item {
+  display: flex; align-items: flex-start; gap: 1rem;
+  padding: 0.9rem 1.2rem; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.15s;
+}
+.check-item:last-child { border-bottom: none; }
+.check-item:hover { background: rgba(255,255,255,0.02); }
+.check-item.done .check-text { color: var(--muted); text-decoration: line-through; }
+.check-box {
+  width: 18px; height: 18px; border: 1.5px solid var(--border);
+  border-radius: 3px; flex-shrink: 0; margin-top: 2px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; font-size: 0.7rem;
+}
+.check-item.done .check-box {
+  background: var(--red); border-color: var(--red); color: #fff;
+}
+.check-text { font-size: 0.88rem; line-height: 1.5; }
+
+/* ===== HIGHLIGHT SPANS ===== */
+.hl-kafka { color: var(--kafka); font-weight: 700; }
+.hl-green { color: var(--green); font-weight: 600; }
+.hl-blue { color: var(--blue); font-weight: 600; }
+.hl-red { color: var(--red); font-weight: 600; }
+.hl-purple { color: var(--purple); font-weight: 600; }
+.hl-yellow { color: var(--yellow); font-weight: 600; }
+
+/* ===== CHEAT GRID ===== */
+.cheat-grid {
+  display: grid; gap: 1px; background: var(--border);
+  border: 1px solid var(--border); margin: 1.5rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.cheat-cell {
+  background: var(--bg2); padding: 1rem 1.2rem;
+}
+.cheat-cell-label {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--muted);
+  letter-spacing: 0.2em; margin-bottom: 0.4rem; display: block;
+}
+.cheat-cell-val {
+  font-family: var(--mono); font-size: 0.8rem; color: var(--text);
+}
+
+/* ===== SUBSECTION HEADING ===== */
+.subsec {
+  font-family: var(--sans); font-weight: 700; font-size: 1.15rem;
+  color: var(--text); margin: 2rem 0 0.8rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.subsec::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* ===== FOOTER ===== */
+.footer {
+  border-top: 1px solid var(--border);
+  padding: 3rem 2rem; text-align: center;
+  background: var(--bg2);
+}
+.footer-logo {
+  font-family: var(--mono); font-weight: 700; font-size: 1.1rem;
+  color: var(--red); letter-spacing: 0.2em; margin-bottom: 0.8rem;
+}
+.footer p {
+  font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+  letter-spacing: 0.1em; margin-bottom: 1rem;
+}
+.footer-links {
+  display: flex; gap: 1.5rem; justify-content: center;
+}
+.footer-links span {
+  font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+  cursor: pointer; transition: color 0.2s; letter-spacing: 0.05em;
+}
+.footer-links span:hover { color: var(--kafka); }
+
+/* ===== PROGRESS TEXT ===== */
+.progress-text {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 700px) {
+  .nav { padding: 0.6rem 1rem; gap: 0.5rem; }
+  .nav-jump { display: none; }
+  .hero-stats { gap: 1rem; }
+  .stat { min-width: 90px; padding: 0.8rem 1rem; }
+  .section { padding: 3rem 1rem; }
+  .concept-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== NAV ===== -->
+<nav class="nav" id="mainNav">
+  <div class="nav-logo">KAFKA CORE</div>
+  <div class="nav-links">
+    <button onclick="window.location='kafka-curso-interactivo.html'">← BASE</button>
+    <button onclick="window.location='kafka-curso-intermedio.html'">← INTERMEDIO</button>
+    <button class="active" style="color:var(--red)">SENIOR</button>
+  </div>
+  <div class="nav-jump">
+    <button onclick="scrollToSection('s13')">M13</button>
+    <button onclick="scrollToSection('s14')">M14</button>
+    <button onclick="scrollToSection('s15')">M15</button>
+    <button onclick="scrollToSection('s16')">M16</button>
+  </div>
+</nav>
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-content">
+    <div class="hero-badge">🔴 NIVEL SENIOR — M13 a M16</div>
+    <h1 class="hero-title">KAFKA<br><span>SENIOR</span></h1>
+    <p class="hero-sub">Seguridad end-to-end · Multi-Región & DR · Troubleshooting avanzado · Kafka en Kubernetes</p>
+    <button class="btn-primary" onclick="scrollToSection('s13')">COMENZAR MÓDULO 13</button>
+    <div class="hero-stats">
+      <div class="stat">
+        <span class="stat-num">4</span>
+        <span class="stat-label">MÓDULOS</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">4</span>
+        <span class="stat-label">LABS</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">~15h</span>
+        <span class="stat-label">DURACIÓN</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== DIVIDER ===== -->
+<hr class="section-divider">
+
+<!-- ======================================================== -->
+<!-- M13 — SEGURIDAD END-TO-END                               -->
+<!-- ======================================================== -->
+<section class="section" id="s13">
+  <div class="section-header">
+    <div class="section-tag">MÓDULO 13 · SEGURIDAD</div>
+    <div class="section-num" style="color:var(--red);">M13</div>
+    <h2 class="section-title">Kafka <span>Seguro</span></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">ANALOGÍA</div>
+    <div class="analogy-text">
+      Kafka sin seguridad es como una sala de servidores con la puerta abierta. Cualquiera con acceso a la red puede leer el topic de pagos o producir eventos falsos.
+      <strong>SSL cierra la puerta</strong>, <strong>SASL pide el carnet de identidad</strong>, y las <strong>ACLs definen qué habitaciones puedes visitar</strong>.
+    </div>
+  </div>
+
+  <h3 class="subsec">Stack de Seguridad</h3>
+
+  <div class="concept-grid">
+    <div class="concept-card">
+      <span class="concept-icon">🔐</span>
+      <div class="concept-name">SSL / TLS</div>
+      <div class="concept-desc">
+        <strong>Cifrado en tránsito</strong> entre brokers y clientes. Previene sniffing de paquetes.
+        Usa certificados X.509, keystores y truststores gestionados con <code>keytool</code>.
+        Configura <strong><code>ssl.endpoint.identification.algorithm=https</code></strong> para prevenir ataques MITM mediante verificación del hostname.
+      </div>
+    </div>
+    <div class="concept-card">
+      <span class="concept-icon">🪪</span>
+      <div class="concept-name">SASL</div>
+      <div class="concept-desc">
+        <strong>Autenticación</strong> (¿quién eres?). Mecanismos disponibles:
+        <strong>PLAIN</strong> (usuario:password, solo con TLS),
+        <strong>SCRAM-SHA-256/512</strong> (hashing salted seguro),
+        <strong>OAUTHBEARER</strong> (integración con OIDC/Keycloak).
+        <em>Importante:</em> SASL no cifra — combinar siempre con SSL.
+      </div>
+    </div>
+    <div class="concept-card">
+      <span class="concept-icon">🚧</span>
+      <div class="concept-name">ACLs</div>
+      <div class="concept-desc">
+        <strong>Autorización</strong> (¿qué puedes hacer?). Por resource
+        (<code>topic</code>, <code>group</code>, <code>cluster</code>, <code>transactionalId</code>)
+        y operation (<code>Read</code>, <code>Write</code>, <code>Create</code>, <code>Describe</code>, <code>Delete</code>).
+        Gestionadas con <strong><code>kafka-acls.sh</code></strong>. DENY-by-default cuando existe al menos una ACL.
+      </div>
+    </div>
+  </div>
+
+  <h3 class="subsec">Gestión de ACLs con kafka-acls.sh</h3>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <span class="t-dot"></span><span class="t-dot"></span><span class="t-dot"></span>
+      <span class="terminal-label">kafka-acls.sh · SASL/SCRAM cluster</span>
+    </div>
+    <div class="terminal-body">
+      <div class="t-com"># Dar permiso de escritura a producer-app en topic pagos.* (prefixed)</div>
+      <div class="t-cmd">kafka-acls.sh --bootstrap-server localhost:9092 \</div>
+      <div class="t-out">&nbsp;&nbsp;--add --allow-principal <span class="t-val">User:producer-app</span> \</div>
+      <div class="t-out">&nbsp;&nbsp;--operation <span class="t-key">Write</span> --topic <span class="t-val">pagos</span> --resource-pattern-type <span class="t-val">prefixed</span></div>
+      <br>
+      <div class="t-com"># Listar ACLs activas en el cluster</div>
+      <div class="t-cmd">kafka-acls.sh --bootstrap-server localhost:9092 --list</div>
+      <div class="t-out">Current ACLs for resource <span class="t-key">`Topic:PREFIXED:pagos`</span>:</div>
+      <div class="t-out">&nbsp;&nbsp;User:producer-app has Allow permission for operations: <span class="t-val">Write</span></div>
+      <br>
+      <div class="t-com"># Intentar violar la ACL desde consumer-app (debería fallar):</div>
+      <div class="t-cmd">kafka-console-producer.sh --topic nominas \</div>
+      <div class="t-out">&nbsp;&nbsp;--bootstrap-server localhost:9092 \</div>
+      <div class="t-out">&nbsp;&nbsp;--producer.config producer-app.properties</div>
+      <div class="t-err">[2024-01-15 10:23:41,234] ERROR Not authorized to access topics: [nominas]</div>
+      <div class="t-err">&nbsp;&nbsp;org.apache.kafka.common.errors.TopicAuthorizationException: AUTHORIZATION_FAILED</div>
+      <br>
+      <div class="t-com"># Revocar permiso</div>
+      <div class="t-cmd">kafka-acls.sh --bootstrap-server localhost:9092 \</div>
+      <div class="t-out">&nbsp;&nbsp;--remove --allow-principal <span class="t-val">User:producer-app</span> \</div>
+      <div class="t-out">&nbsp;&nbsp;--operation <span class="t-key">Write</span> --topic <span class="t-val">pagos</span> --resource-pattern-type <span class="t-val">prefixed</span></div>
+    </div>
+  </div>
+
+  <h3 class="subsec">Comparativa de Mecanismos SASL</h3>
+
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th>MECANISMO</th>
+        <th>ALMACENAMIENTO</th>
+        <th>SEGURIDAD</th>
+        <th>CASO DE USO</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="hl-red">PLAIN</span></td>
+        <td>Contraseñas en texto plano en <code>server.properties</code></td>
+        <td>Baja — requiere TLS obligatorio, expone creds sin TLS</td>
+        <td>Solo dev/staging. Nunca producción sin TLS.</td>
+      </tr>
+      <tr>
+        <td><span class="hl-yellow">SCRAM-SHA-256</span></td>
+        <td>Hash salted en ZooKeeper o KRaft metadata</td>
+        <td>Media-Alta — hash iterado con salt único por usuario</td>
+        <td>Recomendado para la mayoría de despliegues on-premise.</td>
+      </tr>
+      <tr>
+        <td><span class="hl-green">SCRAM-SHA-512</span></td>
+        <td>Hash salted en ZK/KRaft (SHA-512)</td>
+        <td>Alta — igual que 256 pero mayor resistencia brute-force</td>
+        <td>Igual que SHA-256, mínima diferencia de performance (&lt;1%).</td>
+      </tr>
+      <tr>
+        <td><span class="hl-blue">OAUTHBEARER</span></td>
+        <td>Tokens JWT efímeros — IdP externo</td>
+        <td>Alta + rotación automática de tokens</td>
+        <td>Enterprise: integra con Keycloak, Okta, Azure AD, LDAP.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="trap-box">
+    <p>Configurar <code>allow.everyone.if.no.acl.found=true</code> en producción "temporalmente" mientras se definen las ACLs reales.
+    Kafka queda <strong>completamente abierto</strong> y no aparece ninguna advertencia visible en los logs normales.
+    Sin ACLs + este flag activado = cualquier cliente en la red puede leer y escribir en cualquier topic.</p>
+  </div>
+
+  <div class="senior-insight">
+    <p>Las ACLs en Kafka son <strong>DENY-by-default solo cuando hay al menos UNA ACL configurada en el cluster</strong>.
+    Si <code>allow.everyone.if.no.acl.found=true</code> (default), sin ACLs = acceso total sin restricciones.
+    El primer paso en cualquier hardening es añadir una ACL de negación explícita o cambiar este flag
+    <em>antes</em> de añadir cualquier otra ACL. El orden importa: cambia el flag, luego añade ACLs permisivas.</p>
+  </div>
+
+  <h3 class="subsec">Configuración server.properties (SASL/SCRAM)</h3>
+
+  <div class="code-block">
+    <div class="code-bar">
+      <span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>
+      <span class="code-bar-label">server.properties</span>
+    </div>
+    <div class="code-body"><pre><span class="tc"># Listeners con SSL+SASL</span>
+<span class="tp">listeners</span>=<span class="ts">SASL_SSL://0.0.0.0:9092</span>
+<span class="tp">advertised.listeners</span>=<span class="ts">SASL_SSL://broker1.interno:9092</span>
+<span class="tp">sasl.enabled.mechanisms</span>=<span class="ts">SCRAM-SHA-512</span>
+<span class="tp">sasl.mechanism.inter.broker.protocol</span>=<span class="ts">SCRAM-SHA-512</span>
+<span class="tp">security.inter.broker.protocol</span>=<span class="ts">SASL_SSL</span>
+
+<span class="tc"># SSL — keystores</span>
+<span class="tp">ssl.keystore.location</span>=<span class="ts">/etc/kafka/ssl/broker.keystore.jks</span>
+<span class="tp">ssl.keystore.password</span>=<span class="ts">changeit</span>
+<span class="tp">ssl.truststore.location</span>=<span class="ts">/etc/kafka/ssl/broker.truststore.jks</span>
+<span class="tp">ssl.truststore.password</span>=<span class="ts">changeit</span>
+<span class="tp">ssl.endpoint.identification.algorithm</span>=<span class="ts">https</span>
+
+<span class="tc"># Autorización — ACLs DENY-by-default</span>
+<span class="tp">authorizer.class.name</span>=<span class="ts">kafka.security.authorizer.AclAuthorizer</span>
+<span class="tp">allow.everyone.if.no.acl.found</span>=<span class="tv">false</span>
+<span class="tp">super.users</span>=<span class="ts">User:admin;User:kafka-broker</span>
+
+<span class="tc"># Crear usuario SCRAM (con kafka-configs.sh):</span>
+<span class="tc"># kafka-configs.sh --bootstrap-server localhost:9092 \</span>
+<span class="tc">#   --alter --add-config 'SCRAM-SHA-512=[password=s3cur3]' \</span>
+<span class="tc">#   --entity-type users --entity-name producer-app</span></pre>
+    </div>
+  </div>
+
+  <div class="lab-specs">
+    <p><strong>Objetivo:</strong> Broker con SASL/SCRAM-SHA-512 activado. Crear usuarios <code>producer-app</code> y <code>consumer-app</code> con <code>kafka-configs.sh</code>.</p>
+    <ul style="margin-top:0.8rem; padding-left:1.2rem; font-size:0.88rem; line-height:1.8;">
+      <li>ACL: <code>producer-app</code> → <span class="hl-green">Write</span> en <code>pagos.*</code> (prefixed)</li>
+      <li>ACL: <code>consumer-app</code> → <span class="hl-blue">Read</span> en <code>notificaciones.*</code> (prefixed)</li>
+      <li>Verificar: <code>producer-app</code> intenta escribir en <code>nominas</code> → <span class="hl-red">AUTHORIZATION_FAILED</span></li>
+      <li>Verificar: <code>consumer-app</code> intenta leer <code>pagos.pedidos</code> → <span class="hl-red">AUTHORIZATION_FAILED</span></li>
+      <li>Confirmar que <code>allow.everyone.if.no.acl.found=false</code> está activo</li>
+    </ul>
+  </div>
+
+  <!-- CHECKLIST M13 -->
+  <div class="checklist" id="checklist-m13">
+    <div class="checklist-title">
+      <span>CHECKLIST M13 — SEGURIDAD</span>
+      <span class="progress-text" id="cl13-progress">0 / 5</span>
+    </div>
+    <div class="checklist-progress-wrap">
+      <div class="checklist-progress-bar" id="cl13-bar" style="width:0%"></div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl13')">
+      <div class="check-box"></div>
+      <div class="check-text">Entiendo la diferencia entre autenticación (SASL) y cifrado (SSL) — son capas independientes que se combinan</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl13')">
+      <div class="check-box"></div>
+      <div class="check-text">Puedo generar keystores/truststores con <code>keytool</code> y configurar <code>ssl.truststore.location</code> en brokers y clientes</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl13')">
+      <div class="check-box"></div>
+      <div class="check-text">Sé usar <code>kafka-acls.sh</code> para dar permisos granulares por prefijo de topic (<code>--resource-pattern-type prefixed</code>)</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl13')">
+      <div class="check-box"></div>
+      <div class="check-text">Conozco el riesgo de <code>allow.everyone.if.no.acl.found=true</code> y cómo desactivarlo antes de añadir cualquier ACL</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl13')">
+      <div class="check-box"></div>
+      <div class="check-text">Puedo configurar SASL/SCRAM-SHA-512 en <code>server.properties</code> y en el cliente mediante <code>jaas.conf</code></div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ======================================================== -->
+<!-- M14 — MULTI-REGIÓN Y DISASTER RECOVERY                   -->
+<!-- ======================================================== -->
+<section class="section" id="s14">
+  <div class="section-header">
+    <div class="section-tag">MÓDULO 14 · ARQUITECTURA DISTRIBUIDA</div>
+    <div class="section-num" style="color:var(--red);">M14</div>
+    <h2 class="section-title">Multi-Región <span>& DR</span></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">ANALOGÍA</div>
+    <div class="analogy-text">
+      MirrorMaker 2 es como un servicio de mensajería express entre dos ciudades (data centers). Cuando envías algo en Nueva York, MM2 lo entrega automáticamente en Los Ángeles.
+      Si el DHL de NY colapsa, el de LA ya tiene todo listo — <strong>solo necesitas redirigir el tráfico</strong>.
+    </div>
+  </div>
+
+  <h3 class="subsec">Arquitectura MirrorMaker 2</h3>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <span class="t-dot"></span><span class="t-dot"></span><span class="t-dot"></span>
+      <span class="terminal-label">MirrorMaker 2 — topología activo-pasivo</span>
+    </div>
+    <div class="terminal-body">
+<div class="t-ascii">  cluster-us (primary)          cluster-eu (secondary)
+  ┌──────────────────────┐          ┌──────────────────────┐
+  │  pagos.pedidos       │──MM2──►  │  us.pagos.pedidos    │
+  │  pagos.usuarios      │──MM2──►  │  us.pagos.usuarios   │
+  │  pagos.eventos       │──MM2──►  │  us.pagos.eventos    │
+  │                      │          │                      │
+  │  producers → aquí    │          │  consumers → aquí    │
+  │         (normal)     │          │      (en failover)   │
+  └──────────────────────┘          └──────────────────────┘
+         ↑ ACTIVO                          ↑ STANDBY
+         │                                 │
+         └─────────── MM2 lag ─────────────┘
+              (replication lag = RPO)</div>
+      <br>
+      <div class="t-com"># Verificar estado de la replicación MM2</div>
+      <div class="t-cmd">kafka-consumer-groups.sh --bootstrap-server cluster-eu:9092 \</div>
+      <div class="t-out">&nbsp;&nbsp;--describe --group <span class="t-val">mm2-source-cluster-us</span></div>
+      <div class="t-out">TOPIC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG</div>
+      <div class="t-out">us.pagos.pedidos&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10023&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10025&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="t-val">2</span></div>
+      <div class="t-out">us.pagos.pedidos&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;9841&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;9841&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="t-val">0</span></div>
+    </div>
+  </div>
+
+  <h3 class="subsec">RPO y RTO</h3>
+
+  <div class="concept-grid">
+    <div class="concept-card">
+      <span class="concept-icon">⏱️</span>
+      <div class="concept-name">RPO — Recovery Point Objective</div>
+      <div class="concept-desc">
+        <strong>Cuántos datos puedes perder</strong> medido en tiempo.
+        Con MM2, depende del <strong>replication lag</strong>. Si el lag es 5s → RPO ≤ 5s.
+        En activo-pasivo, algo de lag es inevitable por la latencia de red entre regiones.
+        Monitorea el lag de MM2 como SLO crítico: <code>kafka.connect:type=mirror-source-connector-metrics,target-alias=*</code>.
+      </div>
+    </div>
+    <div class="concept-card">
+      <span class="concept-icon">🏃</span>
+      <div class="concept-name">RTO — Recovery Time Objective</div>
+      <div class="concept-desc">
+        <strong>Cuánto tiempo tarda en recuperarse</strong> el servicio tras una caída.
+        Con MM2 + <strong>offset sync</strong> activado, el failover de consumer groups puede ser &lt;1 minuto.
+        Sin offset sync, los consumers reprocesarán desde el inicio o desde <code>auto.offset.reset=earliest</code>.
+        La herramienta <code>MirrorCheckpointConnector</code> es la clave del offset mapping.
+      </div>
+    </div>
+  </div>
+
+  <h3 class="subsec">Estrategias de Disaster Recovery</h3>
+
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th>ESTRATEGIA</th>
+        <th>COMPLEJIDAD</th>
+        <th>RTO</th>
+        <th>RPO</th>
+        <th>TRADE-OFFS</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="hl-green">Activo-Pasivo</span></td>
+        <td>Baja — MM2 unidireccional</td>
+        <td>~1-5 min con offset sync</td>
+        <td>Segundos (lag de MM2)</td>
+        <td>Simple, sin conflictos de offsets. Capacidad standby infrautilizada.</td>
+      </tr>
+      <tr>
+        <td><span class="hl-yellow">Activo-Activo</span></td>
+        <td>Alta — MM2 bidireccional</td>
+        <td>&lt;30s (ya hay consumers en ambos)</td>
+        <td>Casi cero (ambos clusters activos)</td>
+        <td>Conflictos de offsets. Requiere topic naming convention con prefijos de región.</td>
+      </tr>
+      <tr>
+        <td><span class="hl-blue">Stretch Cluster (multi-DC RAFT)</span></td>
+        <td>Media — misma admin, múltiples AZs</td>
+        <td>Transparente (mismo cluster)</td>
+        <td>Cero (mismo cluster)</td>
+        <td>Solo viable entre AZs (&lt;10ms). Con &gt;100ms entre regiones → problemas de ISR y reelecciones.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsec">Configuración MirrorMaker 2</h3>
+
+  <div class="code-block">
+    <div class="code-bar">
+      <span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>
+      <span class="code-bar-label">mm2.properties — activo-pasivo US → EU</span>
+    </div>
+    <div class="code-body"><pre><span class="tc"># Clusters participantes</span>
+<span class="tp">clusters</span> = <span class="ts">cluster-us, cluster-eu</span>
+
+<span class="tp">cluster-us.bootstrap.servers</span> = <span class="ts">us-broker1:9092,us-broker2:9092</span>
+<span class="tp">cluster-eu.bootstrap.servers</span> = <span class="ts">eu-broker1:9092,eu-broker2:9092</span>
+
+<span class="tc"># Replicación US → EU (unidireccional)</span>
+<span class="tp">cluster-us->cluster-eu.enabled</span> = <span class="tv">true</span>
+<span class="tp">cluster-us->cluster-eu.topics</span> = <span class="ts">pagos\.*</span>
+<span class="tp">cluster-us->cluster-eu.groups</span> = <span class="ts">.*</span>
+
+<span class="tc"># Offset sync para failover limpio (RTO bajo)</span>
+<span class="tp">checkpoints.topic.replication.factor</span> = <span class="tn">3</span>
+<span class="tp">emit.checkpoints.enabled</span> = <span class="tv">true</span>
+<span class="tp">emit.checkpoints.interval.seconds</span> = <span class="tn">5</span>
+<span class="tp">sync.group.offsets.enabled</span> = <span class="tv">true</span>
+<span class="tp">sync.group.offsets.interval.seconds</span> = <span class="tn">5</span>
+
+<span class="tc"># Topics internos de MM2 (NO borrar)</span>
+<span class="tc"># mm2-offset-syncs.cluster-us.internal</span>
+<span class="tc"># mm2-configs.cluster-us.internal</span>
+<span class="tc"># heartbeats</span></pre>
+    </div>
+  </div>
+
+  <div class="trap-box">
+    <p>Usar <strong>MirrorMaker 1</strong> en 2025. MM1 no preserva offsets ni replica los topics internos (<code>__consumer_offsets</code>).
+    Al hacer failover, los consumers recomienzan desde <code>auto.offset.reset=earliest</code> — reprocesando potencialmente millones de eventos.
+    MM2 resuelve esto con <code>MirrorCheckpointConnector</code> que traduce offsets entre clusters.</p>
+  </div>
+
+  <div class="senior-insight">
+    <p>MM2 genera automáticamente topics internos: <code>heartbeats</code>, <code>mm2-offset-syncs.cluster-us.internal</code>, <code>mm2-configs.cluster-us.internal</code>.
+    <strong>NUNCA borres estos topics manualmente</strong> — MM2 pierde el track de los offsets traducidos y el failover falla silenciosamente.
+    El consumer group en el cluster de destino arranca desde el inicio sin ningún error obvio en los logs de la aplicación.</p>
+  </div>
+
+  <div class="lab-specs">
+    <p><strong>Objetivo:</strong> Dos clusters Docker (<code>cluster-us</code>, <code>cluster-eu</code>). MirrorMaker 2 replicando <code>pagos.*</code> de US→EU.</p>
+    <ul style="margin-top:0.8rem; padding-left:1.2rem; font-size:0.88rem; line-height:1.8;">
+      <li>Producir 1000 mensajes en <code>cluster-us:pagos.pedidos</code></li>
+      <li>Verificar llegada en <code>cluster-eu:us.pagos.pedidos</code> con offset mapeado</li>
+      <li>Activar <code>sync.group.offsets.enabled=true</code> y confirmar offset mapping con <code>MirrorCheckpointConnector</code></li>
+      <li>Simular caída de <code>cluster-us</code> (docker stop)</li>
+      <li>Failover del consumer group a <code>cluster-eu</code> — verificar que no hay reprocesamiento</li>
+    </ul>
+  </div>
+
+  <!-- CHECKLIST M14 -->
+  <div class="checklist" id="checklist-m14">
+    <div class="checklist-title">
+      <span>CHECKLIST M14 — MULTI-REGIÓN & DR</span>
+      <span class="progress-text" id="cl14-progress">0 / 5</span>
+    </div>
+    <div class="checklist-progress-wrap">
+      <div class="checklist-progress-bar" id="cl14-bar" style="width:0%"></div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl14')">
+      <div class="check-box"></div>
+      <div class="check-text">Entiendo la diferencia entre RPO y RTO y cómo el lag de MM2 impacta directamente el RPO</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl14')">
+      <div class="check-box"></div>
+      <div class="check-text">Sé que MM2 prefija topics replicados con el alias del cluster origen: <code>cluster-us.pagos.pedidos</code> en EU</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl14')">
+      <div class="check-box"></div>
+      <div class="check-text">Conozco los topics internos de MM2 (<code>heartbeats</code>, <code>mm2-offset-syncs.*</code>) y por qué no deben borrarse</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl14')">
+      <div class="check-box"></div>
+      <div class="check-text">Puedo distinguir cuándo usar activo-pasivo vs activo-activo y sus trade-offs de complejidad y conflictos</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl14')">
+      <div class="check-box"></div>
+      <div class="check-text">Sé por qué MM1 está obsoleto y qué problema específico de offsets resuelve MM2 con <code>MirrorCheckpointConnector</code></div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ======================================================== -->
+<!-- M15 — TROUBLESHOOTING AVANZADO Y FORENSE                 -->
+<!-- ======================================================== -->
+<section class="section" id="s15">
+  <div class="section-header">
+    <div class="section-tag">MÓDULO 15 · OPERACIONES CRÍTICAS</div>
+    <div class="section-num" style="color:var(--red);">M15</div>
+    <h2 class="section-title">Troubleshoot <span>& Recovery</span></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">ANALOGÍA</div>
+    <div class="analogy-text">
+      El troubleshooting de Kafka es como diagnóstico médico de emergencia. No puedes hacer biopsia (parar el cluster) — tienes que
+      <strong>diagnosticar con el paciente en pie</strong>, interpretando síntomas (logs, métricas) y aplicando tratamiento
+      (reasignación, ajuste de config) sin detener el servicio.
+    </div>
+  </div>
+
+  <h3 class="subsec">Runbook de Incidentes Críticos</h3>
+
+  <div class="concept-grid">
+    <div class="concept-card">
+      <span class="concept-icon">📈</span>
+      <div class="concept-name">LAG Exponencial</div>
+      <div class="concept-desc">
+        <strong>1.</strong> ¿Consumer processing time &gt; <code>max.poll.interval.ms</code>? → Aumentar o reducir <code>max.poll.records</code>.<br><br>
+        <strong>2.</strong> ¿Disk I/O del broker al 100%? → Añadir broker o reasignar particiones.<br><br>
+        <strong>3.</strong> ¿GC pause prolongado en consumer? → Reducir heap o migrar a G1GC/ZGC.
+      </div>
+    </div>
+    <div class="concept-card">
+      <span class="concept-icon">🔇</span>
+      <div class="concept-name">Under-Replicated Partitions</div>
+      <div class="concept-desc">
+        <strong>1.</strong> <code>kafka-topics.sh --describe --under-replicated-partitions</code> para identificar.<br><br>
+        <strong>2.</strong> ¿Broker follower lento? → Revisar network entre brokers (<code>replica.lag.time.max.ms</code>).<br><br>
+        <strong>3.</strong> ¿Disco lleno? → Limpiar logs antiguos, reducir <code>log.retention.bytes</code>.<br><br>
+        <strong>4.</strong> Ejecutar <code>kafka-reassign-partitions.sh</code> para mover particiones a brokers sanos.
+      </div>
+    </div>
+    <div class="concept-card">
+      <span class="concept-icon">💥</span>
+      <div class="concept-name">NotEnoughReplicasException</div>
+      <div class="concept-desc">
+        <strong>Causa:</strong> <code>min.insync.replicas=2</code> pero el ISR tiene solo 1 replica (broker caído).
+        Producer con <code>acks=all</code> rechazado con excepción.<br><br>
+        <strong>Fix inmediato:</strong> Recuperar el broker caído.<br><br>
+        <strong>Fix temporal (riesgoso):</strong> Reducir <code>min.insync.replicas=1</code> hasta recuperar el broker. Documenta y revierte.
+      </div>
+    </div>
+  </div>
+
+  <h3 class="subsec">Árbol de Decisión — LAG Creciente</h3>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <span class="t-dot"></span><span class="t-dot"></span><span class="t-dot"></span>
+      <span class="terminal-label">troubleshoot-lag.sh · árbol de decisión</span>
+    </div>
+    <div class="terminal-body">
+<div class="t-ascii">  LAG creciendo en kafka-consumer-groups.sh
+      │
+      ├─► ¿consumer processing time > max.poll.interval.ms?
+      │       │
+      │       └─ SÍ → reduce max.poll.records (menos batch)
+      │                 o aumenta max.poll.interval.ms (más tiempo)
+      │                 o optimiza lógica de negocio del consumer
+      │
+      ├─► ¿consumer rebalanceando frecuentemente?
+      │       │
+      │       └─ SÍ → aumenta session.timeout.ms y heartbeat.interval.ms
+      │                 revisa GC pause del consumer (jstat -gcutil &lt;pid&gt;)
+      │                 considera static membership (group.instance.id)
+      │
+      ├─► ¿producer throughput muy alto vs particiones?
+      │       │
+      │       └─ SÍ → añade particiones al topic
+      │                 escala consumers hasta = nº particiones
+      │                 verifica que no hay consumer ocioso
+      │
+      └─► ¿broker disk I/O al tope?
+              │
+              └─ SÍ → añade broker nuevo
+                        reasigna particiones calientes
+                        revisa segment.bytes y flush config</div>
+      <br>
+      <div class="t-com"># Diagnóstico inicial — siempre primer paso</div>
+      <div class="t-cmd">kafka-consumer-groups.sh --bootstrap-server localhost:9092 \</div>
+      <div class="t-out">&nbsp;&nbsp;--describe --group <span class="t-val">mi-consumer-group</span></div>
+      <div class="t-out"><br>GROUP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TOPIC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG&nbsp;&nbsp;&nbsp;CONSUMER-ID</div>
+      <div class="t-out">mi-group&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pagos.pedidos&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="t-val">0</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;consumer-1</div>
+      <div class="t-out">mi-group&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pagos.pedidos&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4800&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;9200&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="t-err">4400</span>&nbsp;&nbsp;&nbsp;consumer-2</div>
+      <div class="t-com">&nbsp;&nbsp;# → LAG solo en partición 1 asignada a consumer-2 → problema del consumer, NO del broker</div>
+    </div>
+  </div>
+
+  <h3 class="subsec">Archivos de Log Clave</h3>
+
+  <table class="params-table">
+    <thead>
+      <tr>
+        <th>ARCHIVO</th>
+        <th>RUTA DEFAULT</th>
+        <th>QUÉ BUSCAR</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="param-name">server.log</span></td>
+        <td><span class="param-def">/var/log/kafka/server.log</span></td>
+        <td class="param-desc">Arranque/parada, liderazgo de particiones, errores de disco, excepciones de replicación. El log más importante para diagnóstico general.</td>
+      </tr>
+      <tr>
+        <td><span class="param-name">controller.log</span></td>
+        <td><span class="param-def">/var/log/kafka/controller.log</span></td>
+        <td class="param-desc">Elecciones de líder, cambios en ISR, eventos KRaft. Clave cuando hay elecciones frecuentes o broker bouncing.</td>
+      </tr>
+      <tr>
+        <td><span class="param-name">state-change.log</span></td>
+        <td><span class="param-def">/var/log/kafka/state-change.log</span></td>
+        <td class="param-desc">Transiciones de estado de particiones y réplicas. Útil para rastrear cuándo una partición perdió el ISR y cuándo lo recuperó.</td>
+      </tr>
+      <tr>
+        <td><span class="param-name">kafka-authorizer.log</span></td>
+        <td><span class="param-def">/var/log/kafka/kafka-authorizer.log</span></td>
+        <td class="param-desc">Todos los intentos de acceso: ALLOWED y DENIED. Esencial para debuggear ACLs y auditoría de seguridad. Puede ser muy verboso — usar con log4j filtering.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsec">Reasignación de Particiones</h3>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <span class="t-dot"></span><span class="t-dot"></span><span class="t-dot"></span>
+      <span class="terminal-label">kafka-reassign-partitions.sh · broker enfermo → sano</span>
+    </div>
+    <div class="terminal-body">
+      <div class="t-com"># 1. Generar plan de reasignación (broker 3 está enfermo, mover a broker 4)</div>
+      <div class="t-cmd">kafka-reassign-partitions.sh --bootstrap-server localhost:9092 \</div>
+      <div class="t-out">&nbsp;&nbsp;--generate --topics-to-move-json-file topics.json \</div>
+      <div class="t-out">&nbsp;&nbsp;--broker-list <span class="t-val">"1,2,4"</span></div>
+      <br>
+      <div class="t-com"># 2. Ejecutar reasignación (guardar salida como reassignment.json)</div>
+      <div class="t-cmd">kafka-reassign-partitions.sh --bootstrap-server localhost:9092 \</div>
+      <div class="t-out">&nbsp;&nbsp;--execute --reassignment-json-file reassignment.json \</div>
+      <div class="t-out">&nbsp;&nbsp;--throttle <span class="t-val">50000000</span>  <span class="t-com"># 50 MB/s — no saturar red</span></div>
+      <br>
+      <div class="t-com"># 3. Verificar progreso (puede tardar minutos)</div>
+      <div class="t-cmd">kafka-reassign-partitions.sh --bootstrap-server localhost:9092 \</div>
+      <div class="t-out">&nbsp;&nbsp;--verify --reassignment-json-file reassignment.json</div>
+      <div class="t-out">Status of partition reassignment:</div>
+      <div class="t-out">Reassignment of partition pagos.pedidos-0 is <span class="t-val">completed</span></div>
+      <div class="t-out">Reassignment of partition pagos.pedidos-1 is <span class="t-key">still in progress</span></div>
+    </div>
+  </div>
+
+  <div class="trap-box">
+    <p>Ejecutar <code>kafka-leader-election.sh --election-type UNCLEAN</code> para recuperar disponibilidad rápidamente durante una incidencia.
+    Una elección <strong>UNCLEAN puede elegir un líder que no estaba en el ISR</strong> → pérdida de datos permanente e irrecuperable.
+    Los mensajes producidos con <code>acks=all</code> que estaban en el líder anterior pero no en el follower elegido se pierden para siempre.
+    Solo usar UNCLEAN election cuando los datos ya están perdidos y la disponibilidad es prioritaria.</p>
+  </div>
+
+  <div class="senior-insight">
+    <p>El <strong>90% de los "problemas de Kafka" a las 3 AM son en realidad problemas de consumer</strong>.
+    Antes de tocar el broker, ejecuta <code>kafka-consumer-groups.sh --describe --group tu-grupo</code>
+    y mira el LAG por partición. Si el LAG creció en <em>una sola partición</em> → problema del consumer asignado a esa partición, no del broker.
+    Si el LAG creció uniformemente en todas las particiones → entonces investiga el broker o el producer throughput.</p>
+  </div>
+
+  <div class="lab-specs">
+    <p><strong>Chaos Engineering Lab:</strong> Diagnóstico y recuperación de broker enfermo.</p>
+    <ul style="margin-top:0.8rem; padding-left:1.2rem; font-size:0.88rem; line-height:1.8;">
+      <li>Llenar disco de un broker con <code>dd if=/dev/zero of=/var/lib/kafka/fill bs=1M count=2048</code></li>
+      <li>Observar ISR shrink en <code>state-change.log</code> y under-replicated partitions</li>
+      <li>Recuperar borrando segmentos de log antiguos con <code>kafka-delete-records.sh</code></li>
+      <li>Ejecutar reasignación de particiones con throttle configurado</li>
+      <li>Verificar recuperación completa del ISR — todas las particiones fully replicated</li>
+    </ul>
+  </div>
+
+  <!-- CHECKLIST M15 -->
+  <div class="checklist" id="checklist-m15">
+    <div class="checklist-title">
+      <span>CHECKLIST M15 — TROUBLESHOOTING & RECOVERY</span>
+      <span class="progress-text" id="cl15-progress">0 / 5</span>
+    </div>
+    <div class="checklist-progress-wrap">
+      <div class="checklist-progress-bar" id="cl15-bar" style="width:0%"></div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl15')">
+      <div class="check-box"></div>
+      <div class="check-text">Puedo leer <code>server.log</code> y distinguir error de red vs disco vs metadata KRaft por el tipo de excepción</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl15')">
+      <div class="check-box"></div>
+      <div class="check-text">Sé usar <code>kafka-consumer-groups.sh --describe</code> para diagnosticar LAG por partición y determinar si el problema es consumer o broker</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl15')">
+      <div class="check-box"></div>
+      <div class="check-text">Conozco el riesgo de <code>--election-type UNCLEAN</code> (pérdida de datos permanente) y cuándo es inaceptable usarlo</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl15')">
+      <div class="check-box"></div>
+      <div class="check-text">Sé usar <code>kafka-reassign-partitions.sh</code> con <code>--throttle</code> para mover particiones de broker enfermo a sano sin saturar la red</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl15')">
+      <div class="check-box"></div>
+      <div class="check-text">Puedo usar <code>kafka-log-dirs.sh</code> para verificar el tamaño y estado de los segmentos de log en cada broker</div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ======================================================== -->
+<!-- M16 — KAFKA EN KUBERNETES, CLOUD Y COSTOS                -->
+<!-- ======================================================== -->
+<section class="section" id="s16">
+  <div class="section-header">
+    <div class="section-tag">MÓDULO 16 · CLOUD-NATIVE</div>
+    <div class="section-num" style="color:var(--red);">M16</div>
+    <h2 class="section-title">Kafka en <span>Kubernetes</span></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">ANALOGÍA</div>
+    <div class="analogy-text">
+      Desplegar Kafka en Kubernetes sin un Operator es como construir una casa sin planos — funciona, pero se cae en el primer terremoto.
+      El <strong>Operator de Strimzi es el arquitecto</strong> que sabe exactamente cómo colocar cada pieza:
+      anti-affinity, PVCs, rolling updates, y ACLs automáticas.
+    </div>
+  </div>
+
+  <h3 class="subsec">Arquitectura Strimzi</h3>
+
+  <div class="concept-grid">
+    <div class="concept-card">
+      <span class="concept-icon">☸️</span>
+      <div class="concept-name">Strimzi Operator</div>
+      <div class="concept-desc">
+        Gestiona el <strong>lifecycle completo de Kafka</strong> via CRDs de Kubernetes.
+        Recursos: <code>Kafka</code>, <code>KafkaTopic</code>, <code>KafkaUser</code>, <code>KafkaMirrorMaker2</code>.
+        Soporta <strong>rolling updates sin downtime</strong>, gestión automática de <code>server.properties</code>,
+        y reconciliación continua del estado deseado.
+      </div>
+    </div>
+    <div class="concept-card">
+      <span class="concept-icon">💾</span>
+      <div class="concept-name">Storage en Kubernetes</div>
+      <div class="concept-desc">
+        <strong>Local PVs (NVMe hostPath):</strong> Mejor latencia y throughput, pero el pod queda atado al nodo.
+        <strong>Network storage (EBS, GCE PD):</strong> Mayor flexibilidad (pod migra), pero +10-30% latencia.
+        Usa <code>PodDisruptionBudget</code> para garantizar que rolling updates no dejan ISR por debajo de <code>min.insync.replicas</code>.
+      </div>
+    </div>
+    <div class="concept-card">
+      <span class="concept-icon">☁️</span>
+      <div class="concept-name">Confluent Cloud — Costos Ocultos</div>
+      <div class="concept-desc">
+        Serverless tiers (Basic/Standard) vs Dedicated. El costo principal <strong>no son las instancias</strong> sino el
+        <strong>egress de red entre AZs</strong>. En AWS, datos replicados entre AZs = $0.01/GB.
+        Con RF=3 y 3 AZs, cada byte escrito genera <strong>2 bytes de egress</strong>.
+        A 100 MB/s = ~$500/mes solo en egress inter-AZ.
+      </div>
+    </div>
+  </div>
+
+  <h3 class="subsec">Strimzi CRD — Kafka Cluster</h3>
+
+  <div class="code-block">
+    <div class="code-bar">
+      <span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>
+      <span class="code-bar-label">kafka-cluster.yaml · Strimzi CRD</span>
+    </div>
+    <div class="code-body"><pre><span class="tp">apiVersion</span>: <span class="ts">kafka.strimzi.io/v1beta2</span>
+<span class="tp">kind</span>: <span class="ts">Kafka</span>
+<span class="tp">metadata</span>:
+  <span class="tp">name</span>: <span class="ts">kafka-produccion</span>
+  <span class="tp">namespace</span>: <span class="ts">kafka</span>
+<span class="tp">spec</span>:
+  <span class="tp">kafka</span>:
+    <span class="tp">replicas</span>: <span class="tn">3</span>
+    <span class="tp">version</span>: <span class="ts">3.7.0</span>
+    <span class="tp">listeners</span>:
+      - <span class="tp">name</span>: <span class="ts">tls</span>
+        <span class="tp">port</span>: <span class="tn">9093</span>
+        <span class="tp">type</span>: <span class="ts">internal</span>
+        <span class="tp">tls</span>: <span class="tv">true</span>
+        <span class="tp">authentication</span>:
+          <span class="tp">type</span>: <span class="ts">scram-sha-512</span>
+    <span class="tp">authorization</span>:
+      <span class="tp">type</span>: <span class="ts">simple</span>           <span class="tc"># AclAuthorizer</span>
+    <span class="tp">config</span>:
+      <span class="tp">offsets.topic.replication.factor</span>: <span class="tn">3</span>
+      <span class="tp">transaction.state.log.replication.factor</span>: <span class="tn">3</span>
+      <span class="tp">transaction.state.log.min.isr</span>: <span class="tn">2</span>
+      <span class="tp">min.insync.replicas</span>: <span class="tn">2</span>
+      <span class="tp">allow.everyone.if.no.acl.found</span>: <span class="tv">false</span>
+    <span class="tp">storage</span>:
+      <span class="tp">type</span>: <span class="ts">jbod</span>
+      <span class="tp">volumes</span>:
+        - <span class="tp">id</span>: <span class="tn">0</span>
+          <span class="tp">type</span>: <span class="ts">persistent-claim</span>
+          <span class="tp">size</span>: <span class="ts">500Gi</span>
+          <span class="tp">class</span>: <span class="ts">fast-local-nvme</span>
+          <span class="tp">deleteClaim</span>: <span class="tv">false</span>
+    <span class="tc">    # Anti-affinity automático en Strimzi — nunca 2 brokers en mismo nodo</span>
+    <span class="tp">template</span>:
+      <span class="tp">pod</span>:
+        <span class="tp">affinity</span>:
+          <span class="tp">podAntiAffinity</span>:
+            <span class="tp">requiredDuringSchedulingIgnoredDuringExecution</span>:
+              - <span class="tp">labelSelector</span>:
+                  <span class="tp">matchLabels</span>:
+                    <span class="tp">strimzi.io/name</span>: <span class="ts">kafka-produccion-kafka</span>
+                <span class="tp">topologyKey</span>: <span class="ts">kubernetes.io/hostname</span>
+---
+<span class="tp">apiVersion</span>: <span class="ts">kafka.strimzi.io/v1beta2</span>
+<span class="tp">kind</span>: <span class="ts">KafkaUser</span>
+<span class="tp">metadata</span>:
+  <span class="tp">name</span>: <span class="ts">producer-app</span>
+  <span class="tp">labels</span>:
+    <span class="tp">strimzi.io/cluster</span>: <span class="ts">kafka-produccion</span>
+<span class="tp">spec</span>:
+  <span class="tp">authentication</span>:
+    <span class="tp">type</span>: <span class="ts">scram-sha-512</span>   <span class="tc"># Strimzi genera y rota el secret</span>
+  <span class="tp">authorization</span>:
+    <span class="tp">type</span>: <span class="ts">simple</span>
+    <span class="tp">acls</span>:
+      - <span class="tp">resource</span>:
+          <span class="tp">type</span>: <span class="ts">topic</span>
+          <span class="tp">name</span>: <span class="ts">pagos</span>
+          <span class="tp">patternType</span>: <span class="ts">prefix</span>
+        <span class="tp">operations</span>: [<span class="ts">Write</span>, <span class="ts">Describe</span>, <span class="ts">Create</span>]
+      - <span class="tp">resource</span>:
+          <span class="tp">type</span>: <span class="ts">transactionalId</span>
+          <span class="tp">name</span>: <span class="ts">pagos-tx</span>
+          <span class="tp">patternType</span>: <span class="ts">prefix</span>
+        <span class="tp">operations</span>: [<span class="ts">Write</span>, <span class="ts">Describe</span>]</pre>
+    </div>
+  </div>
+
+  <h3 class="subsec">KafkaTopic CRD — Gestión declarativa</h3>
+
+  <div class="code-block">
+    <div class="code-bar">
+      <span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>
+      <span class="code-bar-label">kafka-topic.yaml · KafkaTopic CRD</span>
+    </div>
+    <div class="code-body"><pre><span class="tp">apiVersion</span>: <span class="ts">kafka.strimzi.io/v1beta2</span>
+<span class="tp">kind</span>: <span class="ts">KafkaTopic</span>
+<span class="tp">metadata</span>:
+  <span class="tp">name</span>: <span class="ts">pagos-pedidos</span>
+  <span class="tp">namespace</span>: <span class="ts">kafka</span>
+  <span class="tp">labels</span>:
+    <span class="tp">strimzi.io/cluster</span>: <span class="ts">kafka-produccion</span>
+<span class="tp">spec</span>:
+  <span class="tp">partitions</span>: <span class="tn">12</span>
+  <span class="tp">replicas</span>: <span class="tn">3</span>
+  <span class="tp">config</span>:
+    <span class="tp">retention.ms</span>: <span class="ts">"604800000"</span>     <span class="tc"># 7 días</span>
+    <span class="tp">min.insync.replicas</span>: <span class="ts">"2"</span>
+    <span class="tp">compression.type</span>: <span class="ts">lz4</span>
+    <span class="tp">cleanup.policy</span>: <span class="ts">delete</span>
+
+<span class="tc"># NUNCA crear topics con kafka-topics.sh en un cluster Strimzi</span>
+<span class="tc"># El Topic Operator reconcilia el estado — cambios manuales se revertirán</span></pre>
+    </div>
+  </div>
+
+  <h3 class="subsec">Comparativa de Costos — 100 MB/s throughput</h3>
+
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th>OPCIÓN</th>
+        <th>INSTANCIAS</th>
+        <th>EGRESS INTER-AZ</th>
+        <th>OPERATIONAL COST</th>
+        <th>TOTAL ESTIMADO/MES</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="hl-blue">Self-managed EC2</span><br><small style="color:var(--muted)">3x r6i.2xlarge</small></td>
+        <td>~$900</td>
+        <td>~$500 (RF=3, 3 AZs)</td>
+        <td>~$3000 (0.5 SRE FTE)</td>
+        <td><span class="hl-yellow">~$4400</span></td>
+      </tr>
+      <tr>
+        <td><span class="hl-purple">Confluent Cloud Dedicated</span><br><small style="color:var(--muted)">CKU provisioned</small></td>
+        <td>~$1800 (CKUs)</td>
+        <td>Incluido en tier</td>
+        <td>~$0 (managed)</td>
+        <td><span class="hl-yellow">~$2200</span></td>
+      </tr>
+      <tr>
+        <td><span class="hl-green">Strimzi en EKS</span><br><small style="color:var(--muted)">K8s nodes + EBS</small></td>
+        <td>~$700 (c5.2xlarge)</td>
+        <td>~$500 (mismo que EC2)</td>
+        <td>~$1500 (0.25 SRE FTE)</td>
+        <td><span class="hl-yellow">~$2700</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="info-box warn">
+    <span class="info-icon">💡</span>
+    <span>El egress de red inter-AZ es el costo oculto más frecuente. Con RF=3 y 3 AZs, cada byte escrito genera 2 bytes de replicación entre AZs. A 100 MB/s sostenidos eso son ~18 TB/mes de egress = ~$175-500/mes solo en transferencia, según proveedor cloud.</span>
+  </div>
+
+  <div class="trap-box">
+    <p>Usar <strong>EBS gp3 multi-AZ como storage principal</strong> para logs de Kafka en producción.
+    El throughput de EBS tiene burst limits variables (hasta 1000 MB/s en burst, pero baseline mucho menor).
+    Durante rebalanceo o Kafka Streams rekeying, el spike de I/O activa el throttling de EBS y
+    <strong>el broker se vuelve lento durante minutos</strong>, causando ISR shrink en cascada.
+    Prefiere local NVMe con <code>hostPath</code> o <code>local</code> PersistentVolumes.</p>
+  </div>
+
+  <div class="senior-insight">
+    <p>En Kubernetes, <strong>NUNCA pongas dos brokers Kafka en el mismo nodo físico</strong>.
+    Usa <code>podAntiAffinity</code> con <code>requiredDuringSchedulingIgnoredDuringExecution</code> (no <em>preferred</em> — required).
+    Si no, cuando el nodo falla, pierdes 2 de 3 brokers → <code>min.insync.replicas=2</code> falla → cluster no acepta writes.
+    Strimzi configura esto automáticamente en su Helm chart, pero <strong>verifica siempre</strong> con
+    <code>kubectl get pods -o wide</code> que ningún nodo tiene dos brokers.</p>
+  </div>
+
+  <h3 class="subsec">PodDisruptionBudget — Protección durante Rolling Updates</h3>
+
+  <div class="code-block">
+    <div class="code-bar">
+      <span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>
+      <span class="code-bar-label">pdb.yaml · PodDisruptionBudget para Kafka</span>
+    </div>
+    <div class="code-body"><pre><span class="tp">apiVersion</span>: <span class="ts">policy/v1</span>
+<span class="tp">kind</span>: <span class="ts">PodDisruptionBudget</span>
+<span class="tp">metadata</span>:
+  <span class="tp">name</span>: <span class="ts">kafka-pdb</span>
+  <span class="tp">namespace</span>: <span class="ts">kafka</span>
+<span class="tp">spec</span>:
+  <span class="tp">maxUnavailable</span>: <span class="tn">1</span>   <span class="tc"># Máximo 1 broker down a la vez</span>
+  <span class="tp">selector</span>:
+    <span class="tp">matchLabels</span>:
+      <span class="tp">strimzi.io/name</span>: <span class="ts">kafka-produccion-kafka</span>
+
+<span class="tc"># Con RF=3 y min.insync.replicas=2:</span>
+<span class="tc"># maxUnavailable=1 garantiza que siempre hay 2 brokers en ISR</span>
+<span class="tc"># durante kubectl drain o node upgrades del cluster K8s</span>
+<span class="tc"># Strimzi genera este PDB automáticamente — verificar que existe</span></pre>
+    </div>
+  </div>
+
+  <div class="lab-specs">
+    <p><strong>Objetivo:</strong> Strimzi en <code>kind</code> o <code>minikube</code> local — todo declarativo via CRDs.</p>
+    <ul style="margin-top:0.8rem; padding-left:1.2rem; font-size:0.88rem; line-height:1.8;">
+      <li>Instalar Strimzi Operator con Helm: <code>helm install strimzi strimzi/strimzi-kafka-operator</code></li>
+      <li>Crear cluster Kafka de 3 brokers via <code>Kafka</code> CRD con SCRAM-SHA-512 y ACLs</li>
+      <li>Crear topic <code>pagos-pedidos</code> exclusivamente via <code>KafkaTopic</code> CRD (no CLI)</li>
+      <li>Crear usuario <code>producer-app</code> con <code>KafkaUser</code> CRD con ACLs automáticas</li>
+      <li>Verificar <code>podAntiAffinity</code>: <code>kubectl get pods -o wide</code> — ningún nodo con 2 brokers</li>
+      <li>Simular node drain: <code>kubectl drain &lt;nodo&gt;</code> — verificar PDB en acción</li>
+    </ul>
+  </div>
+
+  <!-- CHECKLIST M16 -->
+  <div class="checklist" id="checklist-m16">
+    <div class="checklist-title">
+      <span>CHECKLIST M16 — KAFKA EN KUBERNETES</span>
+      <span class="progress-text" id="cl16-progress">0 / 5</span>
+    </div>
+    <div class="checklist-progress-wrap">
+      <div class="checklist-progress-bar" id="cl16-bar" style="width:0%"></div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl16')">
+      <div class="check-box"></div>
+      <div class="check-text">Entiendo por qué <code>podAntiAffinity</code> con <code>requiredDuringSchedulingIgnoredDuringExecution</code> es obligatorio — no optional — en todos los brokers Kafka en K8s</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl16')">
+      <div class="check-box"></div>
+      <div class="check-text">Sé que Strimzi gestiona Kafka via CRDs y que el estado deseado va en YAML declarativo, no en cambios manuales con CLI que serán revertidos</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl16')">
+      <div class="check-box"></div>
+      <div class="check-text">Conozco el costo oculto del egress de red entre AZs: RF=3 con 3 AZs significa 2 bytes de egress por cada byte escrito</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl16')">
+      <div class="check-box"></div>
+      <div class="check-text">Sé la diferencia entre <code>hostPath</code>/local PV (rendimiento, nodo-bound) y EBS/GCE PD (flexibilidad, burst throttling) para logs de Kafka</div>
+    </div>
+    <div class="check-item" onclick="toggleCheck(this,'cl16')">
+      <div class="check-box"></div>
+      <div class="check-text">Puedo usar <code>KafkaUser</code> de Strimzi para crear usuarios con SCRAM-SHA-512 y ACLs automáticas sin tocar <code>kafka-acls.sh</code> manualmente</div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="footer-logo">KAFKA SENIOR</div>
+  <p>M13-M16 · Nivel Senior · Prerrequisito: Kafka Core + Intermedio</p>
+  <div class="footer-links">
+    <span onclick="window.location='kafka-curso-interactivo.html'">← Kafka Core</span>
+    <span onclick="window.location='kafka-curso-intermedio.html'">← Kafka Intermedio</span>
+  </div>
+</footer>
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+/* --- NAV HIDE/SHOW ON SCROLL --- */
+(function() {
+  var nav = document.getElementById('mainNav');
+  var lastScrollY = 0;
+  var ticking = false;
+
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() {
+        var currentScrollY = window.scrollY;
+        if (currentScrollY > lastScrollY && currentScrollY > 80) {
+          nav.classList.add('hidden');
+        } else {
+          nav.classList.remove('hidden');
+        }
+        lastScrollY = currentScrollY;
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+})();
+
+/* --- SCROLL TO SECTION --- */
+function scrollToSection(id) {
+  var el = document.getElementById(id);
+  if (el) {
+    var offset = 80;
+    var top = el.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ top: top, behavior: 'smooth' });
+  }
+}
+
+/* --- INTERSECTION OBSERVER (fade-in sections) --- */
+(function() {
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.06, rootMargin: '0px 0px -60px 0px' });
+
+  document.querySelectorAll('.section').forEach(function(section) {
+    observer.observe(section);
+  });
+})();
+
+/* --- CHECKLIST TOGGLE --- */
+function toggleCheck(item, checklistId) {
+  item.classList.toggle('done');
+  if (item.classList.contains('done')) {
+    item.querySelector('.check-box').textContent = '✓';
+  } else {
+    item.querySelector('.check-box').textContent = '';
+  }
+  updateChecklistProgress(checklistId);
+}
+
+function updateChecklistProgress(checklistId) {
+  var moduleId = checklistId.replace('cl', 'm');
+  var checklist = document.getElementById('checklist-' + moduleId);
+  if (!checklist) return;
+
+  var items = checklist.querySelectorAll('.check-item');
+  var done = checklist.querySelectorAll('.check-item.done');
+  var total = items.length;
+  var completed = done.length;
+  var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  var bar = document.getElementById(checklistId + '-bar');
+  var progress = document.getElementById(checklistId + '-progress');
+
+  if (bar) bar.style.width = pct + '%';
+  if (progress) progress.textContent = completed + ' / ' + total;
+}
+</script>
+</body>
+</html>
