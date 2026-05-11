@@ -1,0 +1,191 @@
+version: '3.8'
+
+# ============================================================
+# Cluster Kafka KRaft - 3 Brokers
+# Nivel 3 del Laboratorio de Apache Kafka
+#
+# Topologia de red (dentro de Docker):
+#   kafka-broker-1  <-->  kafka-broker-2  <-->  kafka-broker-3
+#       |                       |                       |
+#   localhost:9092          localhost:9093          localhost:9094
+#       (host Windows)
+#
+# Listeners por broker:
+#   PLAINTEXT  -> clientes externos (aplicaciones Java en Windows)
+#   INTERNAL   -> comunicacion broker-a-broker dentro de Docker
+#   CONTROLLER -> quorum KRaft entre los 3 nodos
+# ============================================================
+
+# ── Red compartida para que los brokers se vean entre si ─────
+networks:
+  kafka-cluster:
+    driver: bridge
+
+# ── Volúmenes persistentes (uno por broker) ──────────────────
+# CRITICO: cada broker NECESITA su propio volumen.
+# Si compartieran uno solo, habria corrupcion de datos.
+volumes:
+  kafka-data-1:
+    driver: local
+  kafka-data-2:
+    driver: local
+  kafka-data-3:
+    driver: local
+
+services:
+
+  # ════════════════════════════════════════════════════════════
+  # BROKER 1 - NODE ID: 1
+  # Accesible desde Windows en localhost:9092
+  # ════════════════════════════════════════════════════════════
+  kafka-broker-1:
+    image: apache/kafka:4.0.0
+    container_name: kafka-broker-1
+    networks:
+      - kafka-cluster
+    ports:
+      - "9092:9092"    # PLAINTEXT externo (clientes Java en Windows)
+    environment:
+      # ── Identidad del nodo ────────────────────────────────
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      # ── Listeners (que puertos escucha este broker) ───────
+      # PLAINTEXT  -> puerto 9092 para clientes externos
+      # INTERNAL   -> puerto 29092 para comunicacion entre brokers
+      # CONTROLLER -> puerto 19092 para el quorum KRaft
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,INTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:19092
+
+      # ── Advertised listeners (que anunciar a los clientes) ─
+      # PLAINTEXT: los clientes Java desde Windows usan localhost:9092
+      # INTERNAL: los otros brokers Docker usan kafka-broker-1:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,INTERNAL://kafka-broker-1:29092
+
+      # ── Mapeo nombre-listener a protocolo de seguridad ────
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+
+      # ── Listener para comunicacion entre brokers ──────────
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+      # ── Listener que usa el controlador KRaft ─────────────
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # ── Quorum de controladores KRaft ─────────────────────
+      # Formato: {nodeId}@{hostname_docker}:{puerto_controller}
+      # Los 3 nodos son controladores y se eligen un lider entre si
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:19092,2@kafka-broker-2:19093,3@kafka-broker-3:19094
+
+      # ── Replicacion de topics internos de Kafka ───────────
+      # Con 3 brokers, podemos replicar en los 3 para durabilidad
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+
+      # ── Almacenamiento ────────────────────────────────────
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+
+      # ── Cluster ID comun a los 3 brokers ─────────────────
+      # TODOS los brokers del mismo cluster DEBEN tener el MISMO ID
+      # Este UUID identifica de forma unica este cluster KRaft
+      CLUSTER_ID: TzJkYzFlZDctMzJhNy00NTM
+
+      # ── Logging ───────────────────────────────────────────
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
+
+    volumes:
+      - kafka-data-1:/var/lib/kafka/data
+      - ./kafka-config/broker-1.properties:/opt/kafka/config/kraft/server.properties:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+    restart: unless-stopped
+
+  # ════════════════════════════════════════════════════════════
+  # BROKER 2 - NODE ID: 2
+  # Accesible desde Windows en localhost:9093
+  # ════════════════════════════════════════════════════════════
+  kafka-broker-2:
+    image: apache/kafka:4.0.0
+    container_name: kafka-broker-2
+    networks:
+      - kafka-cluster
+    ports:
+      - "9093:9093"    # PLAINTEXT externo
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9093,INTERNAL://0.0.0.0:29093,CONTROLLER://0.0.0.0:19093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9093,INTERNAL://kafka-broker-2:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:19092,2@kafka-broker-2:19093,3@kafka-broker-3:19094
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: TzJkYzFlZDctMzJhNy00NTM
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
+
+    volumes:
+      - kafka-data-2:/var/lib/kafka/data
+      - ./kafka-config/broker-2.properties:/opt/kafka/config/kraft/server.properties:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9093 > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+    restart: unless-stopped
+    depends_on:
+      - kafka-broker-1
+
+  # ════════════════════════════════════════════════════════════
+  # BROKER 3 - NODE ID: 3
+  # Accesible desde Windows en localhost:9094
+  # ════════════════════════════════════════════════════════════
+  kafka-broker-3:
+    image: apache/kafka:4.0.0
+    container_name: kafka-broker-3
+    networks:
+      - kafka-cluster
+    ports:
+      - "9094:9094"    # PLAINTEXT externo
+    environment:
+      KAFKA_NODE_ID: 3
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9094,INTERNAL://0.0.0.0:29094,CONTROLLER://0.0.0.0:19094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9094,INTERNAL://kafka-broker-3:29094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:19092,2@kafka-broker-2:19093,3@kafka-broker-3:19094
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: TzJkYzFlZDctMzJhNy00NTM
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
+
+    volumes:
+      - kafka-data-3:/var/lib/kafka/data
+      - ./kafka-config/broker-3.properties:/opt/kafka/config/kraft/server.properties:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9094 > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+    restart: unless-stopped
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2

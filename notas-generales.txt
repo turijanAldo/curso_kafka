@@ -1,0 +1,41 @@
+cambio para java
+$env:Path = "C:\Program Files\Java\jdk-17.0.2\bin;$env:Path"
+java -version
+
+$env:JAVA_HOME = "C:\Program Files\Java\jdk-17.0.2"
+mvn clean install
+
+acceder
+docker exec -it 768bd3081cce /bin/bash
+
+sh de kafka
+ls /opt/kafka/bin/
+
+crear topics
+/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic [NOMBRE_DEL_TÓPICO] --partitions [NÚMERO_DE_PARTICIONES] --replication-factor [FACTOR_DE_REPLICACIÓN]
+
+/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic pruebas --partitions 1 --replication-factor 1
+
+listar topics
+/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+
+describir 
+topic/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic pruebas
+
+configuracion del broker
+/opt/kafka/bin/kafka-configs.sh --bootstrap-server localhost:9092 --describe --entity-type brokers -entity-name 1
+
+java
+PS C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-1\java> & "$env:JAVA_HOME\bin\jar" tf .\target\kafka-lab-nivel-1-1.0.0.jar | Where-Object { $_ -like "com/nexus/kafka/nivel1/*.class" }
+
+& "$env:JAVA_HOME\bin\java" -cp ".\target\kafka-lab-nivel-1-1.0.0.jar" com.nexus.kafka.nivel1.SimpleProducer primer-topic "Hola Kafka desde Nivel 1 mensaje 2"
+
+& "$env:JAVA_HOME\bin\java" -cp ".\target\kafka-lab-nivel-1-1.0.0.jar" com.nexus.kafka.nivel1.SimpleConsumer primer-topic grupo-prueba
+
+
+
+clases para nivel-3
+ C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-3\java> jar tf target\kafka-lab-nivel-3-1.3.0.jar | sls "com/nexus/kafka/nivel3"
+  
+#listar clases
+jar tf target\target\kafka-lab-nivel-3-1.3.0.jar | sls "PartitionAnalyzer"

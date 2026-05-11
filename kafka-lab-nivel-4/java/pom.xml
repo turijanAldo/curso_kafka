@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.nexus.kafka</groupId>
+    <artifactId>kafka-lab-nivel-4</artifactId>
+    <!-- Nivel 4: Réplicas y Tolerancia a Fallos -->
+    <version>1.4.0</version>
+    <packaging>jar</packaging>
+
+    <name>Kafka Lab Nivel 4 - Réplicas y Failover</name>
+    <description>
+        Laboratorio Kafka Nivel 4: replicación de particiones, ISR, failover automático
+        y comparación de niveles de acknowledgment para durabilidad.
+
+        Clases nuevas en este nivel:
+        - ReplicaAnalyzer:   Análisis programático del estado de réplicas e ISR
+        - DurableProducer:   Producer que compara acks=0, acks=1 y acks=all
+        - FailoverMonitor:   Monitor en tiempo real de eventos de failover
+        - ISRTracker:        Rastreo histórico de cambios en el ISR
+
+        Incluye todas las clases de Niveles 1, 2 y 3.
+    </description>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <kafka.version>4.0.0</kafka.version>
+        <slf4j.version>2.0.16</slf4j.version>
+    </properties>
+
+    <dependencies>
+        <!-- Kafka Clients: Producer, Consumer, AdminClient -->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka.version}</version>
+        </dependency>
+
+        <!-- SLF4J Simple: logging sin complejidad de configuración -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Maven Shade: genera un fat JAR con todas las dependencias -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <!-- Transformar servicios para que funcionen correctamente en el fat JAR -->
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <!-- Clase principal por defecto (se puede sobreescribir con -cp) -->
+                                    <mainClass>com.nexus.kafka.nivel4.ReplicaAnalyzer</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

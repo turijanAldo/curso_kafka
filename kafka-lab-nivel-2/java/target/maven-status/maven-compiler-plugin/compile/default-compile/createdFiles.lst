@@ -1,0 +1,8 @@
+com\nexus\kafka\nivel2\BatchProducer$1.class
+com\nexus\kafka\nivel2\BatchProducer.class
+com\nexus\kafka\nivel2\KeyedProducer.class
+com\nexus\kafka\nivel1\SimpleProducer.class
+com\nexus\kafka\nivel2\PartitionAnalyzer.class
+com\nexus\kafka\nivel2\InstrumentedConsumer.class
+com\nexus\kafka\nivel1\SimpleConsumer.class
+com\nexus\kafka\nivel2\InstrumentedConsumer$1.class

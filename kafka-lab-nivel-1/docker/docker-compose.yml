@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  kafka:
+    # Imagen oficial de Apache Kafka 4.0 con soporte KRaft nativo
+    image: apache/kafka:4.0.0
+    container_name: kafka-nivel1
+
+    # Mapeo de puertos: HOST:CONTENEDOR
+    # 9092 -> acceso desde Windows (clientes externos)
+    # 9093 -> comunicacion interna del controlador KRaft
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+
+    environment:
+      # ── Identidad del nodo ──────────────────────────────────────────
+      # Cada nodo en KRaft necesita un ID unico en el cluster
+      KAFKA_NODE_ID: 1
+
+      # ── Roles del proceso ────────────────────────────────────────────
+      # 'broker'     -> maneja producers/consumers y almacena mensajes
+      # 'controller' -> reemplaza a ZooKeeper, gestiona metadata del cluster
+      # En un nodo unico combinamos ambos roles
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      # ── Listeners (endpoints de red) ────────────────────────────────
+      # PLAINTEXT       -> para clientes externos (Windows host en puerto 9092)
+      # CONTROLLER      -> para comunicacion interna KRaft (puerto 9093)
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+
+      # ── Advertised listeners ─────────────────────────────────────────
+      # Que direccion anunciar a los clientes que se conecten
+      # localhost:9092 -> accesible desde el host Windows via Docker Desktop
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+
+      # ── Mapeo de nombre de listener a protocolo de seguridad ─────────
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+
+      # ── Quorum de controladores KRaft ────────────────────────────────
+      # Formato: {nodeId}@{host}:{puerto-controller}
+      # En produccion aqui irian multiples nodos para alta disponibilidad
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      # ── Listener que usa el proceso controlador ──────────────────────
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # ── Replicacion de topics internos ───────────────────────────────
+      # Con un solo broker, el factor de replicacion debe ser 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # ── Topic de logs internos ───────────────────────────────────────
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+
+      # ── Nivel de logs ────────────────────────────────────────────────
+      KAFKA_LOG4J_LOGGERS: "kafka=INFO,kafka.controller=INFO,kafka.log.LogCleaner=INFO,state.change.logger=INFO,kafka.producer.async.DefaultEventHandler=INFO"
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
+
+      # ── Configuracion de segmentos de log ────────────────────────────
+      # Rotacion cada hora (3600000 ms) o cuando alcance 1GB
+      KAFKA_LOG_SEGMENT_MS: 3600000
+      KAFKA_LOG_RETENTION_HOURS: 168
+
+      # ── Tamanio de socket y red ──────────────────────────────────────
+      KAFKA_SOCKET_SEND_BUFFER_BYTES: 102400
+      KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 102400
+      KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
+
+      # ── Numero de threads de red e I/O ───────────────────────────────
+      KAFKA_NUM_NETWORK_THREADS: 3
+      KAFKA_NUM_IO_THREADS: 8
+
+      # ── Cluster ID (necesario para KRaft) ────────────────────────────
+      # UUID generado especificamente para este laboratorio
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+    # ── Volumenes persistentes ───────────────────────────────────────────
+    # Los datos de Kafka persisten aunque el contenedor se detenga
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+      - ./kafka-config/server.properties:/opt/kafka/config/kraft/server.properties:ro
+
+    # ── Health check ─────────────────────────────────────────────────────
+    # Verifica que Kafka esta listo para recibir conexiones
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+    # ── Limites de recursos ──────────────────────────────────────────────
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+        reservations:
+          memory: 512M
+
+    # ── Reinicio automatico ──────────────────────────────────────────────
+    restart: unless-stopped
+
+# ── Volumen nombrado (persiste entre reinicios del contenedor) ───────────
+volumes:
+  kafka_data:
+    driver: local

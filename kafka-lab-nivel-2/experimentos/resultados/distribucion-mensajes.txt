@@ -1,0 +1,450 @@
+﻿=== Resultados de distribucion por clave ===
+Fecha: 2026-04-30 19:00:17
+Topic: transacciones-4p
+
+[1/20] Clave: user-001
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-001
+? Hash murmur2       : -1150595601
+? Particion teorica  : -1150595601 % 4 = 3
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 3 ? (coincide con calculo teorico)
+   Offset    : 4
+   Timestamp : 2026-04-30 19:00:20.059
+   Key       : user-001
+   Value     : {userId: user-001, monto: 10, tipo: compra}
+
+[2/20] Clave: user-002
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-002
+? Hash murmur2       : -1643626355
+? Particion teorica  : -1643626355 % 4 = 1
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 1 ? (coincide con calculo teorico)
+   Offset    : 6
+   Timestamp : 2026-04-30 19:00:23.455
+   Key       : user-002
+   Value     : {userId: user-002, monto: 20, tipo: compra}
+
+[3/20] Clave: user-003
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-003
+? Hash murmur2       : -421057956
+? Particion teorica  : -421057956 % 4 = 0
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 0 ? (coincide con calculo teorico)
+   Offset    : 3
+   Timestamp : 2026-04-30 19:00:26.720
+   Key       : user-003
+   Value     : {userId: user-003, monto: 30, tipo: compra}
+
+[4/20] Clave: user-004
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-004
+? Hash murmur2       : 2092049974
+? Particion teorica  : 2092049974 % 4 = 2
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 2 ? (coincide con calculo teorico)
+   Offset    : 7
+   Timestamp : 2026-04-30 19:00:29.535
+   Key       : user-004
+   Value     : {userId: user-004, monto: 40, tipo: compra}
+
+[5/20] Clave: user-005
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-005
+? Hash murmur2       : 1492180154
+? Particion teorica  : 1492180154 % 4 = 2
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 2 ? (coincide con calculo teorico)
+   Offset    : 8
+   Timestamp : 2026-04-30 19:00:32.767
+   Key       : user-005
+   Value     : {userId: user-005, monto: 50, tipo: compra}
+
+[6/20] Clave: user-006
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-006
+? Hash murmur2       : 574870456
+? Particion teorica  : 574870456 % 4 = 0
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 0 ? (coincide con calculo teorico)
+   Offset    : 4
+   Timestamp : 2026-04-30 19:00:36.730
+   Key       : user-006
+   Value     : {userId: user-006, monto: 60, tipo: compra}
+
+[7/20] Clave: user-007
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-007
+? Hash murmur2       : -1202564624
+? Particion teorica  : -1202564624 % 4 = 0
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 0 ? (coincide con calculo teorico)
+   Offset    : 5
+   Timestamp : 2026-04-30 19:00:40.023
+   Key       : user-007
+   Value     : {userId: user-007, monto: 70, tipo: compra}
+
+[8/20] Clave: user-008
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-008
+? Hash murmur2       : 1834058283
+? Particion teorica  : 1834058283 % 4 = 3
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 3 ? (coincide con calculo teorico)
+   Offset    : 5
+   Timestamp : 2026-04-30 19:00:43.075
+   Key       : user-008
+   Value     : {userId: user-008, monto: 80, tipo: compra}
+
+[9/20] Clave: user-009
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-009
+? Hash murmur2       : -777372371
+? Particion teorica  : -777372371 % 4 = 1
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 1 ? (coincide con calculo teorico)
+   Offset    : 7
+   Timestamp : 2026-04-30 19:00:45.680
+   Key       : user-009
+   Value     : {userId: user-009, monto: 90, tipo: compra}
+
+[10/20] Clave: user-010
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-010
+? Hash murmur2       : 1146054161
+? Particion teorica  : 1146054161 % 4 = 1
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 1 ? (coincide con calculo teorico)
+   Offset    : 8
+   Timestamp : 2026-04-30 19:00:48.737
+   Key       : user-010
+   Value     : {userId: user-010, monto: 100, tipo: compra}
+
+[11/20] Clave: user-011
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-011
+? Hash murmur2       : -1081437358
+? Particion teorica  : -1081437358 % 4 = 2
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 2 ? (coincide con calculo teorico)
+   Offset    : 9
+   Timestamp : 2026-04-30 19:00:51.248
+   Key       : user-011
+   Value     : {userId: user-011, monto: 110, tipo: compra}
+
+[12/20] Clave: user-012
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-012
+? Hash murmur2       : 2135603398
+? Particion teorica  : 2135603398 % 4 = 2
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 2 ? (coincide con calculo teorico)
+   Offset    : 10
+   Timestamp : 2026-04-30 19:00:53.744
+   Key       : user-012
+   Value     : {userId: user-012, monto: 120, tipo: compra}
+
+[13/20] Clave: user-013
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-013
+? Hash murmur2       : 1097868241
+? Particion teorica  : 1097868241 % 4 = 1
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 1 ? (coincide con calculo teorico)
+   Offset    : 9
+   Timestamp : 2026-04-30 19:00:56.177
+   Key       : user-013
+   Value     : {userId: user-013, monto: 130, tipo: compra}
+
+[14/20] Clave: user-014
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-014
+? Hash murmur2       : 1849560214
+? Particion teorica  : 1849560214 % 4 = 2
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 2 ? (coincide con calculo teorico)
+   Offset    : 11
+   Timestamp : 2026-04-30 19:00:58.692
+   Key       : user-014
+   Value     : {userId: user-014, monto: 140, tipo: compra}
+
+[15/20] Clave: user-015
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-015
+? Hash murmur2       : -1756802153
+? Particion teorica  : -1756802153 % 4 = 3
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 3 ? (coincide con calculo teorico)
+   Offset    : 6
+   Timestamp : 2026-04-30 19:01:01.038
+   Key       : user-015
+   Value     : {userId: user-015, monto: 150, tipo: compra}
+
+[16/20] Clave: user-016
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-016
+? Hash murmur2       : 822513597
+? Particion teorica  : 822513597 % 4 = 1
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 1 ? (coincide con calculo teorico)
+   Offset    : 10
+   Timestamp : 2026-04-30 19:01:03.473
+   Key       : user-016
+   Value     : {userId: user-016, monto: 160, tipo: compra}
+
+[17/20] Clave: user-017
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-017
+? Hash murmur2       : 1526378503
+? Particion teorica  : 1526378503 % 4 = 3
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 3 ? (coincide con calculo teorico)
+   Offset    : 7
+   Timestamp : 2026-04-30 19:01:05.928
+   Key       : user-017
+   Value     : {userId: user-017, monto: 170, tipo: compra}
+
+[18/20] Clave: user-018
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-018
+? Hash murmur2       : -1854497790
+? Particion teorica  : -1854497790 % 4 = 2
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 2 ? (coincide con calculo teorico)
+   Offset    : 12
+   Timestamp : 2026-04-30 19:01:08.342
+   Key       : user-018
+   Value     : {userId: user-018, monto: 180, tipo: compra}
+
+[19/20] Clave: user-019
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-019
+? Hash murmur2       : 1306183073
+? Particion teorica  : 1306183073 % 4 = 1
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 1 ? (coincide con calculo teorico)
+   Offset    : 11
+   Timestamp : 2026-04-30 19:01:10.857
+   Key       : user-019
+   Value     : {userId: user-019, monto: 190, tipo: compra}
+
+[20/20] Clave: user-020
+java.exe : SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+En C:\Users\aldo_\Documents\SIIE\kafka_laboratorio\kafka-lab-nivel-2\scripts\powershell\12-producer-con-claves.ps1: 66 Carácter: 15
++     $output = & "$JAVA_EXE" `
++               ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J: Failed t...cLoggerBinder".:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+? Clave del mensaje  : user-020
+? Hash murmur2       : -664977194
+? Particion teorica  : -664977194 % 4 = 2
+? Enviando mensaje...
+? Mensaje enviado:
+   Topic     : transacciones-4p
+   Partition : 2 ? (coincide con calculo teorico)
+   Offset    : 13
+   Timestamp : 2026-04-30 19:01:13.921
+   Key       : user-020
+   Value     : {userId: user-020, monto: 200, tipo: compra}
+
+=== Distribucion final ===
+  Particion 0 : 0 mensajes
+  Particion 1 : 0 mensajes
+  Particion 2 : 0 mensajes
+  Particion 3 : 0 mensajes
+
