@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Kafka con TiendaMax — Slides</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="theme">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --kafka2: #f5a23d;
+      --bg: #0a0c0f;
+      --bg2: #111318;
+      --bg3: #181c24;
+      --border: rgba(255, 255, 255, 0.09);
+      --text: #d4d8e2;
+      --muted: #7a8090;
+      --green: #39ff14;
+      --red: #ff4444;
+      --blue: #4fc3f7;
+    }
+
+    .reveal {
+      font-family: 'Inter', sans-serif;
+      font-size: 28px;
+      color: var(--text);
+    }
+
+    body, .reveal-viewport { background: var(--bg) !important; }
+
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+      font-family: 'Inter', sans-serif;
+      font-weight: 800;
+      color: var(--text);
+      text-transform: none;
+      letter-spacing: -0.01em;
+    }
+    .reveal h1 { font-size: 2.4em; line-height: 1.1; }
+    .reveal h2 { font-size: 1.6em; }
+    .reveal h3 { font-size: 1.1em; color: var(--kafka2); }
+
+    .reveal .accent { color: var(--kafka2); }
+    .reveal .green { color: var(--green); }
+    .reveal .red { color: var(--red); }
+    .reveal .blue { color: var(--blue); }
+    .reveal .muted { color: var(--muted); }
+
+    .reveal code, .reveal pre {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .reveal pre {
+      box-shadow: none;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.6em;
+      width: 100%;
+    }
+    .reveal pre code {
+      padding: 1rem 1.2rem;
+      max-height: 480px;
+      background: transparent;
+    }
+
+    .reveal :not(pre) > code {
+      background: var(--bg3);
+      color: var(--kafka2);
+      padding: 0.1em 0.4em;
+      border-radius: 4px;
+      font-size: 0.85em;
+    }
+
+    .reveal .badge {
+      display: inline-block;
+      font-size: 0.55em;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      padding: 0.3em 0.9em;
+      border-radius: 999px;
+      background: rgba(245, 162, 61, 0.12);
+      color: var(--kafka2);
+      border: 1px solid var(--kafka2);
+      margin-bottom: 1.2em;
+    }
+
+    .reveal .module-tag {
+      position: absolute;
+      top: 32px;
+      right: 48px;
+      font-size: 0.5em;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+    }
+    .reveal .module-tag b { color: var(--kafka2); }
+
+    .reveal ul, .reveal ol {
+      margin-left: 0;
+      width: 100%;
+    }
+    .reveal li {
+      margin-bottom: 0.6em;
+      line-height: 1.4;
+    }
+    .reveal li::marker { color: var(--kafka2); }
+
+    .reveal .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.2em 1.4em;
+      text-align: left;
+    }
+    .reveal .card.accent {
+      border-color: var(--kafka2);
+      background: rgba(245, 162, 61, 0.06);
+    }
+    .reveal .card.good {
+      border-color: var(--green);
+      background: rgba(57, 255, 20, 0.04);
+    }
+    .reveal .card.bad {
+      border-color: var(--red);
+      background: rgba(255, 68, 68, 0.05);
+    }
+    .reveal .card.blue {
+      border-color: var(--blue);
+      background: rgba(79, 195, 247, 0.05);
+    }
+
+    .reveal .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2em;
+      width: 100%;
+    }
+    .reveal .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.9em;
+      width: 100%;
+    }
+
+    .reveal table {
+      width: 100%;
+      font-size: 0.75em;
+      border-collapse: collapse;
+      margin: 0;
+    }
+    .reveal table th {
+      background: var(--bg3);
+      color: var(--kafka2);
+      font-size: 0.85em;
+      letter-spacing: 0.1em;
+      text-align: left;
+      padding: 0.6em 0.8em;
+      border-bottom: 1px solid var(--border);
+    }
+    .reveal table td {
+      padding: 0.6em 0.8em;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .reveal .kicker {
+      font-size: 0.55em;
+      letter-spacing: 0.25em;
+      color: var(--kafka2);
+      font-weight: 800;
+      margin-bottom: 0.8em;
+    }
+
+    .reveal .demo-tag {
+      display: inline-block;
+      background: var(--red);
+      color: white;
+      font-size: 0.45em;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      padding: 0.3em 0.8em;
+      border-radius: 4px;
+      margin-left: 0.6em;
+      vertical-align: middle;
+    }
+
+    .reveal .footer-num {
+      position: absolute;
+      bottom: 20px;
+      right: 30px;
+      font-size: 0.5em;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .reveal .controls { color: var(--kafka2); }
+    .reveal .progress { color: var(--kafka2); }
+
+    .reveal .big-stat {
+      font-size: 4em;
+      font-weight: 800;
+      color: var(--kafka2);
+      line-height: 1;
+    }
+
+    .reveal .ascii {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6em;
+      color: var(--text);
+      white-space: pre;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.2em;
+      display: inline-block;
+      text-align: left;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ═══ SLIDE 1 — PORTADA ═══ -->
+      <section data-background-color="#0a0c0f">
+        <div class="badge">CURSO HANDS-ON · KAFKA 4.X</div>
+        <h1>De API síncrona a <span class="accent">streaming</span></h1>
+        <h2 style="color:var(--muted);font-weight:400;margin-top:0.4em">
+          El caso <span class="accent">TiendaMax</span>
+        </h2>
+        <p style="margin-top:2em;font-size:0.8em;color:var(--muted)">
+          Por qué Kafka, paso a paso, con código real
+        </p>
+        <p style="margin-top:3em;font-size:0.6em;color:var(--muted);letter-spacing:0.15em">
+          ~2H 30MIN · 22 SLIDES · 6 DEMOS EN VIVO
+        </p>
+      </section>
+
+      <!-- ═══ SLIDE 2 — EL PROBLEMA ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>1</b> · EL PROBLEMA</span>
+        <h2>TiendaMax tiene un problema de <span class="red">resiliencia</span></h2>
+        <div class="grid-2" style="margin-top:1.5em">
+          <div class="card bad">
+            <div class="kicker red">❌ HOY — REST SÍNCRONA</div>
+            <pre style="font-size:0.55em"><code class="hljs">Cliente
+   ↓ POST /pedido
+  API REST  ────→ Inventario  ❌
+            ────→ Notificaciones
+            ────→ Facturación</code></pre>
+            <p style="font-size:0.7em;margin-top:0.6em">
+              Si <b>cualquier</b> servicio cae,<br>
+              el pedido <b class="red">se pierde</b>.
+            </p>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column;justify-content:center">
+            <div class="kicker">❓ PREGUNTA AL AULA</div>
+            <p style="font-size:0.95em">
+              "¿Qué pasa si <b class="accent">Notificaciones</b> se cae 5 minutos?"
+            </p>
+            <p style="font-size:0.7em;color:var(--muted);margin-top:1em">
+              No es teórico. Pasó la semana pasada.<br>
+              Perdimos <b class="red">~340 pedidos</b>.
+            </p>
+          </div>
+        </div>
+        <div class="footer-num">02 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 3 — OBJETIVO ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>1</b> · EL PROBLEMA</span>
+        <div class="kicker">QUÉ VAMOS A LOGRAR HOY</div>
+        <h2>Lo construimos. <span class="accent">Sin slides infinitas.</span></h2>
+        <div class="grid-3" style="margin-top:2em">
+          <div class="card accent">
+            <div style="font-size:2.4em">🛡️</div>
+            <h3>Cero pérdidas</h3>
+            <p style="font-size:0.7em">Ningún pedido se pierde, aunque un servicio caiga 3 días.</p>
+          </div>
+          <div class="card accent">
+            <div style="font-size:2.4em">📈</div>
+            <h3>Escala independiente</h3>
+            <p style="font-size:0.7em">Inventario y Notificaciones escalan a su propio ritmo.</p>
+          </div>
+          <div class="card accent">
+            <div style="font-size:2.4em">🔍</div>
+            <h3>Trazabilidad</h3>
+            <p style="font-size:0.7em">Lag y offsets en tiempo real, alertables.</p>
+          </div>
+        </div>
+        <div class="footer-num">03 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 4 — QUÉ ES KAFKA ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>2</b> · FUNDAMENTOS</span>
+        <div class="kicker">EN UNA FRASE</div>
+        <h2>Kafka es un <span class="accent">log distribuido</span></h2>
+        <p style="font-size:0.85em;color:var(--muted);max-width:900px;margin:1.4em auto">
+          Particionado y replicado. Muchos productores escriben.<br>
+          Muchos consumidores leen <b class="accent">a su propio ritmo</b>.
+        </p>
+        <div class="ascii" style="margin-top:1em">producer ──→ [ 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 ] ──→ consumer
+                          ↑                       ↑
+                       offset 3                offset 7
+                    (lee en pasado)         (al día)</div>
+        <p style="font-size:0.65em;color:var(--muted);margin-top:1.2em">
+          No es una cola. Los mensajes <b>no se borran</b> al leerlos.
+        </p>
+        <div class="footer-num">04 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 5 — TOPIC / PARTICIÓN / OFFSET ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>2</b> · FUNDAMENTOS</span>
+        <h2>Topic, partición, <span class="accent">offset</span></h2>
+        <div class="ascii" style="margin-top:1em">topic: pedidos-tiendamax
+
+  partición 0:  [ p1 | p4 | p7 | p10 ]   ← offsets 0,1,2,3
+  partición 1:  [ p2 | p5 | p8 ]         ← offsets 0,1,2
+  partición 2:  [ p3 | p6 | p9 | p11 ]   ← offsets 0,1,2,3</div>
+        <div class="card accent" style="margin-top:1.6em">
+          <p style="font-size:0.85em;text-align:center;margin:0">
+            ⚠️ El <b>orden</b> solo se garantiza<br>
+            <b class="accent">dentro de una partición</b>.
+          </p>
+        </div>
+        <div class="footer-num">05 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 6 — PRODUCER / CONSUMER / GROUP ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>2</b> · FUNDAMENTOS</span>
+        <h2>Producer, Consumer, <span class="accent">Consumer Group</span></h2>
+        <div class="ascii" style="margin-top:1em;font-size:0.55em">                         topic (3 particiones)
+                       ┌───┬───┬───┐
+producer  ────→  │ P0 │ P1 │ P2 │
+                       └─┬─┴─┬─┴─┬─┘
+                          │      │      │
+                          ▼      ▼      ▼
+                  consumer-A  consumer-B  consumer-C
+                  └──────── group "inventario" ────────┘</div>
+        <ul style="margin-top:1.4em;font-size:0.8em">
+          <li>Consumers del <b>mismo group</b> se reparten particiones.</li>
+          <li>Más consumers que particiones → los extras quedan en <b class="muted">standby</b>.</li>
+          <li><b>Otro group</b> = lee todo desde su propio offset (servicios independientes).</li>
+        </ul>
+        <div class="footer-num">06 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 7 — KRaft ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>2</b> · FUNDAMENTOS</span>
+        <div class="kicker">KAFKA 4.X EN UNA LÍNEA</div>
+        <h2>Adiós <span class="red">ZooKeeper</span></h2>
+        <div class="grid-2" style="margin-top:1.8em">
+          <div class="card bad">
+            <h3 class="red">Antes (≤ 3.x)</h3>
+            <pre style="font-size:0.55em"><code>kafka  +  zookeeper
+2 procesos, 2 configs,
+2 cosas que se rompen</code></pre>
+          </div>
+          <div class="card good">
+            <h3 class="green">Hoy (4.x · KRaft)</h3>
+            <pre style="font-size:0.55em"><code>apache/kafka:4.2.0
+
+un contenedor.
+protocolo Raft interno.</code></pre>
+          </div>
+        </div>
+        <div class="footer-num">07 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 8 — PASO 0 OBJETIVO ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>3</b> · PASO 0 <span class="demo-tag">DEMO</span></span>
+        <div class="badge">PASO 0 · SIN ESCRIBIR CÓDIGO</div>
+        <h2>Ver Kafka vivo en <span class="accent">60 segundos</span></h2>
+        <p style="color:var(--muted);font-size:0.8em;margin:1em 0 1.6em">
+          Los 4 comandos que vas a usar el resto del lab:
+        </p>
+        <table>
+          <thead>
+            <tr><th>COMANDO</th><th>PARA QUÉ</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>kafka-topics.sh</code></td><td>Crear, listar, describir, borrar topics.</td></tr>
+            <tr><td><code>kafka-console-producer.sh</code></td><td>Enviar mensajes a mano.</td></tr>
+            <tr><td><code>kafka-console-consumer.sh</code></td><td>Leer mensajes en tiempo real.</td></tr>
+            <tr><td><code>kafka-consumer-groups.sh</code></td><td>Ver lag y resetear offsets.</td></tr>
+          </tbody>
+        </table>
+        <div class="footer-num">08 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 9 — DEMO PASO 0 ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>3</b> · PASO 0 <span class="demo-tag">DEMO</span></span>
+        <h2>🎥 Demo — Hola Kafka</h2>
+        <div class="grid-2" style="margin-top:1.2em">
+          <div>
+            <h3>Terminal A · Producer</h3>
+            <pre><code class="language-bash">docker exec -it kafka bash
+export PATH=/opt/kafka/bin:$PATH
+
+kafka-topics.sh --create \
+  --topic hola-kafka \
+  --partitions 1 \
+  --replication-factor 1 \
+  --bootstrap-server localhost:9092
+
+kafka-console-producer.sh \
+  --topic hola-kafka \
+  --bootstrap-server localhost:9092
+> hola desde kafka
+> segundo mensaje</code></pre>
+          </div>
+          <div>
+            <h3>Terminal B · Consumer</h3>
+            <pre><code class="language-bash">kafka-console-consumer.sh \
+  --topic hola-kafka \
+  --from-beginning \
+  --bootstrap-server localhost:9092
+
+# verás:
+hola desde kafka
+segundo mensaje</code></pre>
+            <div class="card accent" style="margin-top:0.8em;font-size:0.75em">
+              💡 Sin <code>--from-beginning</code>,<br>
+              el consumer arranca en el final.
+            </div>
+          </div>
+        </div>
+        <div class="footer-num">09 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 10 — DESCRIBE ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>3</b> · PASO 0</span>
+        <h2>Leer el <code>--describe</code></h2>
+        <pre style="margin-top:1em"><code class="language-bash">$ kafka-topics.sh --describe --topic hola-kafka \
+    --bootstrap-server localhost:9092
+
+Topic: hola-kafka  PartitionCount: 1  ReplicationFactor: 1
+  Topic: hola-kafka  Partition: 0  Leader: 1  Replicas: 1  Isr: 1</code></pre>
+        <ul style="margin-top:1.4em;font-size:0.78em">
+          <li><b class="accent">Partition: 0</b> — la única partición que tiene este topic.</li>
+          <li><b class="accent">Leader: 1</b> — el broker que atiende lecturas/escrituras.</li>
+          <li><b class="accent">Isr: 1</b> — réplicas <i>in-sync</i>. Esto importará en el Paso 5.</li>
+        </ul>
+        <div class="footer-num">10 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 11 — PASO 1 DOCKER ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>4</b> · PASO 1</span>
+        <h2><code>docker-compose.yml</code> — 4 cosas que importan</h2>
+        <table style="margin-top:1em">
+          <thead><tr><th>VARIABLE</th><th>POR QUÉ</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>PROCESS_ROLES</code><br>=<code>broker,controller</code></td>
+              <td>Este nodo es <b>broker</b> Y <b>controller</b>. En prod se separan.</td>
+            </tr>
+            <tr>
+              <td><code>ADVERTISED_LISTENERS</code></td>
+              <td>La dirección que Kafka <b>anuncia</b>. En prod va el hostname público.</td>
+            </tr>
+            <tr>
+              <td><code>CONTROLLER_QUORUM_VOTERS</code></td>
+              <td>Quién vota en elecciones Raft. En prod <b class="accent">mínimo 3</b>.</td>
+            </tr>
+            <tr>
+              <td><code>OFFSETS_TOPIC_REPLICATION_FACTOR</code>=<code>1</code></td>
+              <td><b class="red">DEV ONLY</b>. En prod = 3.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="footer-num">11 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 12 — TOPIC REAL ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>4</b> · PASO 1</span>
+        <h2>El topic <code>pedidos-tiendamax</code></h2>
+        <pre style="margin-top:1em"><code class="language-bash">kafka-topics.sh --create \
+  --topic pedidos-tiendamax \
+  --partitions 3 \
+  --replication-factor 1 \
+  --config retention.ms=604800000 \
+  --bootstrap-server localhost:9092</code></pre>
+        <div class="grid-2" style="margin-top:1.2em">
+          <div class="card accent">
+            <h3><code>--partitions 3</code></h3>
+            <p style="font-size:0.75em">Máximo <b>3 consumers</b> en paralelo.<br>
+            3 porque tenemos 3 servicios: inventario, notif., factura.</p>
+          </div>
+          <div class="card accent">
+            <h3><code>retention.ms = 7 días</code></h3>
+            <p style="font-size:0.75em">Inventario puede caer 3 días<br>
+            <b>sin perder un solo pedido</b>.</p>
+          </div>
+        </div>
+        <div class="footer-num">12 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 13 — PRODUCER JAVA ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>5</b> · PASO 2 <span class="demo-tag">DEMO</span></span>
+        <h2>Anatomía de un <span class="accent">Producer</span></h2>
+        <pre style="margin-top:1em"><code class="language-java">Properties props = new Properties();
+props.put("bootstrap.servers",  "localhost:9092");
+props.put("key.serializer",     StringSerializer.class.getName());
+props.put("value.serializer",   StringSerializer.class.getName());
+props.put("acks",               "all");          // ← el más importante
+props.put("enable.idempotence", "true");
+
+try (Producer&lt;String,String&gt; p = new KafkaProducer&lt;&gt;(props)) {
+    p.send(new ProducerRecord&lt;&gt;(
+        "pedidos-tiendamax",
+        pedido.getOrderId(),       // ← key
+        pedido.toJson()             // ← value
+    ));
+}</code></pre>
+        <div class="footer-num">13 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 14 — ACKS ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>5</b> · PASO 2</span>
+        <div class="kicker">EL "PORQUÉ" DEL <code>acks=all</code></div>
+        <h2>3 niveles de garantía</h2>
+        <table style="margin-top:1em">
+          <thead>
+            <tr><th>ACKS</th><th>QUIÉN CONFIRMA</th><th>RIESGO</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>0</code></td>
+              <td>Nadie. Fire & forget.</td>
+              <td class="red">Pérdida silenciosa</td>
+            </tr>
+            <tr>
+              <td><code>1</code></td>
+              <td>Solo el leader.</td>
+              <td class="red">Si el leader cae antes de replicar → pérdida</td>
+            </tr>
+            <tr>
+              <td><code class="accent">all</code></td>
+              <td><b>Todas las ISR.</b></td>
+              <td class="green">Cero pérdida (con RF≥3)</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="card accent" style="margin-top:1.4em">
+          <p style="font-size:0.85em;text-align:center;margin:0">
+            En TiendaMax cada pedido = dinero. <b>acks=all</b>, sin excepciones.
+          </p>
+        </div>
+        <div class="footer-num">14 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 15 — LA KEY IMPORTA ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>5</b> · PASO 2</span>
+        <h2>La <span class="accent">key</span> decide la partición</h2>
+        <div class="ascii" style="margin-top:1em;font-size:0.55em">key = order_id
+
+ORD-001 → hash → partición 0  ──┐
+ORD-001 (pagado)      → P0     │ orden garantizado
+ORD-001 (enviado)     → P0     │ del ciclo de vida
+ORD-001 (entregado)   → P0  ──┘
+
+ORD-002 → hash → partición 2
+ORD-003 → hash → partición 1</div>
+        <div class="grid-2" style="margin-top:1.2em">
+          <div class="card good">
+            <h3 class="green">✓ key = order_id</h3>
+            <p style="font-size:0.7em">Orden garantizado por pedido. Distribuye bien.</p>
+          </div>
+          <div class="card bad">
+            <h3 class="red">✗ key = cliente_id</h3>
+            <p style="font-size:0.7em">Hotspot si "ana" hace el 80% de los pedidos.</p>
+          </div>
+        </div>
+        <div class="footer-num">15 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 16 — POLL LOOP ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>6</b> · PASO 3 <span class="demo-tag">DEMO</span></span>
+        <h2>El loop del <span class="accent">Consumer</span></h2>
+        <pre style="margin-top:1em"><code class="language-java">while (running) {
+    ConsumerRecords&lt;String,String&gt; records = consumer.poll(Duration.ofMillis(500));
+    for (ConsumerRecord&lt;String,String&gt; r : records) {
+        procesarPedido(r.value());        // ← lógica de negocio
+    }
+    consumer.commitSync();                 // ← commit DESPUÉS de procesar
+}</code></pre>
+        <div class="grid-2" style="margin-top:1.4em">
+          <div class="card bad">
+            <h3 class="red">Commit ANTES</h3>
+            <p style="font-size:0.7em">at-most-once → <b>pierdes mensajes</b> si falla el procesar.</p>
+          </div>
+          <div class="card good">
+            <h3 class="green">Commit DESPUÉS</h3>
+            <p style="font-size:0.7em">at-least-once → puedes <b>duplicar</b>. Procesa idempotente.</p>
+          </div>
+        </div>
+        <div class="footer-num">16 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 17 — COMMITSYNC VS ASYNC ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>6</b> · PASO 3</span>
+        <h2><code>commitSync</code> vs <code>commitAsync</code></h2>
+        <table style="margin-top:1em">
+          <thead>
+            <tr><th></th><th class="green">commitSync</th><th class="blue">commitAsync</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><b>Bloquea</b></td><td>Sí, hasta confirmación</td><td>No</td></tr>
+            <tr><td><b>Reintentos</b></td><td>Automáticos</td><td>NO reintenta (offset viejo)</td></tr>
+            <tr><td><b>Throughput</b></td><td>Menor</td><td>Mayor</td></tr>
+            <tr><td><b>Cuándo usar</b></td><td>Datos críticos (TiendaMax)</td><td>Métricas, telemetría</td></tr>
+          </tbody>
+        </table>
+        <div class="card accent" style="margin-top:1.4em">
+          <p style="font-size:0.85em;text-align:center;margin:0">
+            En este lab: <b>commitSync</b>. Lento pero seguro.
+          </p>
+        </div>
+        <div class="footer-num">17 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 18 — RANGE ASSIGNOR ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>7</b> · PASO 4 <span class="demo-tag">DEMO</span></span>
+        <h2>3 consumers, 3 particiones — <span class="accent">RangeAssignor</span></h2>
+        <div class="ascii" style="margin-top:1em;font-size:0.6em">topic: pedidos-tiendamax (3 particiones)
+group:  servicio-inventario
+
+   P0  ────→  consumer-A    ✓
+   P1  ────→  consumer-B    ✓
+   P2  ────→  consumer-C    ✓
+
+   (consumer-D si lo agregas)  ──→  IDLE / standby</div>
+        <ul style="margin-top:1.4em;font-size:0.8em">
+          <li>Asignación <b>1:1</b> cuando #consumers ≤ #partitions.</li>
+          <li>Más consumers → los extras esperan a que muera otro.</li>
+          <li>Por eso elegimos <b>3 particiones desde el día 1</b>.</li>
+        </ul>
+        <div class="footer-num">18 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 19 — REBALANCEO ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>8</b> · PASO 5 <span class="demo-tag">DEMO</span></span>
+        <h2>Anatomía de un <span class="accent">rebalanceo</span></h2>
+        <div class="ascii" style="margin-top:1em;font-size:0.55em">t=0s   Ctrl+C en consumer-B  💥
+
+t=10s  group coordinator detecta heartbeat perdido
+       (session.timeout.ms)
+
+t=11s  PAUSE — todos los consumers paran de leer
+
+t=12s  REASSIGN — P0,P2 a consumer-A · P1 a consumer-C
+
+t=13s  RESUME — A y C siguen desde el ÚLTIMO offset commiteado
+       (mensajes no commiteados se reprocessan → duplicados)</div>
+        <div class="card accent" style="margin-top:1.2em">
+          <p style="font-size:0.8em;text-align:center;margin:0">
+            Por eso <b>at-least-once</b> + procesar <b>idempotente</b>.
+          </p>
+        </div>
+        <div class="footer-num">19 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 20 — LAG ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>9</b> · PASO 6 <span class="demo-tag">DEMO</span></span>
+        <h2>Consumer <span class="accent">Lag</span></h2>
+        <div style="text-align:center;margin:1em 0">
+          <span class="big-stat">LAG</span>
+          <p style="font-size:1.4em;color:var(--muted);margin-top:0.4em">
+            = <code>LOG-END-OFFSET</code> − <code>CURRENT-OFFSET</code>
+          </p>
+        </div>
+        <pre><code class="language-bash">$ kafka-consumer-groups.sh --describe \
+    --group servicio-inventario \
+    --bootstrap-server localhost:9092
+
+TOPIC               PARTITION  CURRENT  LOG-END  LAG
+pedidos-tiendamax   0          1247     1247     0
+pedidos-tiendamax   1          1198     1250     52  ← atrasado
+pedidos-tiendamax   2          1300     1300     0</code></pre>
+        <p style="font-size:0.7em;color:var(--muted);margin-top:1em;text-align:center">
+          La métrica <b class="accent">#1</b> que vas a alertar en producción.
+        </p>
+        <div class="footer-num">20 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 21 — RESET OFFSETS ═══ -->
+      <section>
+        <span class="module-tag">BLOQUE <b>9</b> · PASO 6</span>
+        <h2>Reset de offsets</h2>
+        <table style="margin-top:1em">
+          <thead><tr><th>FLAG</th><th>EFECTO</th><th>CUÁNDO</th></tr></thead>
+          <tbody>
+            <tr><td><code>--to-earliest</code></td><td>Vuelve al offset 0</td><td>Reprocessing total</td></tr>
+            <tr><td><code>--to-latest</code></td><td>Salta al final</td><td>Descartar backlog</td></tr>
+            <tr><td><code>--to-datetime</code></td><td>Va a un timestamp</td><td>Bug introducido a las 14:30</td></tr>
+            <tr><td><code>--shift-by N</code></td><td>Avanza/retrocede N</td><td>Saltar N mensajes corruptos</td></tr>
+          </tbody>
+        </table>
+        <div class="card bad" style="margin-top:1.4em">
+          <p style="font-size:0.85em;text-align:center;margin:0">
+            ⚠️ <b class="red">REGLA DE ORO:</b> el consumer group<br>
+            debe estar <b>DETENIDO</b> para resetear.
+          </p>
+        </div>
+        <div class="footer-num">21 / 22</div>
+      </section>
+
+      <!-- ═══ SLIDE 22 — CIERRE ═══ -->
+      <section data-background-color="#0a0c0f">
+        <span class="module-tag">BLOQUE <b>10</b> · CIERRE</span>
+        <h2>Lo que <span class="accent">construiste</span> hoy</h2>
+        <div class="grid-2" style="margin-top:1.4em">
+          <div class="card good">
+            <h3 class="green">✅ Cubierto</h3>
+            <ul style="font-size:0.7em">
+              <li>Topics y particiones</li>
+              <li>Producer con <code>acks=all</code></li>
+              <li>Consumer + commit manual</li>
+              <li>Consumer groups y paralelismo</li>
+              <li>Rebalanceo y at-least-once</li>
+              <li>Lag y reset de offsets</li>
+            </ul>
+          </div>
+          <div class="card blue">
+            <h3 class="blue">🔜 Siguiente curso</h3>
+            <ul style="font-size:0.7em">
+              <li>Cluster <b>multi-broker</b> + replicación real</li>
+              <li>Idempotencia + <b>transacciones</b> (exactly-once)</li>
+              <li><b>Schema Registry</b> (Avro / Protobuf)</li>
+              <li><b>DLQ</b> y manejo de errores</li>
+              <li>Kafka Streams / Connect</li>
+            </ul>
+          </div>
+        </div>
+        <p style="margin-top:2em;font-size:0.65em;color:var(--muted);text-align:center">
+          📂 Lab completo: <code>curso-web/kafka-lab-tiendamax.html</code> — repítelo en casa.
+        </p>
+        <h1 style="margin-top:1.4em" class="accent">Gracias.</h1>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: false,
+      controls: true,
+      progress: true,
+      transition: 'slide',
+      transitionSpeed: 'fast',
+      width: 1280,
+      height: 800,
+      margin: 0.06,
+      plugins: [RevealHighlight, RevealNotes]
+    });
+  </script>
+</body>
+
+</html>
