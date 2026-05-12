@@ -838,6 +838,15 @@
 
       <div class="sidebar-section">PASOS DEL LAB</div>
 
+      <div class="sidebar-item done" onclick="scrollToStep('step-0')">
+        <div class="si-icon">✅</div>
+        <div class="si-text">
+          <div class="si-num">PASO 0</div>
+          <div class="si-label">Hola Kafka — sin código</div>
+          <div class="si-sub">CLI · console-producer · console-consumer</div>
+        </div>
+      </div>
+
       <div class="sidebar-item done" onclick="scrollToStep('step-1')">
         <div class="si-icon">✅</div>
         <div class="si-text">
@@ -958,6 +967,233 @@
           </div>
         </div>
       </section>
+
+      <!-- ══════════════════════════════════════════ -->
+      <!--  PASO 0 — HOLA KAFKA (SIN CÓDIGO)          -->
+      <!-- ══════════════════════════════════════════ -->
+      <section class="step-section" id="step-0">
+        <div class="step-header">
+          <span class="step-badge badge-done">✅ COMPLETADO</span>
+          <span class="step-title">Paso 0 — Tu primer "hola Kafka" en 60 segundos (sin escribir código)</span>
+          <span class="step-concept">Módulo <span>M1</span></span>
+        </div>
+
+        <div class="solve-box">
+          <div class="solve-icon">👋</div>
+          <div>
+            <strong>¿Qué resuelve este paso?</strong><br>
+            Antes de tocar Java, Maven o cualquier IDE necesitas <strong>ver Kafka funcionando</strong>:
+            un producer envía mensajes, un topic los guarda, un consumer los lee. Todo desde la terminal,
+            con los comandos que vas a usar el resto del lab para depurar. Si esto corre,
+            tu infra está sana y entiendes el flujo <em>producer → topic → consumer</em> sin abstracciones.
+          </div>
+        </div>
+
+        <!-- Cheat sheet -->
+        <h3 style="font-size:0.78rem;letter-spacing:0.1em;color:var(--kafka2);margin-bottom:0.8rem">🛠️ LOS 4 COMANDOS QUE
+          VAS A USAR TODO EL LAB</h3>
+        <table class="info-table">
+          <thead>
+            <tr>
+              <th>COMANDO</th>
+              <th>PARA QUÉ SIRVE</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>kafka-topics.sh</code></td>
+              <td>Crear, listar, describir y borrar topics. Tu primera parada cuando algo no funciona.</td>
+            </tr>
+            <tr>
+              <td><code>kafka-console-producer.sh</code></td>
+              <td>Enviar mensajes a mano desde la terminal. Útil para probar consumers sin tener un producer Java
+                corriendo.</td>
+            </tr>
+            <tr>
+              <td><code>kafka-console-consumer.sh</code></td>
+              <td>Leer mensajes de un topic en tiempo real. La forma más rápida de verificar que un producer está
+                publicando.</td>
+            </tr>
+            <tr>
+              <td><code>kafka-consumer-groups.sh</code></td>
+              <td>Ver consumer groups, su lag y resetear offsets. Lo usarás a fondo en Pasos 4-6.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Setup mínimo -->
+        <p style="margin:1.5rem 0 0.5rem"><strong>0.1 — Entrar al container y preparar el PATH</strong></p>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.8rem">
+          La imagen <code>apache/kafka:4.2.0</code> no incluye los binarios en el PATH. Esto lo haces
+          <strong>una sola vez por sesión</strong>.
+        </p>
+        <div class="code-block">
+          <div class="code-bar">
+            <div class="code-dot r"></div>
+            <div class="code-dot y"></div>
+            <div class="code-dot g"></div>
+            <span class="code-title">bash · host</span>
+          </div>
+          <div class="code-body">
+            <pre><span class="tc"># 1) entra al container kafka</span>
+<span class="tg">docker exec -it kafka bash</span>
+
+<span class="tc"># 2) deja los binarios accesibles (solo esta sesión del shell)</span>
+<span class="tg">export PATH=/opt/kafka/bin:$PATH</span></pre>
+          </div>
+        </div>
+
+        <!-- Crear topic de prueba -->
+        <p style="margin:1.5rem 0 0.5rem"><strong>0.2 — Crear un topic de prueba <code>hola-kafka</code></strong></p>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.8rem">
+          Este topic es <strong>desechable</strong> — solo para confirmar que Kafka responde. El topic real de
+          TiendaMax (<code>pedidos-tiendamax</code>) lo creas en el Paso 1.
+        </p>
+        <div class="code-block">
+          <div class="code-bar">
+            <div class="code-dot r"></div>
+            <div class="code-dot y"></div>
+            <div class="code-dot g"></div>
+            <span class="code-title">bash · dentro del container</span>
+          </div>
+          <div class="code-body">
+            <pre>kafka-topics.sh --create \
+  --topic hola-kafka \
+  --partitions 1 \
+  --replication-factor 1 \
+  --bootstrap-server localhost:9092
+
+<span class="tc"># Verifica que existe</span>
+kafka-topics.sh --list --bootstrap-server localhost:9092
+
+<span class="tc"># Mira sus detalles (particiones, líder, ISR)</span>
+kafka-topics.sh --describe --topic hola-kafka --bootstrap-server localhost:9092</pre>
+          </div>
+        </div>
+
+        <div class="success-box">
+          <div class="success-label">✅ OUTPUT ESPERADO DE --describe</div>
+          <div class="code-block" style="margin-top:0.5rem">
+            <div class="code-body">
+              <pre><span class="ts">Topic: hola-kafka  PartitionCount: 1  ReplicationFactor: 1</span>
+<span class="ts">  Topic: hola-kafka  Partition: 0  Leader: 1  Replicas: 1  Isr: 1</span></pre>
+            </div>
+          </div>
+          <p style="margin-top:0.6rem;font-size:0.78rem">
+            <strong>Leer la salida:</strong> el topic tiene 1 partición (la <code>0</code>), su líder es el broker
+            <code>1</code> y la lista de réplicas en sync (<code>Isr</code>) también es <code>1</code>. Con un solo
+            broker es lo único posible — en el Paso 1 verás esto con 3 particiones.
+          </p>
+        </div>
+
+        <!-- Producer + consumer -->
+        <p style="margin:1.5rem 0 0.5rem"><strong>0.3 — Producer y consumer al mismo tiempo (abre 2 terminales)</strong>
+        </p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem">
+          <div class="code-block" style="margin:0">
+            <div class="code-bar">
+              <div class="code-dot r"></div>
+              <div class="code-dot y"></div>
+              <div class="code-dot g"></div>
+              <span class="code-title">Terminal A — Producer</span>
+            </div>
+            <div class="code-body">
+              <pre><span class="tc"># dentro del container</span>
+kafka-console-producer.sh \
+  --topic hola-kafka \
+  --bootstrap-server localhost:9092
+
+<span class="tc"># escribe y presiona Enter</span>
+<span class="ts">hola desde kafka</span>
+<span class="ts">segundo mensaje</span>
+<span class="ts">tercero y listo</span>
+<span class="tc"># Ctrl+D para salir</span></pre>
+            </div>
+          </div>
+
+          <div class="code-block" style="margin:0">
+            <div class="code-bar">
+              <div class="code-dot r"></div>
+              <div class="code-dot y"></div>
+              <div class="code-dot g"></div>
+              <span class="code-title">Terminal B — Consumer</span>
+            </div>
+            <div class="code-body">
+              <pre><span class="tc"># otra terminal, también dentro del container</span>
+kafka-console-consumer.sh \
+  --topic hola-kafka \
+  --from-beginning \
+  --bootstrap-server localhost:9092
+
+<span class="tc"># verás aparecer:</span>
+<span class="tg">hola desde kafka</span>
+<span class="tg">segundo mensaje</span>
+<span class="tg">tercero y listo</span>
+<span class="tc"># Ctrl+C para salir</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="why-box">
+          <div class="why-label">💡 ¿POR QUÉ <code>--from-beginning</code>?</div>
+          <ul>
+            <li>Sin esa flag, el consumer arranca leyendo solo <strong>mensajes nuevos</strong> (offset = latest). Si el
+              producer ya escribió antes de que tú abrieras el consumer, no verías nada y pensarías que está roto.</li>
+            <li>Con <code>--from-beginning</code>, el consumer empieza desde el offset <code>0</code> de cada partición
+              — equivalente a <code>auto.offset.reset=earliest</code> en código Java.</li>
+            <li>En producción casi nunca quieres <code>--from-beginning</code>: solo para debug o para reprocessing
+              controlado (Paso 6).</li>
+          </ul>
+        </div>
+
+        <!-- Limpieza -->
+        <p style="margin:1.5rem 0 0.5rem"><strong>0.4 — Limpia el topic de prueba</strong></p>
+        <div class="code-block">
+          <div class="code-bar">
+            <div class="code-dot r"></div>
+            <div class="code-dot y"></div>
+            <div class="code-dot g"></div>
+            <span class="code-title">bash · dentro del container</span>
+          </div>
+          <div class="code-body">
+            <pre>kafka-topics.sh --delete --topic hola-kafka \
+  --bootstrap-server localhost:9092</pre>
+          </div>
+        </div>
+
+        <!-- Checklist -->
+        <p style="margin:1.2rem 0 0.5rem"><strong>Verificación — ¿Estás listo para el Paso 1?</strong></p>
+        <div class="step-checks">
+          <div class="check-row checked" onclick="this.classList.toggle('checked')">
+            <div class="check-box-mini">✓</div>
+            <span>Entraste al container y configuraste el <code>PATH</code> sin errores</span>
+          </div>
+          <div class="check-row checked" onclick="this.classList.toggle('checked')">
+            <div class="check-box-mini">✓</div>
+            <span><code>kafka-topics.sh --list</code> muestra <code class="hl-green">hola-kafka</code></span>
+          </div>
+          <div class="check-row checked" onclick="this.classList.toggle('checked')">
+            <div class="check-box-mini">✓</div>
+            <span>El consumer mostró los 3 mensajes que escribiste en el producer</span>
+          </div>
+          <div class="check-row checked" onclick="this.classList.toggle('checked')">
+            <div class="check-box-mini">✓</div>
+            <span>Borraste <code>hola-kafka</code> para no contaminar el lab real</span>
+          </div>
+        </div>
+
+        <div class="solve-box" style="margin-top:1.2rem">
+          <div class="solve-icon">🚀</div>
+          <div>
+            <strong>Si los 3 mensajes salieron del consumer, Kafka está vivo y entiendes el flujo básico.</strong><br>
+            Ahora vamos a hacerlo <em>bien</em>: con topic versionado, 3 particiones, retención de 7 días y un producer
+            Java con <code>acks=all</code>. Eso es el Paso 1.
+          </div>
+        </div>
+      </section>
+
+      <hr class="step-divider">
 
       <!-- ══════════════════════════════════════════ -->
       <!--  PASO 1 — INFRA & TOPIC                    -->
