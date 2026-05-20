@@ -1,3 +1,5 @@
-com\tiendamax\PedidoProducer.class
 com\tiendamax\model\Pedido.class
+com\tiendamax\PedidoEstadoProducer.class
 com\tiendamax\PedidoConsumer.class
+com\tiendamax\PedidoProducer.class
+com\tiendamax\PedidoEstadoConsumer.class

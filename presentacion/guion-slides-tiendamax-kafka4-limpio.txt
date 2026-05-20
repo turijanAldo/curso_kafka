@@ -1,0 +1,1219 @@
+================================================================================
+GUION DE SLIDES - TIENDAMAX CON APACHE KAFKA 4 (KRaft)
+================================================================================
+Audiencia    : Desarrolladores backend con experiencia basica en Java/Spring
+Duracion     : 2h 30 min (teoria + demos en vivo + hands-on)
+Imagen Docker: apache/kafka:4.2.0
+Prerequisitos: Docker Desktop, Java 17, Maven 3.9+, IDE
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ESTRUCTURA GENERAL DEL DECK - 22 SLIDES
+--------------------------------------------------------------------------------
+
+  BLOQUE 1  El problema            Slides  1 al  3    10 min
+  BLOQUE 2  Kafka 4 KRaft          Slides  4 al  7    15 min
+  BLOQUE 3  Hola Kafka CLI         Slides  8 al 10    15 min  DEMO
+  BLOQUE 4  Infra y Topics         Slides 11 al 12    10 min  DEMO
+  BLOQUE 5  Producer Java          Slides 13 al 15    15 min  DEMO
+  BLOQUE 6  Consumer y Commit      Slides 16 al 17    15 min  DEMO
+  BLOQUE 7  Consumer Groups        Slide  18           15 min  DEMO
+  BLOQUE 8  Fallo y Rebalanceo     Slide  19           15 min  DEMO
+  BLOQUE 9  Lag y Reset            Slides 20 al 21    10 min  DEMO
+  BLOQUE 10 Cierre                 Slide  22            5 min
+
+
+================================================================================
+BLOQUE 1 - EL PROBLEMA (10 min)
+================================================================================
+
+
+--------------------------------------------------------------------------------
+SLIDE 1 - PORTADA
+--------------------------------------------------------------------------------
+
+TITULO PRINCIPAL:
+  De API Sincrona a Streaming Real
+  El caso TiendaMax con Apache Kafka 4
+
+SUBTITULO:
+  Por que Kafka, como configurarlo desde cero, y codigo que funciona
+
+DESCRIPCION DEL CONTENIDO VISUAL:
+  La portada tiene fondo oscuro. A la derecha aparece el logotipo de
+  Apache Kafka. En la parte inferior hay una etiqueta que dice:
+  apache/kafka 4.2.0 - KRaft - Sin ZooKeeper. En la esquina inferior
+  izquierda va el nombre del instructor y la fecha del curso.
+
+NOTAS DEL INSTRUCTOR:
+  Arranca de pie, no sentado. Di lo siguiente: "Hoy vamos a romper
+  una arquitectura REST, ver como falla en produccion, y reconstruirla
+  con Kafka 4. Cero diapositivas infinitas, codigo real que puedes
+  llevarte a tu empresa esta tarde."
+
+
+--------------------------------------------------------------------------------
+SLIDE 2 - EL PROBLEMA DE TIENDAMAX
+--------------------------------------------------------------------------------
+
+TITULO: TiendaMax - cuando el REST sincrono duele
+
+DESCRIPCION DEL DIAGRAMA:
+  El diagrama muestra el flujo actual de TiendaMax con arquitectura
+  sincrona. En la parte superior hay un bloque que representa al
+  Cliente HTTP. Debajo, conectado por una flecha hacia abajo, esta
+  el bloque de la API de Pedidos que recibe la peticion POST /pedidos.
+  Desde la API de Pedidos salen tres flechas horizontales hacia la
+  derecha, cada una conectando a un servicio distinto.
+
+  La primera flecha apunta a Notificaciones, que aparece marcado
+  como CAIDO, representando el punto de fallo del sistema.
+  La segunda flecha apunta a Inventario, que aparece como disponible.
+  La tercera flecha apunta a Factura, que tambien aparece disponible.
+
+  El punto critico del diagrama es que si cualquiera de las tres
+  flechas falla, toda la operacion del pedido falla, aunque los
+  otros dos servicios esten funcionando correctamente.
+
+TEXTO DE LOS BULLETS (revelar uno a uno):
+  - Si Notificaciones tarda 30 segundos, el usuario espera 30 segundos
+  - Si Notificaciones se cae, el pedido falla aunque todo lo demas este bien
+  - Si el trafico se triplica, los tres servicios escalan juntos y eso es caro
+  - Sin registro de que paso y cuando, el debugging es ciego
+
+PREGUNTA PARA EL AULA (pausa real, esperar respuestas):
+  "Que pasa si Notificaciones se cae 5 minutos durante el Black Friday?"
+
+NOTAS DEL INSTRUCTOR:
+  Espera 3 o 4 respuestas genuinas del aula. Cuando alguien diga que
+  se reintenta, pregunta donde vive esa logica de reintento y que pasa
+  si la API tambien cae. El objetivo es que los alumnos lleguen solos
+  a la conclusion de que necesitan desacoplamiento.
+
+
+--------------------------------------------------------------------------------
+SLIDE 3 - QUE VAMOS A CONSTRUIR HOY
+--------------------------------------------------------------------------------
+
+TITULO: La arquitectura que queremos
+
+DESCRIPCION DEL DIAGRAMA:
+  El diagrama muestra la arquitectura objetivo con Kafka. En la parte
+  superior esta el Cliente HTTP. Debajo, conectado por una flecha
+  hacia abajo, esta el bloque de la API de Pedidos, que ahora solo
+  recibe el pedido y responde inmediatamente con "202 Accepted", sin
+  esperar a que los servicios terminen.
+
+  Desde la API de Pedidos sale una sola flecha hacia la derecha que
+  apunta al bloque del topic de Kafka llamado pedidos-tiendamax. Este
+  topic es el punto central de la nueva arquitectura.
+
+  Desde el topic de Kafka salen tres flechas separadas hacia la
+  derecha, cada una apuntando a un servicio diferente: Inventario,
+  Notificaciones y Factura. Cada servicio lee del topic de forma
+  independiente, a su propio ritmo, sin que el fallo de uno afecte
+  a los demas.
+
+  La diferencia clave respecto al diagrama anterior es que ahora
+  no hay ninguna flecha directa entre la API y los servicios.
+  Kafka actua como intermediario y buffer.
+
+TEXTO DE LAS TRES PROMESAS:
+  Primera: Ningun pedido se pierde aunque un servicio caiga
+  Segunda: Cada servicio escala de forma independiente
+  Tercera: Trazabilidad completa, que paso, cuando y en que particion
+
+FRASE DE CIERRE DEL SLIDE:
+  "Lo vamos a construir hoy. Paso a paso. Con codigo que funciona."
+
+
+================================================================================
+BLOQUE 2 - KAFKA 4 Y KRAFT (15 min)
+================================================================================
+
+
+--------------------------------------------------------------------------------
+SLIDE 4 - QUE ES KAFKA EN UNA FRASE
+--------------------------------------------------------------------------------
+
+TITULO: Kafka no es una cola, es un log
+
+CITA CENTRAL (mostrar en letra grande):
+  "Un log distribuido, particionado y replicado al que muchos
+   productores escriben y muchos consumidores leen a su propio ritmo."
+
+TABLA COMPARATIVA - Cola versus Log:
+
+  CARACTERISTICA          COLA (RabbitMQ)                  LOG (Kafka)
+  Mensaje al leer         El mensaje desaparece            El mensaje permanece
+  Quien lee               Un solo consumer group           N grupos leen el mismo mensaje
+  Historial               Sin historial                    Retention configurable en dias
+  Como entrega            El broker hace push al consumer  El consumer hace pull a su ritmo
+
+NOTAS DEL INSTRUCTOR:
+  Subraya la frase "a su propio ritmo". Es la diferencia mas importante
+  con RabbitMQ o SQS. Inventario puede ir a 10 mil mensajes por segundo
+  y Factura a 100 por segundo, sin que uno afecte al otro.
+
+
+--------------------------------------------------------------------------------
+SLIDE 5 - TOPIC, PARTICION Y OFFSET
+--------------------------------------------------------------------------------
+
+TITULO: El modelo mental que necesitas
+
+DESCRIPCION DEL DIAGRAMA:
+  El diagrama muestra el topic llamado pedidos-tiendamax dividido en
+  tres particiones que se dibujan como filas horizontales apiladas.
+
+  La Particion 0 contiene en orden los mensajes: msg0, msg1, msg4, msg7.
+  La Particion 1 contiene en orden los mensajes: msg2, msg5, msg8.
+  La Particion 2 contiene en orden los mensajes: msg3, msg6, msg9.
+
+  Cada mensaje tiene un numero de offset que empieza en cero y crece
+  de forma incremental y permanente. Los offsets no se reusan.
+
+  Debajo del diagrama hay una nota que dice: el producer envia con
+  key igual a order_id, y Kafka calcula la particion usando la formula
+  hash de la key modulo numero de particiones. Esto garantiza que el
+  mismo order_id siempre va a la misma particion.
+
+  El punto visual mas importante del diagrama es que los mensajes
+  de un mismo pedido siempre caen en la misma particion, pero mensajes
+  de pedidos distintos pueden estar en particiones distintas.
+
+TEXTO DE LOS BULLETS CLAVE:
+  - El orden esta garantizado solo dentro de una particion, no entre particiones
+  - Los mensajes no se borran al leerlos, se borran segun la retencion configurada
+  - Un consumer avanza por su propio offset, independiente de otros consumers
+  - Mas particiones equivale a mas paralelismo de lectura y mas throughput
+
+FRASE PARA RECORDAR:
+  "Orden por particion, no por topic. Repetelo hasta que duela."
+
+NOTAS DEL INSTRUCTOR:
+  Dibuja esto en la pizarra si puedes. La visualizacion espacial ayuda
+  mas que el slide. Si los alumnos solo se llevan una cosa del bloque 2,
+  que sea esta idea sobre el orden por particion.
+
+
+--------------------------------------------------------------------------------
+SLIDE 6 - PRODUCER, CONSUMER Y CONSUMER GROUP
+--------------------------------------------------------------------------------
+
+TITULO: Quien produce y quien consume
+
+DESCRIPCION DEL DIAGRAMA:
+  El diagrama tiene tres columnas principales conectadas de izquierda
+  a derecha.
+
+  En la columna de la izquierda esta el Producer, representado como
+  un bloque que lleva la etiqueta "API Rest". Este bloque envia
+  mensajes hacia la derecha.
+
+  En la columna del centro esta el topic pedidos-tiendamax con sus
+  tres particiones P0, P1 y P2.
+
+  En la columna de la derecha hay dos bloques separados, uno encima
+  del otro, que representan dos consumer groups distintos.
+
+  El primer group se llama inventario-group. Este group tiene tres
+  consumers: Consumer 1 lee exclusivamente la Particion 0, Consumer 2
+  lee exclusivamente la Particion 1 y Consumer 3 lee exclusivamente la
+  Particion 2. Esto es una asignacion uno a uno perfecta.
+
+  El segundo group se llama notif-group. Este group tiene un solo
+  consumer que lee las tres particiones al mismo tiempo: P0, P1 y P2.
+
+  La diferencia visual clave entre los dos grupos es que inventario-group
+  tiene tres consumers paralelos y notif-group tiene uno solo que carga
+  con todo. Ambos grupos reciben todos los mensajes del topic de forma
+  completamente independiente.
+
+TEXTO DE LAS REGLAS DEL CONSUMER GROUP:
+  - Una particion puede ser leida por maximo un consumer dentro del mismo grupo
+  - Si hay mas consumers que particiones, los extras quedan en standby inactivos
+  - Grupos distintos reciben todos los mensajes de forma independiente
+  - Kafka guarda el offset por grupo, inventario-group y notif-group son independientes
+
+
+--------------------------------------------------------------------------------
+SLIDE 7 - KAFKA 4 Y KRAFT: EL FIN DE ZOOKEEPER
+--------------------------------------------------------------------------------
+
+TITULO: Kafka 4.x - arquitectura simplificada con KRaft
+
+DESCRIPCION DEL DIAGRAMA - ANTES con Kafka menor a 3.0:
+  El diagrama muestra dos bloques separados. A la izquierda hay un
+  bloque etiquetado como ZooKeeper cluster. A la derecha hay tres
+  bloques apilados que representan los Brokers 1, 2 y 3. Hay flechas
+  bidireccionales entre ZooKeeper y los brokers porque los brokers
+  guardan su metadata en ZooKeeper y dependen de el para las elecciones
+  de lider. El problema que muestra el diagrama es que existen dos
+  sistemas completamente distintos que mantener, configurar, monitorear
+  y que pueden fallar por separado.
+
+DESCRIPCION DEL DIAGRAMA - AHORA con Kafka 4.x y KRaft:
+  El diagrama muestra un solo bloque que dice Broker barra Controller.
+  Dentro del bloque hay una nota que dice "todo en uno, Raft consensus".
+  No hay ningun bloque separado. Un solo proceso, un solo log de
+  metadatos, un solo sistema que operar.
+
+TABLA DE BENEFICIOS DE KRAFT EN KAFKA 4:
+  Sin ZooKeeper: un proceso menos que operar y mantener
+  Arranque mas rapido: hasta diez veces mas rapido que con ZooKeeper
+  Mas escala: clusters de hasta un millon de particiones, antes eran 200 mil
+  Failover mas rapido: el controller falla y se recupera en segundos, antes minutos
+  Mas simple: configuracion reducida para desarrollo local
+
+IMAGEN DOCKER PARA ESTE CURSO:
+  apache/kafka:4.2.0
+
+NOTAS DEL INSTRUCTOR:
+  Si alguien trae un tutorial viejo que menciona ZooKeeper, explica que
+  en Kafka 4.x ZooKeeper esta completamente removido. KRaft es el unico
+  modo disponible en la version 4. No es opcional, no es experimental,
+  es el estandar definitivo.
+
+
+================================================================================
+BLOQUE 3 - PASO 0: HOLA KAFKA SIN CODIGO (15 min) DEMO EN VIVO
+================================================================================
+
+
+--------------------------------------------------------------------------------
+SLIDE 8 - OBJETIVO Y COMANDOS BASE
+--------------------------------------------------------------------------------
+
+TITULO: Paso 0 - Ver Kafka en accion en 60 segundos
+
+SUBTITULO: Sin Java. Sin Maven. Solo el CLI que viene en la imagen.
+
+TABLA DE COMANDOS DISPONIBLES:
+
+  COMANDO                        PARA QUE SE USA
+  kafka-topics.sh                Crear, listar, describir y borrar topics
+  kafka-console-producer.sh      Enviar mensajes manualmente desde la consola
+  kafka-console-consumer.sh      Leer mensajes en tiempo real desde la consola
+  kafka-consumer-groups.sh       Ver lag, listar grupos y resetear offsets
+
+RUTA DENTRO DEL CONTAINER:
+  /opt/kafka/bin/
+
+NOTAS DEL INSTRUCTOR:
+  Abre las tres terminales conectadas al container y ejecuta el export
+  PATH antes de que entren los alumnos. Si aparece un error de comando
+  no encontrado durante la demo, se pierde el momentum del momento.
+  Preparar esto con anticipacion es obligatorio.
+
+
+--------------------------------------------------------------------------------
+SLIDE 9 - DEMO EN VIVO (pantalla compartida)
+--------------------------------------------------------------------------------
+
+TITULO: Comandos del Paso 0 - Demo en vivo
+
+NOTA SOBRE ESTE SLIDE:
+  Este slide funciona como cheat sheet mientras se comparte la pantalla.
+  Los alumnos lo siguen en paralelo desde el lab HTML.
+
+PASO A PASO - lo que se escribe en cada terminal:
+
+  TERMINAL 1 - Entrar al container:
+
+    docker exec -it kafka bash
+    export PATH=/opt/kafka/bin:$PATH
+
+  CREAR EL TOPIC DE PRUEBA:
+
+    kafka-topics.sh --create \
+      --topic hola-kafka \
+      --partitions 1 \
+      --replication-factor 1 \
+      --bootstrap-server localhost:9092
+
+    Para verificar que se creo:
+    kafka-topics.sh --list --bootstrap-server localhost:9092
+
+  TERMINAL 2 - Producer, escribir mensajes:
+
+    kafka-console-producer.sh \
+      --topic hola-kafka \
+      --bootstrap-server localhost:9092
+
+    Despues de ejecutar el comando aparece el prompt y se escriben:
+    Hola TiendaMax
+    Primer pedido
+    Apache Kafka 4 es genial
+
+  TERMINAL 3 - Consumer, leer en tiempo real:
+
+    Con from-beginning lee todo desde el offset 0:
+    kafka-console-consumer.sh \
+      --topic hola-kafka \
+      --from-beginning \
+      --bootstrap-server localhost:9092
+
+    Sin from-beginning solo lee mensajes nuevos a partir de ahora:
+    kafka-console-consumer.sh \
+      --topic hola-kafka \
+      --bootstrap-server localhost:9092
+
+PUNTOS CLAVE A RESALTAR EN VIVO:
+  Primero: los mensajes aparecen en tiempo real en la Terminal 3
+  Segundo: from-beginning lee todo el historial porque Kafka es un log, no una cola
+  Tercero: si reinicias el consumer sin from-beginning empieza del final
+  Cuarto: los mensajes siguen en Kafka aunque el consumer ya los leyo
+
+
+--------------------------------------------------------------------------------
+SLIDE 10 - DESCRIBE: ENTENDIENDO LO QUE CREAMOS
+--------------------------------------------------------------------------------
+
+TITULO: kafka-topics.sh describe
+
+COMANDO:
+
+  kafka-topics.sh \
+    --describe \
+    --topic hola-kafka \
+    --bootstrap-server localhost:9092
+
+SALIDA ESPERADA Y SU SIGNIFICADO:
+
+  Topic: hola-kafka   PartitionCount: 1   ReplicationFactor: 1
+    Partition: 0   Leader: 1   Replicas: 1   Isr: 1
+
+TABLA DE INTERPRETACION:
+
+  CAMPO            SIGNIFICADO
+  Leader: 1        El broker con ID 1 sirve todas las lecturas y escrituras
+  Replicas: 1      Solo hay una replica, que es la del broker 1
+  Isr: 1           In-Sync Replicas. Solo 1 esta sincronizada. En prod debe igual a Replicas
+
+ADVERTENCIA IMPORTANTE:
+  ReplicationFactor 1 significa que no hay tolerancia a fallos. Si el
+  unico broker cae, todos los datos de ese topic son inaccesibles. Este
+  valor es aceptable solo para desarrollo local. En produccion siempre
+  usar ReplicationFactor igual a 3 como minimo.
+
+FRASE PUENTE HACIA EL SIGUIENTE BLOQUE:
+  "Ahora que entendemos el CLI, construyamos la infraestructura real
+   de TiendaMax."
+
+
+================================================================================
+BLOQUE 4 - PASO 1: INFRAESTRUCTURA CON DOCKER (10 min) DEMO
+================================================================================
+
+
+--------------------------------------------------------------------------------
+SLIDE 11 - DOCKER-COMPOSE.YML ANOTADO (Kafka 4 KRaft)
+--------------------------------------------------------------------------------
+
+TITULO: El docker-compose.yml explicado linea a linea
+
+CONTENIDO DEL ARCHIVO docker-compose.yml:
+
+  services:
+    kafka:
+      image: apache/kafka:4.2.0
+      container_name: kafka
+      ports:
+        - "9092:9092"
+      environment:
+        KAFKA_NODE_ID: 1
+        KAFKA_PROCESS_ROLES: broker,controller
+        KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+        KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+        KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+        KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+        KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+        KAFKA_LOG_DIRS: /var/lib/kafka/data
+        CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+        KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+        KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      healthcheck:
+        test: ["CMD", "/opt/kafka/bin/kafka-broker-api-versions.sh",
+               "--bootstrap-server", "localhost:9092"]
+        interval: 10s
+        timeout: 10s
+        retries: 5
+        start_period: 30s
+
+TABLA DE VARIABLES CRITICAS:
+
+  VARIABLE                               POR QUE IMPORTA
+  KAFKA_PROCESS_ROLES broker,controller  Un solo proceso hace los dos roles. En produccion se separan
+  KAFKA_ADVERTISED_LISTENERS             La direccion que los clientes Java usan para conectarse
+  KAFKA_CONTROLLER_QUORUM_VOTERS         Define quien vota en el consenso Raft. En prod minimo 3 nodos
+  CLUSTER_ID                             Identificador unico del cluster. Generarlo una vez y no cambiarlo
+  OFFSETS_TOPIC_REPLICATION_FACTOR 1     Solo para desarrollo. En produccion usar 3
+
+COMANDO PARA GENERAR EL CLUSTER_ID:
+
+  docker run --rm apache/kafka:4.2.0 \
+    /opt/kafka/bin/kafka-storage.sh random-uuid
+
+
+--------------------------------------------------------------------------------
+SLIDE 12 - CREAR EL TOPIC DE TIENDAMAX
+--------------------------------------------------------------------------------
+
+TITULO: Paso 1 - el topic de produccion
+
+COMANDO COMPLETO:
+
+  docker exec -it kafka \
+    /opt/kafka/bin/kafka-topics.sh --create \
+    --topic pedidos-tiendamax \
+    --partitions 3 \
+    --replication-factor 1 \
+    --config retention.ms=604800000 \
+    --config max.message.bytes=1048576 \
+    --bootstrap-server localhost:9092
+
+TABLA DE DECISIONES DE DISENO:
+
+  PARAMETRO                  VALOR           POR QUE
+  partitions                 3               3 servicios consumidores = 3 en paralelo
+  replication-factor         1               Solo para dev. En prod siempre minimo 3
+  retention.ms               604800000       7 dias. Si un servicio cae, los datos esperan
+  max.message.bytes          1048576         1 MB, suficiente para cualquier JSON de pedido
+
+NOTA SOBRE RETENTION:
+  604800000 milisegundos equivalen a 7 dias. Si el servicio de
+  Notificaciones cae durante 3 dias, cuando vuelva a estar disponible
+  puede leer todos los pedidos que se acumularon durante su ausencia.
+  Kafka los guarda. No se pierde nada.
+
+COMANDO DE VERIFICACION:
+
+  docker exec -it kafka \
+    /opt/kafka/bin/kafka-topics.sh \
+    --describe \
+    --topic pedidos-tiendamax \
+    --bootstrap-server localhost:9092
+
+
+================================================================================
+BLOQUE 5 - PASO 2: PRODUCER JAVA (15 min) DEMO
+================================================================================
+
+
+--------------------------------------------------------------------------------
+SLIDE 13 - DEPENDENCIA MAVEN Y CONFIGURACION MINIMA
+--------------------------------------------------------------------------------
+
+TITULO: Anatomia de un Producer Kafka en Java
+
+DEPENDENCIA EN pom.xml:
+
+  <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>4.0.0</version>
+  </dependency>
+
+CONFIGURACION MINIMA DEL PRODUCER:
+
+  Properties props = new Properties();
+  props.put("bootstrap.servers",    "localhost:9092");
+  props.put("key.serializer",       StringSerializer.class.getName());
+  props.put("value.serializer",     StringSerializer.class.getName());
+  props.put("acks",                 "all");
+  props.put("enable.idempotence",   "true");
+  props.put("retries",              "3");
+  props.put("linger.ms",            "5");
+  props.put("batch.size",           "16384");
+
+  KafkaProducer<String, String> producer = new KafkaProducer<>(props);
+
+NOTA SOBRE linger.ms Y batch.size:
+  linger.ms igual a 5 significa que el producer espera hasta 5
+  milisegundos para acumular mensajes en un batch antes de enviarlo.
+  batch.size de 16384 es el limite en bytes de ese batch. Estos dos
+  parametros mejoran el throughput sin sacrificar latencia de forma
+  significativa.
+
+
+--------------------------------------------------------------------------------
+SLIDE 14 - EL PORQUE DE ACKS=ALL
+--------------------------------------------------------------------------------
+
+TITULO: acks - La decision mas importante de un producer
+
+TABLA COMPARATIVA:
+
+  VALOR   QUIEN CONFIRMA                  RIESGO
+  0       Nadie, fire and forget          Perdida silenciosa garantizada
+  1       Solo el broker leader           Si el leader cae antes de replicar se pierde el mensaje
+  all     Todas las replicas sincronizadas Cero perdida con RF mayor o igual a 3
+
+CONFIGURACION PARA PRODUCCION SIN PERDIDAS:
+
+  props.put("acks",               "all");
+  props.put("enable.idempotence", "true");
+  props.put("retries",            Integer.MAX_VALUE);
+
+  En el broker, agregar en docker-compose:
+  KAFKA_MIN_INSYNC_REPLICAS: 2
+
+EXPLICACION DE MIN_INSYNC_REPLICAS:
+  Con acks=all y min.insync.replicas=2, Kafka solo confirma la
+  escritura cuando al menos 2 replicas han recibido el mensaje.
+  Esto garantiza que aunque el broker lider caiga inmediatamente
+  despues de la confirmacion, al menos una replica mas tiene el dato.
+
+FRASE CLAVE:
+  "En TiendaMax cada pedido es dinero real. acks=all siempre,
+   sin excepcion."
+
+
+--------------------------------------------------------------------------------
+SLIDE 15 - LA KEY DEL MENSAJE IMPORTA
+--------------------------------------------------------------------------------
+
+TITULO: La key del mensaje determina la particion
+
+CODIGO DEL PRODUCER DE TIENDAMAX:
+
+  ProducerRecord<String, String> record = new ProducerRecord<>(
+      "pedidos-tiendamax",
+      pedido.getOrderId(),
+      objectMapper.writeValueAsString(pedido)
+  );
+
+  producer.send(record, (metadata, exception) -> {
+      if (exception == null) {
+          System.out.printf("Pedido %s enviado a Particion %d offset %d",
+              pedido.getOrderId(),
+              metadata.partition(),
+              metadata.offset());
+      } else {
+          System.err.println("Error al enviar: " + exception.getMessage());
+      }
+  });
+
+DESCRIPCION DEL DIAGRAMA DE PARTICIONAMIENTO:
+  El diagrama muestra como Kafka distribuye los mensajes segun la key.
+  Hay tres pedidos con sus keys y sus destinos.
+
+  El pedido con key ORDER-001 pasa por la funcion hash y el resultado
+  modulo 3 da como destino la Particion 0. Siempre que llegue un
+  mensaje con esa key ira a la Particion 0.
+
+  El pedido con key ORDER-002 pasa por la misma funcion y su resultado
+  modulo 3 da como destino la Particion 2.
+
+  El pedido con key ORDER-003 va a la Particion 1.
+
+  El punto clave del diagrama es que la asignacion es determinista y
+  permanente. El mismo order_id siempre llega a la misma particion,
+  lo que garantiza el orden de los eventos de ese pedido.
+
+POR QUE KEY IGUAL A ORDER_ID:
+  - Todos los eventos de un pedido van a la misma particion
+  - El orden del ciclo de vida queda garantizado: CREADO, PAGADO, ENVIADO
+  - La distribucion es consistente sin importar cuanto escale el producer
+
+ANTI-PATRON - NO HACER:
+  Usar cliente_id como key es un error. Si un cliente genera el 80
+  por ciento de los pedidos, la Particion 0 recibe el 80 por ciento
+  del trafico. Un consumer esta saturado mientras los otros dos estan
+  casi ociosos. Esto se llama hotspot y destruye el paralelismo.
+
+DEMO A MOSTRAR:
+  Correr PedidoProducer.java y luego leer particion por particion:
+
+  kafka-console-consumer.sh --topic pedidos-tiendamax \
+    --partition 0 --from-beginning --bootstrap-server localhost:9092
+
+
+================================================================================
+BLOQUE 6 - PASO 3: CONSUMER Y COMMIT MANUAL (15 min) DEMO
+================================================================================
+
+
+--------------------------------------------------------------------------------
+SLIDE 16 - EL LOOP DEL CONSUMER
+--------------------------------------------------------------------------------
+
+TITULO: Como funciona un Consumer Kafka
+
+CONFIGURACION DEL CONSUMER:
+
+  Properties props = new Properties();
+  props.put("bootstrap.servers",   "localhost:9092");
+  props.put("group.id",            "inventario-group");
+  props.put("key.deserializer",    StringDeserializer.class.getName());
+  props.put("value.deserializer",  StringDeserializer.class.getName());
+  props.put("enable.auto.commit",  "false");
+  props.put("auto.offset.reset",   "earliest");
+  props.put("max.poll.records",    "100");
+  props.put("session.timeout.ms",  "30000");
+
+EL LOOP PRINCIPAL:
+
+  consumer.subscribe(List.of("pedidos-tiendamax"));
+
+  while (running) {
+      ConsumerRecords<String, String> records =
+          consumer.poll(Duration.ofMillis(500));
+
+      for (ConsumerRecord<String, String> record : records) {
+          procesarPedido(record.value());
+      }
+
+      consumer.commitSync();
+  }
+
+DESCRIPCION DEL DIAGRAMA DEL FLUJO POLL PROCESS COMMIT:
+  El diagrama muestra la secuencia de interaccion entre Kafka y el Consumer.
+  Hay dos columnas: la de Kafka a la izquierda y la del Consumer a la derecha.
+
+  Primero, Kafka envia el lote de mensajes de las particiones P0, P1 y P2
+  hacia el Consumer. Esto representa la llamada a poll().
+
+  Luego el Consumer procesa cada mensaje del lote de forma secuencial:
+  procesa el mensaje 1, procesa el mensaje 2, procesa el mensaje 3.
+
+  Finalmente, el Consumer envia el confirmacion del offset de vuelta a
+  Kafka. Esto es el commitSync(), que le dice a Kafka "ya procese hasta
+  este punto, no me reenvies estos mensajes".
+
+  Debajo del diagrama hay una nota critica: si el Consumer falla en
+  cualquier punto antes del commit, Kafka vuelve a entregar los mensajes
+  desde el ultimo offset confirmado.
+
+TABLA DE SEMANTICAS DE ENTREGA:
+
+  SEMANTICA       CUANDO OCURRE                     RIESGO
+  At-most-once    Se commitea antes de procesar      Perdida: si falla tras el commit el mensaje se pierde
+  At-least-once   Se commitea despues de procesar    Duplicado: si falla tras procesar Kafka reenvía
+  Exactly-once    Transacciones Kafka                Tema avanzado con producer y consumer transaccional
+
+  Para TiendaMax se usa at-least-once con idempotencia en el consumer.
+
+
+--------------------------------------------------------------------------------
+SLIDE 17 - COMMITSYNC VERSUS COMMITASYNC
+--------------------------------------------------------------------------------
+
+TITULO: commitSync o commitAsync
+
+TABLA COMPARATIVA:
+
+  CARACTERISTICA    commitSync()                  commitAsync()
+  Bloquea thread    Si                            No
+  Reintentos        Automaticos                   No reintenta
+  Si falla commit   Lanza excepcion               Llama al callback de error
+  Throughput        Menor                         Mayor
+  Cuando usar       Datos criticos como pedidos   Metricas y telemetria
+
+PATRON HIBRIDO PARA REFERENCIA AVANZADA:
+
+  En el loop principal se usa commitAsync para no bloquear:
+  for (ConsumerRecord<String, String> r : records) {
+      procesarPedido(r.value());
+  }
+  consumer.commitAsync();
+
+  Al cerrar el consumer se usa commitSync para garantizar el ultimo commit:
+  try {
+      consumer.commitSync();
+  } finally {
+      consumer.close();
+  }
+
+DEMO A MOSTRAR:
+  Arrancar el consumer y verificar que el lag baja a cero:
+
+  kafka-consumer-groups.sh \
+    --describe \
+    --group inventario-group \
+    --bootstrap-server localhost:9092
+
+
+================================================================================
+BLOQUE 7 - PASO 4: CONSUMER GROUPS Y PARALELISMO (15 min) DEMO
+================================================================================
+
+
+--------------------------------------------------------------------------------
+SLIDE 18 - COMO SE REPARTEN LAS PARTICIONES
+--------------------------------------------------------------------------------
+
+TITULO: Consumer Group - escalado automatico del procesamiento
+
+DESCRIPCION DEL DIAGRAMA - ESCENARIO 1, tres consumers y tres particiones:
+  El diagrama muestra inventario-group con tres consumers y tres
+  particiones. La asignacion es uno a uno: Consumer 1 lee unicamente
+  la Particion 0. Consumer 2 lee unicamente la Particion 1. Consumer 3
+  lee unicamente la Particion 2. Debajo dice que el throughput es el
+  maximo posible porque el paralelismo es triple.
+
+DESCRIPCION DEL DIAGRAMA - ESCENARIO 2, cuatro consumers y tres particiones:
+  El mismo topic con tres particiones pero ahora hay cuatro consumers.
+  Consumer 1 lee la Particion 0. Consumer 2 lee la Particion 1.
+  Consumer 3 lee la Particion 2. Consumer 4 no tiene particion asignada
+  y aparece como STANDBY. El Consumer 4 es un hot standby: si cualquiera
+  de los otros tres cae, el absorbe su particion automaticamente durante
+  el rebalanceo.
+
+DESCRIPCION DEL DIAGRAMA - ESCENARIO 3, dos consumers y tres particiones:
+  Solo dos consumers para tres particiones. Consumer 1 lee las
+  Particiones 0 y 1 al mismo tiempo, cargando el doble. Consumer 2
+  lee la Particion 2. El sistema funciona pero Consumer 1 tiene
+  el doble de carga que Consumer 2.
+
+REGLA PRACTICA:
+  Las particiones son el techo de paralelismo. No es posible procesar
+  mas rapido que lo que permiten las particiones aunque se agreguen
+  cien consumers. Los consumers extra quedan en standby.
+
+COMANDOS DE LA DEMO:
+
+  Terminal 1:
+  mvn exec:java -Dexec.mainClass="com.tiendamax.InventarioConsumer"
+                -Dexec.args="consumer-1"
+
+  Terminal 2:
+  mvn exec:java -Dexec.mainClass="com.tiendamax.InventarioConsumer"
+                -Dexec.args="consumer-2"
+
+  Terminal 3:
+  mvn exec:java -Dexec.mainClass="com.tiendamax.InventarioConsumer"
+                -Dexec.args="consumer-3"
+
+  Ver la asignacion de particiones:
+  kafka-consumer-groups.sh \
+    --describe --group inventario-group \
+    --bootstrap-server localhost:9092
+
+
+================================================================================
+BLOQUE 8 - PASO 5: FALLO Y REBALANCEO (15 min) DEMO
+================================================================================
+
+
+--------------------------------------------------------------------------------
+SLIDE 19 - ANATOMIA DE UN REBALANCEO
+--------------------------------------------------------------------------------
+
+TITULO: Que pasa cuando un consumer se cae
+
+DESCRIPCION DEL DIAGRAMA TIMELINE:
+  El diagrama es una linea de tiempo vertical que muestra los eventos
+  del rebalanceo segundo a segundo.
+
+  En el segundo 0 ocurre el evento inicial: Consumer 2 cae de forma
+  abrupta ya sea por Ctrl+C o por un crash de la JVM.
+
+  Entre el segundo 0 y el segundo 10 los Consumers 1 y 3 continuan
+  procesando normalmente. Consumer 2 deja de enviar sus heartbeats
+  periodicos al Group Coordinator.
+
+  En el segundo 10 el Group Coordinator detecta que los heartbeats de
+  Consumer 2 cesaron durante el tiempo definido por session.timeout.ms.
+  El Group Coordinator declara a Consumer 2 como muerto.
+
+  Tambien en el segundo 10 se dispara el rebalanceo de todo el grupo.
+  Todos los consumers del grupo reciben la notificacion.
+
+  Entre los segundos 10 y 11 ocurre la fase de PAUSA. Todos los
+  consumers del grupo dejan de leer mensajes. La latencia del sistema
+  aumenta durante esta ventana de tiempo.
+
+  En el segundo 11 ocurre la fase de REASIGNACION. El Group Coordinator
+  redistribuye las particiones: Consumer 1 recibe la Particion 0 mas
+  la Particion 1 que pertenecia a Consumer 2. Consumer 3 mantiene la
+  Particion 2.
+
+  En el segundo 12 ocurre el RESUME. Los consumers reinician la lectura
+  desde el ultimo offset que fue confirmado con commit. Los mensajes
+  que Consumer 2 proceso pero no confirmo antes de caer seran
+  reprocesados por Consumer 1. Esto genera duplicados y es el
+  comportamiento esperado de at-least-once.
+
+ESTADO ANTES Y DESPUES DEL REBALANCEO:
+
+  ANTES DEL FALLO:
+  Consumer 1 lee Particion 0
+  Consumer 2 lee Particion 1  (es el que cae)
+  Consumer 3 lee Particion 2
+
+  DESPUES DEL REBALANCEO:
+  Consumer 1 lee Particion 0 y Particion 1 (doble carga temporal)
+  Consumer 2 ausente
+  Consumer 3 lee Particion 2
+
+PARAMETROS QUE CONTROLAN EL REBALANCEO:
+
+  props.put("session.timeout.ms",    "30000");
+  props.put("heartbeat.interval.ms", "3000");
+  props.put("max.poll.interval.ms",  "300000");
+
+REBALANCEO COOPERATIVO (disponible desde Kafka 2.4, recomendado):
+
+  props.put("partition.assignment.strategy",
+            "org.apache.kafka.clients.consumer.CooperativeStickyAssignor");
+
+  Con este assignor solo se reasignan las particiones necesarias sin
+  pausar todo el grupo. Es la evolucion del rebalanceo clasico.
+
+DEMO:
+  Matar Consumer 2 con Ctrl+C. Observar en el comando describe como
+  la Particion 1 migra al Consumer 1. Notar los mensajes duplicados
+  que aparecen en el log de Consumer 1.
+
+
+================================================================================
+BLOQUE 9 - PASO 6: LAG Y RESET DE OFFSETS (10 min) DEMO
+================================================================================
+
+
+--------------------------------------------------------------------------------
+SLIDE 20 - CONSUMER LAG: LA METRICA NUMERO 1
+--------------------------------------------------------------------------------
+
+TITULO: Consumer Lag - que tan atrasado estas
+
+FORMULA:
+  LAG = LOG-END-OFFSET menos CURRENT-OFFSET
+
+COMANDO PARA VER EL LAG:
+
+  kafka-consumer-groups.sh \
+    --describe \
+    --group inventario-group \
+    --bootstrap-server localhost:9092
+
+DESCRIPCION DE LA SALIDA ESPERADA:
+  La salida muestra una tabla con las columnas: GROUP, TOPIC, PARTITION,
+  CURRENT-OFFSET, LOG-END-OFFSET, LAG y CONSUMER-ID.
+
+  La primera fila muestra inventario-group en pedidos-tiendamax,
+  Particion 0, con CURRENT-OFFSET en 1247, LOG-END-OFFSET en 1247
+  y LAG igual a 0. Este consumer esta al dia.
+
+  La segunda fila muestra la misma combinacion pero en la Particion 1,
+  con CURRENT-OFFSET en 1198, LOG-END-OFFSET en 1250 y LAG igual a 52.
+  Este consumer esta atrasado 52 mensajes. Es la fila que indica
+  un problema.
+
+  La tercera fila muestra la Particion 2 con CURRENT-OFFSET en 1300,
+  LOG-END-OFFSET en 1300 y LAG igual a 0. Este consumer esta al dia.
+
+TABLA DE UMBRALES DE ALERTA EN PRODUCCION:
+
+  LAG          ESTADO       ACCION RECOMENDADA
+  0            Al dia       Ninguna
+  Mayor 1000   Investigar   Revisar si el consumer esta lento o tiene un bug
+  Mayor 10000  Incidente    Verificar si el consumer esta caido
+  Mayor 100000 Critico P0   El sistema de procesamiento probablemente colapsado
+
+HERRAMIENTAS DE MONITOREO:
+  kafka-consumer-groups.sh para monitoreo rapido por CLI
+  Kafdrop o Kafka UI para interfaz web
+  Grafana con Prometheus para produccion con alertas automaticas
+
+
+--------------------------------------------------------------------------------
+SLIDE 21 - RESET DE OFFSETS: HERRAMIENTA DE EMERGENCIA
+--------------------------------------------------------------------------------
+
+TITULO: Reset de offsets - cuando y como
+
+REGLA DE ORO:
+  El consumer group DEBE ESTAR DETENIDO para resetear offsets.
+  Si hay consumers activos el reset falla o tiene comportamiento
+  impredecible que puede causar perdida o duplicacion masiva de datos.
+
+COMANDOS DE RESET:
+
+  Paso 1 - Ver el estado antes de hacer cualquier accion:
+  kafka-consumer-groups.sh \
+    --describe --group inventario-group \
+    --bootstrap-server localhost:9092
+
+  Paso 2a - Dry-run, ver que haria sin ejecutar (siempre primero):
+  kafka-consumer-groups.sh \
+    --reset-offsets --to-earliest --dry-run \
+    --group inventario-group --topic pedidos-tiendamax \
+    --bootstrap-server localhost:9092
+
+  Paso 2b - Volver al inicio, reprocesar todo desde el comienzo:
+  kafka-consumer-groups.sh \
+    --reset-offsets --to-earliest --execute \
+    --group inventario-group --topic pedidos-tiendamax \
+    --bootstrap-server localhost:9092
+
+  Paso 2c - Saltar al final, descartar el backlog actual:
+  kafka-consumer-groups.sh \
+    --reset-offsets --to-latest --execute \
+    --group inventario-group --topic pedidos-tiendamax \
+    --bootstrap-server localhost:9092
+
+  Paso 2d - Ir a un timestamp exacto, por ejemplo si hubo un bug a las 14:30:
+  kafka-consumer-groups.sh \
+    --reset-offsets --to-datetime 2025-05-14T14:30:00.000 --execute \
+    --group inventario-group --topic pedidos-tiendamax \
+    --bootstrap-server localhost:9092
+
+  Paso 2e - Retroceder N mensajes en una particion especifica:
+  kafka-consumer-groups.sh \
+    --reset-offsets --shift-by -100 --execute \
+    --group inventario-group --topic pedidos-tiendamax:1 \
+    --bootstrap-server localhost:9092
+
+TABLA DE CUANDO USAR CADA FLAG:
+
+  FLAG             CUANDO USARLO
+  to-earliest      Reprocessing total para un nuevo feature retroactivo
+  to-latest        Descartar backlog de metricas o datos de poco valor
+  to-datetime      Hay un bug en produccion introducido en un momento conocido
+  shift-by negativo Unos pocos mensajes corruptos que se quieren saltear
+  dry-run          Siempre usarlo primero para ver el efecto antes de ejecutar
+
+DEMO:
+  Generar lag dejando el producer corriendo con el consumer apagado.
+  Ver el lag con describe. Ejecutar dry-run primero. Luego ejecutar
+  el reset con to-earliest. Observar como el consumer procesa el
+  backlog completo acumulado.
+
+
+================================================================================
+BLOQUE 10 - CIERRE (5 min)
+================================================================================
+
+
+--------------------------------------------------------------------------------
+SLIDE 22 - RECAP Y PROXIMOS PASOS
+--------------------------------------------------------------------------------
+
+TITULO: Que construimos hoy
+
+LO QUE SE CUBRIO EN EL CURSO:
+
+  El problema de la arquitectura sincrona de TiendaMax
+  Kafka 4.x con KRaft sin ZooKeeper con configuracion simplificada
+  docker-compose.yml con apache/kafka 4.2.0 explicado linea a linea
+  Topics con particiones y retention para pedidos-tiendamax
+  Producer Java con acks=all e idempotencia habilitada
+  Consumer con commitSync manual usando semantica at-least-once
+  Consumer Groups con paralelismo real usando 3 consumers y 3 particiones
+  Rebalanceo mostrando como Kafka se recupera de una caida sin perder mensajes
+  Consumer Lag como la metrica numero 1 en produccion
+  Reset de offsets como herramienta de emergencia para bugs y reprocessing
+
+LO QUE VIENE EN LOS PROXIMOS CURSOS:
+
+  Cluster multi-broker con RF igual a 3 y min.insync.replicas=2
+  Exactly-once con transacciones Kafka en producer y consumer
+  Schema Registry con Avro y Protobuf para contratos de datos entre equipos
+  Dead Letter Queue para manejar mensajes que no se pueden procesar
+  Kafka Streams para procesamiento de streams en Java
+  Kafka Connect para integracion con bases de datos, S3 y Elasticsearch
+
+RECURSOS PARA LLEVARSE A CASA:
+  Lab HTML anotado: kafka-lab-tiendamax.html
+  Guion completo: kafka-tiendamax-guion.md
+  Imagen Docker: apache/kafka:4.2.0
+
+FRASE DE CIERRE:
+  "TiendaMax ya no pierde pedidos cuando Notificaciones se cae.
+   Kafka almacena. El consumer lee cuando puede. Sin perdida de datos.
+   Eso es lo que construiste hoy."
+
+
+================================================================================
+NOTAS GENERALES PARA EL INSTRUCTOR
+================================================================================
+
+PRE-FLIGHT CHECKLIST (antes de que entren los alumnos):
+
+  docker compose up -d corriendo y verificado
+  docker compose ps muestra kafka como healthy
+  topic pedidos-tiendamax ya creado con los parametros del Slide 12
+  4 terminales abiertas dentro del container con PATH configurado:
+    docker exec -it kafka bash
+    export PATH=/opt/kafka/bin:$PATH
+  IDE con el proyecto Java abierto y compilado, mvn compile ejecutado
+  kafka-lab-tiendamax.html abierto en un tab separado del navegador
+  Resolucion de pantalla de 1920x1080 minimo con fuente del IDE en 20 puntos
+
+ESTILO DE LA SESION:
+
+  No leer las slides. Son anclas visuales. El contenido lo narra el instructor.
+  Cada bloque de demo se presenta con pantalla compartida y el lab HTML visible.
+  Hacer una pregunta detonadora antes de cada demo: que creen que va a pasar si...
+  Los alumnos deben seguir el lab en paralelo. No avanzar si alguien esta roto.
+  Si hay retraso, comprimir el Bloque 2. Nunca comprimir las demos en vivo.
+
+TIEMPOS SUGERIDOS PARA PREGUNTAS Y RESPUESTAS:
+
+  5 minutos despues del Bloque 2 para dudas conceptuales sobre particiones
+  10 minutos despues del Bloque 8 donde aparecen la mayoria de preguntas reales
+  Sesion abierta de preguntas al cierre con maximo 15 minutos
+
+ERRORES COMUNES A ANTICIPAR:
+
+  Error: comando no encontrado en Windows PowerShell
+  Causa: la barra invertida en multilínea no funciona en PowerShell
+  Solucion: ejecutar los comandos dentro del bash del container
+
+  Error: kafka-console-consumer.sh se queda congelado sin salida
+  Causa: el topic no tiene mensajes nuevos
+  Solucion: enviar algo con el producer en otra terminal
+
+  Error: el topic ya existe
+  Causa: quedo de una ejecucion anterior del curso
+  Solucion: usar la opcion if-not-exists o ignorar el mensaje de error
+
+  Error: Connection refused en localhost 9092
+  Causa: el container de Kafka no esta corriendo
+  Solucion: ejecutar docker compose up -d y esperar 30 segundos
+
+  Error: el ultimo mensaje del producer no se envio
+  Causa: el alumno cerro el producer con Ctrl+C antes de presionar Enter
+  Solucion: usar Ctrl+D para cerrar el producer de forma limpia
+
+  Error: ClassNotFoundException para StringSerializer
+  Causa: falta la dependencia en pom.xml o no se compilo el proyecto
+  Solucion: verificar el pom.xml y ejecutar mvn compile
+
+
+================================================================================
+APENDICE - REFERENCIA RAPIDA DE COMANDOS KAFKA 4
+================================================================================
+
+TOPICS:
+
+  Crear topic:
+  kafka-topics.sh --create --topic NOMBRE \
+    --partitions 3 --replication-factor 1 \
+    --bootstrap-server localhost:9092
+
+  Listar todos los topics:
+  kafka-topics.sh --list --bootstrap-server localhost:9092
+
+  Describir un topic:
+  kafka-topics.sh --describe --topic NOMBRE --bootstrap-server localhost:9092
+
+  Borrar un topic:
+  kafka-topics.sh --delete --topic NOMBRE --bootstrap-server localhost:9092
+
+  Aumentar particiones (solo se puede aumentar, nunca bajar):
+  kafka-topics.sh --alter --topic NOMBRE \
+    --partitions 6 --bootstrap-server localhost:9092
+
+
+PRODUCER:
+
+  Producer basico desde stdin:
+  kafka-console-producer.sh \
+    --topic NOMBRE --bootstrap-server localhost:9092
+
+  Producer con keys, separador dos puntos:
+  kafka-console-producer.sh \
+    --topic NOMBRE \
+    --property "key.separator=:" \
+    --property "parse.key=true" \
+    --bootstrap-server localhost:9092
+
+
+CONSUMER:
+
+  Desde el final, solo mensajes nuevos:
+  kafka-console-consumer.sh \
+    --topic NOMBRE --bootstrap-server localhost:9092
+
+  Desde el inicio:
+  kafka-console-consumer.sh \
+    --topic NOMBRE --from-beginning --bootstrap-server localhost:9092
+
+  Desde el inicio con group asignado:
+  kafka-console-consumer.sh \
+    --topic NOMBRE --from-beginning \
+    --group mi-grupo --bootstrap-server localhost:9092
+
+  Solo una particion especifica:
+  kafka-console-consumer.sh \
+    --topic NOMBRE --partition 0 --from-beginning \
+    --bootstrap-server localhost:9092
+
+  Mostrar keys y timestamps:
+  kafka-console-consumer.sh \
+    --topic NOMBRE --from-beginning \
+    --property print.key=true \
+    --property print.timestamp=true \
+    --bootstrap-server localhost:9092
+
+
+CONSUMER GROUPS:
+
+  Listar todos los grupos:
+  kafka-consumer-groups.sh --list --bootstrap-server localhost:9092
+
+  Ver lag detallado de un grupo:
+  kafka-consumer-groups.sh \
+    --describe --group GRUPO --bootstrap-server localhost:9092
+
+  Reset al inicio:
+  kafka-consumer-groups.sh \
+    --reset-offsets --to-earliest --execute \
+    --group GRUPO --topic TOPIC --bootstrap-server localhost:9092
+
+  Reset al final:
+  kafka-consumer-groups.sh \
+    --reset-offsets --to-latest --execute \
+    --group GRUPO --topic TOPIC --bootstrap-server localhost:9092
+
+  Dry-run, ver sin ejecutar:
+  kafka-consumer-groups.sh \
+    --reset-offsets --to-earliest --dry-run \
+    --group GRUPO --topic TOPIC --bootstrap-server localhost:9092
+
+
+RENDIMIENTO:
+
+  Test de throughput de escritura:
+  kafka-producer-perf-test.sh \
+    --topic NOMBRE \
+    --num-records 100000 \
+    --record-size 1024 \
+    --throughput -1 \
+    --producer-props bootstrap.servers=localhost:9092
+
+  Test de throughput de lectura:
+  kafka-consumer-perf-test.sh \
+    --topic NOMBRE \
+    --messages 100000 \
+    --bootstrap-server localhost:9092
+
+
+METADATA Y KRAFT:
+
+  Info del broker:
+  kafka-broker-api-versions.sh --bootstrap-server localhost:9092
+
+  Estado del quorum KRaft:
+  kafka-metadata-quorum.sh \
+    --bootstrap-server localhost:9092 status
+
+  Ver logs del controller:
+  docker logs kafka 2>&1 | grep -i "controller\|kraft\|leader"
+
+
+================================================================================
+FIN DEL GUION
+================================================================================
+Version   : 1.0
+Kafka     : 4.2.0 KRaft sin ZooKeeper
+Slides    : 22
+Demos     : 7
+Duracion  : 2 horas 30 minutos
+================================================================================
