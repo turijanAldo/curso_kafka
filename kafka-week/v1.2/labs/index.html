@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kafka Labs — TiendaMax v1.2</title>
+  <link rel="stylesheet" href="css/lab-theme.css">
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+
+    .hub-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-secondary);
+    }
+    .hub-header__logo { font-size: 1.4rem; font-weight: 800; color: var(--accent); }
+    .hub-header__badge {
+      font-size: 0.7rem; font-weight: 600; padding: 4px 10px;
+      border-radius: 999px; background: var(--accent-bg); color: var(--accent);
+      border: 1px solid var(--accent-border);
+    }
+
+    .hub-container { max-width: 800px; width: 100%; padding: 48px 24px; flex: 1; }
+
+    .hub-hero {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .hub-hero__title {
+      font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--accent), #ec4899);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hub-hero__desc {
+      font-size: 1.05rem; color: var(--text-secondary); max-width: 560px; margin: 0 auto;
+    }
+
+    .lab-cards { display: grid; gap: 20px; }
+
+    .lab-card {
+      display: grid;
+      grid-template-columns: 72px 1fr auto;
+      align-items: center;
+      gap: 20px;
+      padding: 28px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.25s ease;
+    }
+    .lab-card:hover {
+      border-color: var(--accent-border);
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
+    }
+
+    .lab-card__number {
+      width: 72px; height: 72px;
+      border-radius: var(--radius-lg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; font-weight: 800; color: white;
+    }
+    .lab-card--0 .lab-card__number { background: linear-gradient(135deg, #14b8a6, #2dd4bf); }
+    .lab-card--1 .lab-card__number { background: linear-gradient(135deg, #6366f1, #818cf8); }
+    .lab-card--2 .lab-card__number { background: linear-gradient(135deg, #ef4444, #f87171); }
+    .lab-card--3 .lab-card__number { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+
+    .lab-card__title { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+    .lab-card__desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+    .lab-card__time {
+      font-size: 0.75rem; color: var(--text-tertiary); font-weight: 600;
+      white-space: nowrap;
+    }
+    .lab-card__arrow { font-size: 1.2rem; color: var(--text-tertiary); transition: transform 0.2s; }
+    .lab-card:hover .lab-card__arrow { transform: translateX(4px); color: var(--accent); }
+
+    .lab-card__meta {
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+    }
+
+    .hub-footer {
+      width: 100%;
+      text-align: center;
+      padding: 24px;
+      color: var(--text-tertiary);
+      font-size: 0.8rem;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 640px) {
+      .lab-card { grid-template-columns: 56px 1fr; gap: 14px; padding: 20px; }
+      .lab-card__number { width: 56px; height: 56px; font-size: 1.4rem; }
+      .lab-card__meta { display: none; }
+      .hub-hero__title { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="hub-header">
+    <div class="hub-header__logo">Kafka Labs</div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="hub-header__badge">TiendaMax v1.2</span>
+      <button class="theme-toggle" onclick="LabUI.toggleTheme()">🌙</button>
+    </div>
+  </div>
+
+  <div class="hub-container">
+    <div class="hub-hero">
+      <h1 class="hub-hero__title">Laboratorios Interactivos</h1>
+      <p class="hub-hero__desc">
+        Aprende Kafka de forma visual y practica. Cada laboratorio incluye simuladores,
+        visualizaciones animadas y quizzes de reflexion.
+      </p>
+    </div>
+
+    <div class="lab-cards">
+
+      <a href="lab-00-intro-kafka.html" class="lab-card lab-card--0">
+        <div class="lab-card__number">0</div>
+        <div>
+          <div class="lab-card__title">Introduccion a Apache Kafka</div>
+          <div class="lab-card__desc">
+            Que es Kafka, KRaft vs ZooKeeper, arquitectura Docker, topics, particiones, offsets y tu primer producer/consumer.
+          </div>
+        </div>
+        <div class="lab-card__meta">
+          <span class="lab-card__time">~35 min</span>
+          <span class="lab-card__arrow">→</span>
+        </div>
+      </a>
+
+      <a href="lab-01-event-sourcing.html" class="lab-card lab-card--1">
+        <div class="lab-card__number">1</div>
+        <div>
+          <div class="lab-card__title">Ciclo de Vida del Pedido</div>
+          <div class="lab-card__desc">
+            Event Sourcing basico: KEY, particiones, orden garantizado y reconstruccion de estado desde eventos.
+          </div>
+        </div>
+        <div class="lab-card__meta">
+          <span class="lab-card__time">~30 min</span>
+          <span class="lab-card__arrow">→</span>
+        </div>
+      </a>
+
+      <a href="lab-02-dead-letter.html" class="lab-card lab-card--2">
+        <div class="lab-card__number">2</div>
+        <div>
+          <div class="lab-card__title">Dead Letter Topic</div>
+          <div class="lab-card__desc">
+            Manejo de errores: 3 estrategias, headers de Kafka, patron DLT y orden de operaciones critico.
+          </div>
+        </div>
+        <div class="lab-card__meta">
+          <span class="lab-card__time">~30 min</span>
+          <span class="lab-card__arrow">→</span>
+        </div>
+      </a>
+
+      <a href="lab-03-rebalanceo.html" class="lab-card lab-card--3">
+        <div class="lab-card__number">3</div>
+        <div>
+          <div class="lab-card__title">Consumer Groups y Rebalanceo</div>
+          <div class="lab-card__desc">
+            Rebalanceo en tiempo real: agregar/matar consumers, particiones idle, LAG y comparacion con IBM MQ.
+          </div>
+        </div>
+        <div class="lab-card__meta">
+          <span class="lab-card__time">~25 min</span>
+          <span class="lab-card__arrow">→</span>
+        </div>
+      </a>
+
+      <a href="lab-ref-configuracion.html" class="lab-card" style="border-left: 4px solid #f59e0b;">
+        <div class="lab-card__number" style="background: linear-gradient(135deg, #f59e0b, #fbbf24); font-size: 1.2rem;">Ref</div>
+        <div>
+          <div class="lab-card__title">Configuracion y Codigo Java</div>
+          <div class="lab-card__desc">
+            Deep-dive: docker-compose.yml linea por linea, pom.xml, Pedido.java, config Producer/Consumer, patron DLT, RebalanceListener y simulador de acks.
+          </div>
+        </div>
+        <div class="lab-card__meta">
+          <span class="lab-card__time">~20 min</span>
+          <span class="lab-card__arrow">→</span>
+        </div>
+      </a>
+
+    </div>
+  </div>
+
+  <div class="hub-footer">
+    Kafka Labs — TiendaMax v1.2 — Curso interno
+  </div>
+
+  <script src="js/lab-ui.js"></script>
+  <script>LabUI.initTheme();</script>
+</body>
+</html>

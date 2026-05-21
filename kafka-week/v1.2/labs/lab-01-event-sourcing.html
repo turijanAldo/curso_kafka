@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab 01 — Ciclo de Vida de un Pedido con Kafka</title>
+  <link rel="stylesheet" href="css/lab-theme.css">
+  <style>
+    /* Lab-specific styles */
+    .hash-input {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .hash-input input[type="text"] {
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      width: 220px;
+      transition: border-color var(--transition);
+    }
+    .hash-input input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .hash-result {
+      margin-top: 16px;
+      padding: 16px 20px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 2;
+      border: 1px solid var(--border);
+    }
+    .hash-result strong { color: var(--accent); }
+    .partition-highlight {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      color: white;
+      font-weight: 700;
+      font-size: 0.8rem;
+      animation: pulse 1.5s ease infinite;
+    }
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 16px 0;
+    }
+    @media (max-width: 768px) {
+      .compare-grid { grid-template-columns: 1fr; }
+    }
+    .compare-side {
+      border: 2px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .compare-side__header {
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+    .compare-side--good .compare-side__header {
+      background: var(--success-bg);
+      color: var(--success);
+      border-bottom: 2px solid var(--success);
+    }
+    .compare-side--bad .compare-side__header {
+      background: var(--error-bg);
+      color: var(--error);
+      border-bottom: 2px solid var(--error);
+    }
+    .compare-side__body { padding: 16px; }
+    .compare-side__log {
+      background: #0f172a;
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      margin-top: 12px;
+      max-height: 180px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      line-height: 1.8;
+    }
+    .order-sequence {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .order-sequence .estado-badge { font-size: 0.65rem; }
+    .partition-col--highlight {
+      box-shadow: 0 0 0 3px var(--accent), 0 0 20px rgba(99,102,241,0.3);
+      transform: scale(1.02);
+    }
+    .partition-col { transition: all 0.3s ease; }
+    .sim-stats {
+      display: flex;
+      gap: 20px;
+      margin: 12px 0;
+      flex-wrap: wrap;
+    }
+    .sim-stat {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+    .sim-stat strong {
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .formula-box {
+      background: var(--bg-code);
+      color: #e2e8f0;
+      padding: 16px 24px;
+      border-radius: var(--radius-md);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      text-align: center;
+      margin: 16px 0;
+      letter-spacing: 0.02em;
+    }
+    .formula-box .highlight { color: #818cf8; font-weight: 700; }
+    .formula-box .op { color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="sidebar-overlay"></div>
+  <div class="lab-layout">
+
+    <!-- HEADER -->
+    <header class="lab-header">
+      <div class="lab-header__left">
+        <button class="menu-toggle">&#9776;</button>
+        <a href="#" class="lab-header__logo">Kafka Labs</a>
+        <nav class="lab-header__breadcrumb">
+          <span>v1.2</span> <span class="sep">/</span> <span>Leccion 1</span>
+        </nav>
+      </div>
+      <div class="lab-header__right">
+        <span class="lab-header__level">Basico</span>
+        <button class="theme-toggle" onclick="LabUI.toggleTheme()">&#127769;</button>
+      </div>
+    </header>
+
+    <!-- SIDEBAR -->
+    <aside class="lab-sidebar">
+      <nav>
+        <ul class="lab-sidebar__nav">
+          <li class="lab-sidebar__section-title">Conceptos</li>
+          <li class="lab-sidebar__item active" data-section="hero">Introduccion</li>
+          <li class="lab-sidebar__item" data-section="sec-key-partitions">KEY y Particiones</li>
+          <li class="lab-sidebar__item" data-section="sec-orden">Orden por Particion</li>
+          <li class="lab-sidebar__item" data-section="sec-event-sourcing">Event Sourcing</li>
+          <li class="lab-sidebar__section-title">Simuladores</li>
+          <li class="lab-sidebar__item" data-section="sim-hash">Simulador Hash</li>
+          <li class="lab-sidebar__item" data-section="sim-ciclo">Ciclo de Vida</li>
+          <li class="lab-sidebar__item" data-section="sim-compare">Con KEY vs Sin KEY</li>
+          <li class="lab-sidebar__section-title">Practica</li>
+          <li class="lab-sidebar__item" data-section="sec-practica">Practica en Terminal</li>
+          <li class="lab-sidebar__item" data-section="sec-referencia">Comandos de Referencia</li>
+          <li class="lab-sidebar__section-title">Evaluacion</li>
+          <li class="lab-sidebar__item" data-section="sec-quiz">Quiz de Reflexion</li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="lab-main">
+
+      <!-- HERO -->
+      <section class="lab-hero lab-section" id="hero">
+        <h1 class="lab-hero__title">Ciclo de Vida de un Pedido con Kafka</h1>
+        <p class="lab-hero__desc">
+          Aprende como Event Sourcing y las KEYs de Kafka garantizan el orden de los eventos
+          de un pedido en TiendaMax.
+        </p>
+        <div class="lab-hero__goals">
+          <div class="lab-hero__goal">
+            <div class="lab-hero__goal-icon">1</div>
+            <span>Entender como la KEY determina la particion destino via murmur2 hash</span>
+          </div>
+          <div class="lab-hero__goal">
+            <div class="lab-hero__goal-icon">2</div>
+            <span>Verificar que el orden se garantiza dentro de cada particion</span>
+          </div>
+          <div class="lab-hero__goal">
+            <div class="lab-hero__goal-icon">3</div>
+            <span>Reconstruir el estado de un pedido desde la secuencia de eventos</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONCEPTO 1: KEY y Particiones -->
+      <section class="lab-section" id="sec-key-partitions">
+        <h2 class="lab-section__title">KEY y Particiones</h2>
+        <p class="lab-section__subtitle">
+          Cada mensaje en Kafka tiene una KEY opcional. Cuando produces un mensaje con KEY,
+          Kafka aplica un hash (murmur2) para determinar a cual particion va. La misma KEY
+          siempre va a la misma particion.
+        </p>
+
+        <div class="formula-box">
+          <span class="highlight">partition</span> <span class="op">=</span>
+          murmur2(<span class="highlight">KEY</span>) <span class="op">%</span>
+          <span class="highlight">numPartitions</span>
+        </div>
+
+        <div class="callout callout--info">
+          <span class="callout__icon">&#128161;</span>
+          <div>
+            <strong>Implicacion clave:</strong> Si usas el orderId como KEY, todos los eventos
+            de un mismo pedido terminan en la misma particion, garantizando su orden cronologico.
+          </div>
+        </div>
+      </section>
+
+      <!-- CONCEPTO 2: Orden por Particion -->
+      <section class="lab-section" id="sec-orden">
+        <h2 class="lab-section__title">Orden Garantizado por Particion</h2>
+        <p class="lab-section__subtitle">
+          Kafka garantiza el orden de los mensajes dentro de una particion. Los mensajes se
+          entregan en el mismo orden en que fueron escritos. Si todos los eventos de un pedido
+          van a la misma particion (gracias a la KEY), el consumidor los ve en orden cronologico.
+        </p>
+
+        <div class="flow-diagram">
+          <div class="flow-node flow-node--producer">Producer</div>
+          <span class="flow-arrow">&#10132;</span>
+          <div class="flow-node flow-node--topic">Particion N</div>
+          <span class="flow-arrow">&#10132;</span>
+          <div class="flow-node flow-node--consumer">Consumer</div>
+        </div>
+
+        <div class="callout callout--warning">
+          <span class="callout__icon">&#9888;&#65039;</span>
+          <div>
+            <strong>Atencion:</strong> El orden solo se garantiza dentro de una particion,
+            NO entre particiones diferentes. Por eso la KEY es fundamental.
+          </div>
+        </div>
+      </section>
+
+      <!-- CONCEPTO 3: Event Sourcing -->
+      <section class="lab-section" id="sec-event-sourcing">
+        <h2 class="lab-section__title">Event Sourcing Basico</h2>
+        <p class="lab-section__subtitle">
+          En lugar de almacenar solo el estado actual en una base de datos, Event Sourcing almacena
+          todos los eventos que modifican el estado. El consumidor reconstruye el estado actual
+          leyendo los eventos en orden.
+        </p>
+
+        <div class="flow-diagram">
+          <div class="flow-node" style="border-color: var(--info); color: var(--info);">CREADO</div>
+          <span class="flow-arrow">&#10132;</span>
+          <div class="flow-node" style="border-color: var(--warning); color: var(--warning);">PAGADO</div>
+          <span class="flow-arrow">&#10132;</span>
+          <div class="flow-node" style="border-color: var(--accent); color: var(--accent);">ENVIADO</div>
+          <span class="flow-arrow">&#10132;</span>
+          <div class="flow-node" style="border-color: var(--success); color: var(--success);">ENTREGADO</div>
+        </div>
+
+        <div class="callout callout--tip">
+          <span class="callout__icon">&#9989;</span>
+          <div>
+            <strong>Ventaja:</strong> Tienes el historial completo de cambios. Puedes "rebobinar"
+            el estado a cualquier punto en el tiempo y auditar que paso con cada pedido.
+          </div>
+        </div>
+      </section>
+
+      <!-- SIMULADOR A: Hash/Particiones -->
+      <section class="lab-section" id="sim-hash">
+        <h2 class="lab-section__title">Simulador de Hash y Particiones</h2>
+        <p class="lab-section__subtitle">
+          Escribe cualquier orderId y observa como murmur2 calcula el hash y determina la particion destino.
+        </p>
+
+        <div class="sim-panel">
+          <div class="sim-panel__header">
+            <span class="sim-panel__title">&#9881; Calculadora de Particiones</span>
+          </div>
+          <div class="sim-panel__body">
+            <div class="hash-input">
+              <input type="text" id="hashKeyInput" placeholder="Ej: ORD-001" value="ORD-001">
+              <button class="btn btn--primary" onclick="calcHash()">Calcular</button>
+            </div>
+            <div class="range-input" style="margin-top: 16px;">
+              <label style="font-size: 0.85rem; font-weight: 600;">Particiones:</label>
+              <input type="range" id="hashPartSlider" min="1" max="6" value="3" oninput="updatePartCount()">
+              <span class="range-input__value" id="hashPartValue">3</span>
+            </div>
+            <div class="hash-result" id="hashResult" style="display:none;"></div>
+            <div class="partitions-visual" id="hashPartitionsVisual" style="margin-top: 20px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SIMULADOR B: Ciclo de Vida TiendaMax -->
+      <section class="lab-section" id="sim-ciclo">
+        <h2 class="lab-section__title">Simulador del Ciclo de Vida TiendaMax</h2>
+        <p class="lab-section__subtitle">
+          Observa como los 3 pedidos de TiendaMax avanzan por sus transiciones de estado.
+          Cada evento se envia al topic y el consumidor reconstruye el estado actual.
+        </p>
+
+        <div class="sim-panel">
+          <div class="sim-panel__header">
+            <span class="sim-panel__title">&#128230; TiendaMax — pedidos-estados</span>
+            <div class="sim-panel__controls">
+              <button class="btn btn--primary" id="btnNextTransition" onclick="sendNextTransition()">
+                Enviar siguiente transicion
+              </button>
+              <button class="btn" onclick="resetCiclo()">Reset</button>
+            </div>
+          </div>
+          <div class="sim-panel__body">
+            <!-- Progress -->
+            <div class="sim-stats">
+              <div class="sim-stat">Transiciones enviadas: <strong id="transCount">0</strong> / <strong id="transTotal">0</strong></div>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-bar__fill" id="cicloProgress" style="width: 0%"></div>
+            </div>
+
+            <!-- Partitions -->
+            <h4 style="margin: 20px 0 8px; font-size: 0.85rem; color: var(--text-secondary);">Topic: pedidos-estados (3 particiones)</h4>
+            <div class="partitions-visual" id="cicloPartitions">
+              <div class="partition-col partition-col--p0">
+                <div class="partition-col__header">Particion 0</div>
+                <div class="partition-col__body" id="cicloP0"></div>
+              </div>
+              <div class="partition-col partition-col--p1">
+                <div class="partition-col__header">Particion 1</div>
+                <div class="partition-col__body" id="cicloP1"></div>
+              </div>
+              <div class="partition-col partition-col--p2">
+                <div class="partition-col__header">Particion 2</div>
+                <div class="partition-col__body" id="cicloP2"></div>
+              </div>
+            </div>
+
+            <!-- State Table -->
+            <h4 style="margin: 24px 0 8px; font-size: 0.85rem; color: var(--text-secondary);">Estado reconstruido (Consumer)</h4>
+            <table class="state-table" id="stateTable">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Producto</th>
+                  <th>Total</th>
+                  <th>Particion</th>
+                  <th>Estado Actual</th>
+                  <th>Eventos</th>
+                </tr>
+              </thead>
+              <tbody id="stateTableBody"></tbody>
+            </table>
+
+            <!-- Log -->
+            <h4 style="margin: 24px 0 8px; font-size: 0.85rem; color: var(--text-secondary);">Log del Producer</h4>
+            <div class="log-console" id="cicloLog"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SIMULADOR C: Con KEY vs Sin KEY -->
+      <section class="lab-section" id="sim-compare">
+        <h2 class="lab-section__title">Comparador: Con KEY vs Sin KEY</h2>
+        <p class="lab-section__subtitle">
+          Observa la diferencia entre enviar eventos con KEY (orden garantizado) y sin KEY
+          (round-robin, orden roto).
+        </p>
+
+        <div class="sim-panel">
+          <div class="sim-panel__header">
+            <span class="sim-panel__title">&#9878; Comparacion lado a lado</span>
+            <div class="sim-panel__controls">
+              <button class="btn btn--primary" onclick="runCompare()">Ejecutar comparacion</button>
+              <button class="btn" onclick="resetCompare()">Reset</button>
+            </div>
+          </div>
+          <div class="sim-panel__body">
+            <div class="compare-grid">
+              <!-- WITH KEY -->
+              <div class="compare-side compare-side--good">
+                <div class="compare-side__header">&#9989; CON KEY (orderId)</div>
+                <div class="compare-side__body">
+                  <div class="partitions-visual" id="compareWithKey" style="margin: 0;"></div>
+                  <div style="margin-top: 12px;">
+                    <strong style="font-size: 0.8rem;">Orden visto por Consumer:</strong>
+                    <div class="order-sequence" id="compareWithKeyOrder"></div>
+                  </div>
+                  <div class="compare-side__log" id="compareWithKeyLog"></div>
+                </div>
+              </div>
+              <!-- WITHOUT KEY -->
+              <div class="compare-side compare-side--bad">
+                <div class="compare-side__header">&#10060; SIN KEY (null)</div>
+                <div class="compare-side__body">
+                  <div class="partitions-visual" id="compareNoKey" style="margin: 0;"></div>
+                  <div style="margin-top: 12px;">
+                    <strong style="font-size: 0.8rem;">Orden visto por Consumer:</strong>
+                    <div class="order-sequence" id="compareNoKeyOrder"></div>
+                  </div>
+                  <div class="compare-side__log" id="compareNoKeyLog"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- QUIZ -->
+      <section class="lab-section" id="sec-quiz">
+        <h2 class="lab-section__title">Quiz de Reflexion</h2>
+        <p class="lab-section__subtitle">Pon a prueba tu comprension de los conceptos de esta leccion.</p>
+
+        <div class="quiz" id="quiz">
+          <!-- Q1 -->
+          <div class="quiz__question">
+            <div class="quiz__question-text">1. &#191;Que pasa si envias los eventos de ORD-001 sin KEY?</div>
+            <div class="quiz__options">
+              <div class="quiz__option" data-correct="false">
+                <span class="quiz__radio"></span>
+                <span>Todos van a la particion 0 por defecto</span>
+              </div>
+              <div class="quiz__option" data-correct="true">
+                <span class="quiz__radio"></span>
+                <span>Se distribuyen round-robin entre particiones, rompiendo el orden</span>
+              </div>
+              <div class="quiz__option" data-correct="false">
+                <span class="quiz__radio"></span>
+                <span>Kafka los rechaza con un error</span>
+              </div>
+              <div class="quiz__option" data-correct="false">
+                <span class="quiz__radio"></span>
+                <span>Van todos a una particion aleatoria fija</span>
+              </div>
+            </div>
+            <div class="quiz__feedback quiz__feedback--correct" style="display:none;">
+              &#9989; Correcto. Sin KEY, Kafka usa round-robin y los eventos del mismo pedido
+              pueden caer en particiones diferentes, perdiendo la garantia de orden.
+            </div>
+            <div class="quiz__feedback quiz__feedback--incorrect" style="display:none;">
+              &#10060; Incorrecto. Sin KEY, Kafka distribuye round-robin entre particiones.
+              Los eventos se dispersan y el orden se rompe.
+            </div>
+          </div>
+
+          <!-- Q2 -->
+          <div class="quiz__question">
+            <div class="quiz__question-text">2. &#191;Puede el consumer ver ENTREGADO antes que CREADO para el mismo pedido?</div>
+            <div class="quiz__options">
+              <div class="quiz__option" data-correct="false">
+                <span class="quiz__radio"></span>
+                <span>Si, Kafka no garantiza orden nunca</span>
+              </div>
+              <div class="quiz__option" data-correct="true">
+                <span class="quiz__radio"></span>
+                <span>No, si ambos usan la misma KEY van a la misma particion y se leen en orden</span>
+              </div>
+              <div class="quiz__option" data-correct="false">
+                <span class="quiz__radio"></span>
+                <span>Solo si hay mas de 3 particiones</span>
+              </div>
+            </div>
+            <div class="quiz__feedback quiz__feedback--correct" style="display:none;">
+              &#9989; Correcto. Con la misma KEY, todos los eventos van a la misma particion
+              y Kafka garantiza el orden FIFO dentro de ella.
+            </div>
+            <div class="quiz__feedback quiz__feedback--incorrect" style="display:none;">
+              &#10060; Incorrecto. Cuando usas la misma KEY, los eventos van a la misma particion
+              y se leen en el orden exacto en que fueron escritos.
+            </div>
+          </div>
+
+          <!-- Q3 -->
+          <div class="quiz__question">
+            <div class="quiz__question-text">3. Si agregas una 4a particion al topic, &#191;ORD-001 sigue en la particion 0?</div>
+            <div class="quiz__options">
+              <div class="quiz__option" data-correct="false">
+                <span class="quiz__radio"></span>
+                <span>Si, la particion asignada nunca cambia</span>
+              </div>
+              <div class="quiz__option" data-correct="true">
+                <span class="quiz__radio"></span>
+                <span>No necesariamente, porque hash % N cambia al cambiar N</span>
+              </div>
+              <div class="quiz__option" data-correct="false">
+                <span class="quiz__radio"></span>
+                <span>Si, porque murmur2 es deterministico</span>
+              </div>
+            </div>
+            <div class="quiz__feedback quiz__feedback--correct" style="display:none;">
+              &#9989; Correcto. Aunque murmur2 produce el mismo hash, el resultado de
+              hash % 4 puede ser diferente de hash % 3. Por eso cambiar el numero de
+              particiones puede reasignar las KEYs.
+            </div>
+            <div class="quiz__feedback quiz__feedback--incorrect" style="display:none;">
+              &#10060; Incorrecto. La formula es hash % numPartitions. Si cambias numPartitions,
+              el resultado del modulo puede cambiar aunque el hash sea el mismo.
+            </div>
+          </div>
+
+          <!-- Q4 -->
+          <div class="quiz__question">
+            <div class="quiz__question-text">4. &#191;Cual es la principal ventaja de reconstruir el estado desde eventos?</div>
+            <div class="quiz__options">
+              <div class="quiz__option" data-correct="false">
+                <span class="quiz__radio"></span>
+                <span>Es mas rapido que una base de datos relacional</span>
+              </div>
+              <div class="quiz__option" data-correct="false">
+                <span class="quiz__radio"></span>
+                <span>Usa menos espacio en disco</span>
+              </div>
+              <div class="quiz__option" data-correct="true">
+                <span class="quiz__radio"></span>
+                <span>Tienes el historial completo y puedes rebobinar a cualquier punto en el tiempo</span>
+              </div>
+              <div class="quiz__option" data-correct="false">
+                <span class="quiz__radio"></span>
+                <span>No necesitas un consumer group</span>
+              </div>
+            </div>
+            <div class="quiz__feedback quiz__feedback--correct" style="display:none;">
+              &#9989; Correcto. Event Sourcing conserva todo el historial de cambios,
+              permitiendo auditar, rebobinar y reproducir la secuencia completa de eventos.
+            </div>
+            <div class="quiz__feedback quiz__feedback--incorrect" style="display:none;">
+              &#10060; Incorrecto. La ventaja principal de Event Sourcing es el historial
+              completo: puedes reconstruir el estado a cualquier punto y auditar cada cambio.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PRACTICA EN TERMINAL -->
+      <section class="lab-section" id="sec-practica">
+        <h2 class="lab-section__title">Practica en Terminal</h2>
+        <p class="lab-section__subtitle">
+          Ahora que entiendes los conceptos con los simuladores, ejecuta la practica real con Kafka y Java.
+          Necesitas 2 terminales abiertas en la carpeta <code>kafka-week/tiendamax/</code>.
+        </p>
+
+        <div class="card">
+          <div class="card__title">Prerrequisitos</div>
+          <table class="state-table">
+            <thead><tr><th>Requisito</th><th>Verificacion</th></tr></thead>
+            <tbody>
+              <tr><td>Kafka corriendo en Docker</td><td><code>docker ps</code> muestra el contenedor <code>kafka</code></td></tr>
+              <tr><td>Puerto 9092 accesible</td><td>El contenedor expone <code>0.0.0.0:9092</code></td></tr>
+              <tr><td>Java 17+ instalado</td><td><code>java -version</code></td></tr>
+              <tr><td>Maven instalado</td><td><code>mvn -version</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout--info">
+          <span class="callout__icon">&#128196;</span>
+          <div>
+            <strong>Archivos de codigo:</strong>
+            <code>PedidoEstadoProducer.java</code> (producer del ciclo de vida) y
+            <code>PedidoEstadoConsumer.java</code> (consumer que reconstruye estado).
+            Ambos en <code>tiendamax/src/main/java/com/tiendamax/</code>.
+          </div>
+        </div>
+
+        <h3 style="font-size:1rem;font-weight:700;margin:24px 0 12px;">Paso 1 — Crear el topic</h3>
+        <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:8px;">
+          El topic <code>pedidos-estados</code> tiene 3 particiones (una por cada pedido del ejemplo).
+        </p>
+        <div class="code-block">
+          <span class="code-block__label">Terminal</span>
+          <code>docker exec -it kafka bash
+
+/opt/kafka/bin/kafka-topics.sh \
+  --create \
+  --topic pedidos-estados \
+  --partitions 3 \
+  --replication-factor 1 \
+  --bootstrap-server localhost:9092
+
+# Verificar que se creo:
+/opt/kafka/bin/kafka-topics.sh \
+  --describe \
+  --topic pedidos-estados \
+  --bootstrap-server localhost:9092
+
+exit</code>
+        </div>
+
+        <div class="callout callout--tip">
+          <span class="callout__icon">&#9989;</span>
+          <div>Deberias ver: <code>Topic: pedidos-estados  PartitionCount: 3  ReplicationFactor: 1</code> con 3 particiones listadas.</div>
+        </div>
+
+        <h3 style="font-size:1rem;font-weight:700;margin:24px 0 12px;">Paso 2 — Compilar</h3>
+        <div class="code-block">
+          <span class="code-block__label">Terminal</span>
+          <code>mvn compile -q</code>
+        </div>
+
+        <h3 style="font-size:1rem;font-weight:700;margin:24px 0 12px;">Paso 3 — Lanzar el Consumer (Terminal A)</h3>
+        <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:8px;">
+          Lanza el consumer <strong>antes</strong> que el producer para observar los mensajes llegar en tiempo real.
+        </p>
+        <div class="code-block">
+          <span class="code-block__label">Terminal A</span>
+          <code>mvn exec:java "-Dexec.mainClass=com.tiendamax.PedidoEstadoConsumer"</code>
+        </div>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:8px;">
+          Salida esperada:
+        </p>
+        <div class="code-block">
+          <span class="code-block__label">Salida</span>
+          <code>Escuchando [pedidos-estados] como grupo [grupo-ciclovida]
+Reconstruyendo estado desde eventos...</code>
+        </div>
+
+        <h3 style="font-size:1rem;font-weight:700;margin:24px 0 12px;">Paso 4 — Lanzar el Producer (Terminal B)</h3>
+        <div class="code-block">
+          <span class="code-block__label">Terminal B</span>
+          <code>mvn exec:java "-Dexec.mainClass=com.tiendamax.PedidoEstadoProducer"</code>
+        </div>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:8px;">
+          Salida esperada del producer:
+        </p>
+        <div class="code-block">
+          <span class="code-block__label">Salida Producer</span>
+          <code>Emitiendo ciclo de vida para 3 pedidos...
+KEY = orderId -> todos los eventos de un pedido van a la MISMA particion
+
+-- Transicion: CREADO --
+  OK ORD-001  CREADO       -> P0  offset=0
+  OK ORD-002  CREADO       -> P1  offset=0
+  OK ORD-003  CREADO       -> P2  offset=0
+
+-- Transicion: PAGADO --
+  OK ORD-001  PAGADO       -> P0  offset=1
+  OK ORD-002  PAGADO       -> P1  offset=1
+  OK ORD-003  PAGADO       -> P2  offset=1</code>
+        </div>
+
+        <div class="callout callout--warning">
+          <span class="callout__icon">&#128270;</span>
+          <div>
+            <strong>Que observar:</strong>
+            ORD-001 siempre aparece en P0, ORD-002 en P1. El offset aumenta dentro de cada particion — eso es el orden cronologico en Kafka. Compara esto con lo que viste en el simulador de arriba.
+          </div>
+        </div>
+
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:16px;">
+          Salida esperada del consumer (Terminal A):
+        </p>
+        <div class="code-block">
+          <span class="code-block__label">Salida Consumer</span>
+          <code>-- Poll: 3 eventos recibidos --
+  P0 offset=0   ORD-001  NINGUNO    -> CREADO
+  P1 offset=0   ORD-002  NINGUNO    -> CREADO
+  P2 offset=0   ORD-003  NINGUNO    -> CREADO
+
+  Estado actual reconstruido desde eventos:
+    ORD-001  CREADO       (fijo en P0)
+    ORD-002  CREADO       (fijo en P1)
+    ORD-003  CREADO       (fijo en P2)</code>
+        </div>
+
+        <div class="callout callout--tip">
+          <span class="callout__icon">&#128161;</span>
+          <div>
+            La seccion "Estado actual reconstruido" es la <strong>proyeccion</strong>: el resumen del estado mas reciente de cada pedido, construido solo a partir de los eventos del topic. Es lo mismo que la tabla "Estado reconstruido" del simulador.
+          </div>
+        </div>
+      </section>
+
+      <!-- REFERENCIA RAPIDA -->
+      <section class="lab-section" id="sec-referencia">
+        <h2 class="lab-section__title">Comandos de Referencia Rapida</h2>
+        <table class="state-table">
+          <thead><tr><th>Accion</th><th>Comando</th></tr></thead>
+          <tbody>
+            <tr><td>Crear topic</td><td><code>docker exec kafka /opt/kafka/bin/kafka-topics.sh --create --topic pedidos-estados --partitions 3 --replication-factor 1 --bootstrap-server localhost:9092</code></td></tr>
+            <tr><td>Ver detalle del topic</td><td><code>docker exec kafka /opt/kafka/bin/kafka-topics.sh --describe --topic pedidos-estados --bootstrap-server localhost:9092</code></td></tr>
+            <tr><td>Compilar</td><td><code>mvn compile -q</code></td></tr>
+            <tr><td>Ejecutar producer</td><td><code>mvn exec:java "-Dexec.mainClass=com.tiendamax.PedidoEstadoProducer"</code></td></tr>
+            <tr><td>Ejecutar consumer</td><td><code>mvn exec:java "-Dexec.mainClass=com.tiendamax.PedidoEstadoConsumer"</code></td></tr>
+            <tr><td>Ver mensajes raw</td><td><code>docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh --topic pedidos-estados --from-beginning --bootstrap-server localhost:9092</code></td></tr>
+            <tr><td>Eliminar topic (reset)</td><td><code>docker exec kafka /opt/kafka/bin/kafka-topics.sh --delete --topic pedidos-estados --bootstrap-server localhost:9092</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- FOOTER -->
+      <footer class="lab-footer">
+        <a href="lab-00-intro-kafka.html">&larr; Lab 00: Introduccion a Kafka</a>
+        <span style="margin:0 12px;">|</span>
+        <a href="lab-02-dead-letter.html">Lab 02: Dead Letter Topic &rarr;</a>
+      </footer>
+
+    </main>
+  </div>
+
+  <script src="js/kafka-sim.js"></script>
+  <script src="js/lab-ui.js"></script>
+  <script>
+  /* =======================================
+     Lab 01 — Event Sourcing
+     ======================================= */
+
+  // ---- Simulador A: Hash/Particiones ----
+
+  function updatePartCount() {
+    document.getElementById('hashPartValue').textContent =
+      document.getElementById('hashPartSlider').value;
+    // Recalc if there's a value
+    const input = document.getElementById('hashKeyInput');
+    if (input.value.trim()) calcHash();
+  }
+
+  function calcHash() {
+    const key = document.getElementById('hashKeyInput').value.trim();
+    if (!key) return;
+    const numP = parseInt(document.getElementById('hashPartSlider').value);
+    const hash = KafkaSim.murmur2(key);
+    const partition = hash % numP;
+
+    // Result text
+    const resultEl = document.getElementById('hashResult');
+    resultEl.style.display = 'block';
+    resultEl.innerHTML =
+      `KEY: <strong>"${key}"</strong><br>` +
+      `murmur2 hash: <strong>${hash}</strong><br>` +
+      `${hash} % ${numP} = <strong>${partition}</strong> ` +
+      `<span class="partition-highlight" style="background:${LabUI.getPartitionColor(partition)};">` +
+      `Particion ${partition}</span>`;
+
+    // Visual partitions
+    const container = document.getElementById('hashPartitionsVisual');
+    container.innerHTML = '';
+    for (let i = 0; i < numP; i++) {
+      const col = document.createElement('div');
+      const pClass = i <= 3 ? `partition-col--p${i}` : '';
+      col.className = `partition-col ${pClass} ${i === partition ? 'partition-col--highlight' : ''}`;
+      if (i > 3) col.style.borderColor = LabUI.getPartitionColor(i);
+      col.innerHTML =
+        `<div class="partition-col__header" style="background:${LabUI.getPartitionColor(i)};">Particion ${i}</div>` +
+        `<div class="partition-col__body" style="min-height:40px; display:flex; align-items:center; justify-content:center;">` +
+        (i === partition
+          ? `<div class="partition-msg fade-in" style="width:100%;">` +
+            `<span style="color:var(--accent);font-weight:700;">${key}</span>` +
+            `<span class="partition-msg__offset">offset 0</span></div>`
+          : `<span style="font-size:0.75rem;color:var(--text-tertiary);">—</span>`) +
+        `</div>`;
+      container.appendChild(col);
+    }
+  }
+
+  // ---- Simulador B: Ciclo de Vida ----
+
+  const PEDIDOS = [
+    { orderId: 'ORD-001', producto: 'Laptop Pro', total: 1299, maxStates: 4 },
+    { orderId: 'ORD-002', producto: 'Teclado Mec', total: 89, maxStates: 3 },
+    { orderId: 'ORD-003', producto: 'Monitor 27"', total: 399, maxStates: 2 }
+  ];
+
+  let cicloTopic;
+  let cicloLogger;
+  let transitionQueue = [];
+  let transIdx = 0;
+  let pedidoStates = {};
+
+  function buildTransitionQueue() {
+    // Build interleaved transitions: round by round
+    const queues = PEDIDOS.map(p => {
+      const states = KafkaSim.ESTADOS.slice(0, p.maxStates);
+      return states.map(s => ({ orderId: p.orderId, producto: p.producto, total: p.total, estado: s }));
+    });
+    const result = [];
+    const maxLen = Math.max(...queues.map(q => q.length));
+    for (let round = 0; round < maxLen; round++) {
+      for (const q of queues) {
+        if (round < q.length) result.push(q[round]);
+      }
+    }
+    return result;
+  }
+
+  function initCiclo() {
+    cicloTopic = new KafkaSim.Topic('pedidos-estados', 3);
+    cicloLogger = LabUI.createLogger('cicloLog');
+    transitionQueue = buildTransitionQueue();
+    transIdx = 0;
+    pedidoStates = {};
+    PEDIDOS.forEach(p => {
+      pedidoStates[p.orderId] = { orderId: p.orderId, producto: p.producto, total: p.total, estado: null, eventos: 0, partition: KafkaSim.getPartition(p.orderId, 3) };
+    });
+    document.getElementById('transTotal').textContent = transitionQueue.length;
+    document.getElementById('transCount').textContent = '0';
+    document.getElementById('cicloProgress').style.width = '0%';
+    document.getElementById('btnNextTransition').disabled = false;
+    ['cicloP0','cicloP1','cicloP2'].forEach(id => document.getElementById(id).innerHTML = '');
+    cicloLogger.clear();
+    renderStateTable();
+  }
+
+  function sendNextTransition() {
+    if (transIdx >= transitionQueue.length) return;
+
+    const t = transitionQueue[transIdx];
+    const value = JSON.stringify({ order_id: t.orderId, estado: t.estado, producto: t.producto, total: t.total });
+    const record = cicloTopic.send(t.orderId, value);
+
+    // Update partition visual
+    const pBody = document.getElementById(`cicloP${record.partition}`);
+    const msgEl = document.createElement('div');
+    msgEl.className = 'partition-msg';
+    msgEl.innerHTML =
+      `<span>${t.orderId} <span>${LabUI.estadoBadge(t.estado)}</span></span>` +
+      `<span class="partition-msg__offset">offset ${record.offset}</span>`;
+    pBody.appendChild(msgEl);
+
+    // Flash partition
+    const cols = document.querySelectorAll('#cicloPartitions .partition-col');
+    cols.forEach(c => c.classList.remove('partition-col--highlight'));
+    cols[record.partition].classList.add('partition-col--highlight');
+    setTimeout(() => cols[record.partition].classList.remove('partition-col--highlight'), 800);
+
+    // Update state
+    pedidoStates[t.orderId].estado = t.estado;
+    pedidoStates[t.orderId].eventos++;
+    renderStateTable();
+
+    // Log
+    cicloLogger.log(
+      `[Producer] KEY=${t.orderId} | partition=${record.partition} | offset=${record.offset} | estado=${t.estado}`,
+      t.estado === 'ENTREGADO' ? 'ok' : 'info'
+    );
+
+    transIdx++;
+    document.getElementById('transCount').textContent = transIdx;
+    document.getElementById('cicloProgress').style.width = ((transIdx / transitionQueue.length) * 100) + '%';
+
+    if (transIdx >= transitionQueue.length) {
+      document.getElementById('btnNextTransition').disabled = true;
+      cicloLogger.log('--- Todas las transiciones completadas ---', 'ok');
+    }
+  }
+
+  function renderStateTable() {
+    const tbody = document.getElementById('stateTableBody');
+    tbody.innerHTML = '';
+    PEDIDOS.forEach(p => {
+      const s = pedidoStates[p.orderId];
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td>${s.orderId}</td>` +
+        `<td>${s.producto}</td>` +
+        `<td>$${s.total}</td>` +
+        `<td><span style="color:${LabUI.getPartitionColor(s.partition)};font-weight:700;">P${s.partition}</span></td>` +
+        `<td>${LabUI.estadoBadge(s.estado)}</td>` +
+        `<td>${s.eventos}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function resetCiclo() {
+    initCiclo();
+  }
+
+  // ---- Simulador C: Con KEY vs Sin KEY ----
+
+  function buildComparePartitions(containerId, numP) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    for (let i = 0; i < numP; i++) {
+      const col = document.createElement('div');
+      const pClass = i <= 3 ? `partition-col--p${i}` : '';
+      col.className = `partition-col ${pClass}`;
+      col.innerHTML =
+        `<div class="partition-col__header" style="background:${LabUI.getPartitionColor(i)};">P${i}</div>` +
+        `<div class="partition-col__body" id="${containerId}_p${i}"></div>`;
+      container.appendChild(col);
+    }
+  }
+
+  async function runCompare() {
+    const numP = 3;
+    const orderId = 'ORD-001';
+    const estados = KafkaSim.ESTADOS; // 4 states
+
+    // Reset
+    buildComparePartitions('compareWithKey', numP);
+    buildComparePartitions('compareNoKey', numP);
+    document.getElementById('compareWithKeyOrder').innerHTML = '';
+    document.getElementById('compareNoKeyOrder').innerHTML = '';
+    const withKeyLog = document.getElementById('compareWithKeyLog');
+    const noKeyLog = document.getElementById('compareNoKeyLog');
+    withKeyLog.innerHTML = '';
+    noKeyLog.innerHTML = '';
+
+    const withKeyTopic = new KafkaSim.Topic('with-key', numP);
+    const noKeyTopic = new KafkaSim.Topic('no-key', numP);
+
+    for (let i = 0; i < estados.length; i++) {
+      const estado = estados[i];
+      await KafkaSim.delay(500);
+
+      // WITH KEY
+      const recWith = withKeyTopic.send(orderId, JSON.stringify({ order_id: orderId, estado }));
+      const pBodyWith = document.getElementById(`compareWithKey_p${recWith.partition}`);
+      const msgWith = document.createElement('div');
+      msgWith.className = 'partition-msg';
+      msgWith.innerHTML =
+        `<span>${LabUI.estadoBadge(estado)}</span>` +
+        `<span class="partition-msg__offset">off ${recWith.offset}</span>`;
+      pBodyWith.appendChild(msgWith);
+
+      const withLine = document.createElement('div');
+      withLine.className = 'log-line log-line--ok';
+      withLine.textContent = `KEY=${orderId} → P${recWith.partition} offset=${recWith.offset} ${estado}`;
+      withKeyLog.appendChild(withLine);
+      withKeyLog.scrollTop = withKeyLog.scrollHeight;
+
+      const orderWithEl = document.getElementById('compareWithKeyOrder');
+      orderWithEl.innerHTML += LabUI.estadoBadge(estado) + ' ';
+
+      // WITHOUT KEY
+      const recNo = noKeyTopic.send(null, JSON.stringify({ order_id: orderId, estado }));
+      const pBodyNo = document.getElementById(`compareNoKey_p${recNo.partition}`);
+      const msgNo = document.createElement('div');
+      msgNo.className = 'partition-msg';
+      msgNo.innerHTML =
+        `<span>${LabUI.estadoBadge(estado)}</span>` +
+        `<span class="partition-msg__offset">off ${recNo.offset}</span>`;
+      pBodyNo.appendChild(msgNo);
+
+      const noLine = document.createElement('div');
+      noLine.className = 'log-line log-line--error';
+      noLine.textContent = `KEY=null → P${recNo.partition} offset=${recNo.offset} ${estado}`;
+      noKeyLog.appendChild(noLine);
+      noKeyLog.scrollTop = noKeyLog.scrollHeight;
+
+      const orderNoEl = document.getElementById('compareNoKeyOrder');
+      orderNoEl.innerHTML += LabUI.estadoBadge(estado) + ' ';
+    }
+
+    // Final verdict
+    const allSamePartition = withKeyTopic.partitions.some(p => p.length === estados.length);
+    const noKeySamePartition = noKeyTopic.partitions.some(p => p.length === estados.length);
+
+    const verdictWith = document.createElement('div');
+    verdictWith.className = 'log-line log-line--ok';
+    verdictWith.textContent = allSamePartition
+      ? '✓ Todos los eventos en la misma particion. Orden garantizado.'
+      : '✓ Eventos distribuidos con KEY.';
+    withKeyLog.appendChild(verdictWith);
+
+    const verdictNo = document.createElement('div');
+    verdictNo.className = 'log-line log-line--error';
+    verdictNo.textContent = noKeySamePartition
+      ? '! Por suerte cayeron en la misma particion, pero NO esta garantizado.'
+      : '✗ Eventos dispersos en diferentes particiones. ORDEN ROTO.';
+    noKeyLog.appendChild(verdictNo);
+  }
+
+  function resetCompare() {
+    ['compareWithKey','compareNoKey'].forEach(id => document.getElementById(id).innerHTML = '');
+    ['compareWithKeyOrder','compareNoKeyOrder'].forEach(id => document.getElementById(id).innerHTML = '');
+    ['compareWithKeyLog','compareNoKeyLog'].forEach(id => document.getElementById(id).innerHTML = '');
+  }
+
+  // ---- Init ----
+
+  document.addEventListener('DOMContentLoaded', () => {
+    LabUI.init();
+    LabUI.initQuiz('quiz');
+    initCiclo();
+    calcHash(); // Initial calc
+  });
+  </script>
+</body>
+</html>

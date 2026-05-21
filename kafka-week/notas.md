@@ -48,6 +48,8 @@ docker-compose logs kafka | findstr "Kafka Server started"
 
 ```bash
 docker exec -it kafka bash
+
+ls /opt/kafka/bin/
 ```
 
 ---

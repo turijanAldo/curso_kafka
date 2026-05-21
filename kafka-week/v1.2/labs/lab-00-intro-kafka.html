@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab 00 — Introduccion a Apache Kafka</title>
+  <link rel="stylesheet" href="css/lab-theme.css">
+  <style>
+    /* Lab-specific styles */
+    .arch-diagram {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+      margin: 24px 0;
+      position: relative;
+    }
+
+    .arch-container {
+      border: 2px solid var(--accent-border);
+      border-radius: var(--radius-xl);
+      padding: 28px;
+      background: var(--accent-bg);
+      position: relative;
+    }
+
+    .arch-container__label {
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      background: var(--accent);
+      color: white;
+      padding: 3px 14px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .arch-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 600px) {
+      .arch-inner {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .arch-box {
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      background: var(--bg-secondary);
+      cursor: pointer;
+      transition: all var(--transition);
+      position: relative;
+    }
+
+    .arch-box:hover {
+      border-color: var(--accent);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    .arch-box__icon {
+      font-size: 1.5rem;
+      margin-bottom: 6px;
+    }
+
+    .arch-box__title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+
+    .arch-box__desc {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .arch-box__tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-code);
+      color: #e2e8f0;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      width: 240px;
+      z-index: 10;
+      box-shadow: var(--shadow-lg);
+      line-height: 1.5;
+    }
+
+    .arch-box:hover .arch-box__tooltip {
+      display: block;
+    }
+
+    .arch-ports {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .arch-port {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .arch-port__dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .arch-port__dot--internal {
+      background: var(--warning);
+    }
+
+    /* Versus diagram */
+    .vs-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 16px;
+      align-items: center;
+      margin: 20px 0;
+    }
+
+    @media (max-width: 600px) {
+      .vs-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .vs-side {
+      border: 2px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      background: var(--bg-secondary);
+      text-align: center;
+    }
+
+    .vs-side--old {
+      border-color: var(--error-border);
+    }
+
+    .vs-side--new {
+      border-color: var(--success-border);
+    }
+
+    .vs-side__title {
+      font-weight: 800;
+      font-size: 1rem;
+      margin-bottom: 8px;
+    }
+
+    .vs-side__items {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 2;
+      text-align: left;
+    }
+
+    .vs-badge {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--text-tertiary);
+    }
+
+    /* Sim input */
+    .sim-input-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .sim-input-row input[type="text"] {
+      flex: 1;
+      min-width: 180px;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      transition: border-color var(--transition);
+    }
+
+    .sim-input-row input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .sim-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .sim-toggle input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 16px;
+      height: 16px;
+    }
+
+    .sim-stats {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin: 10px 0;
+    }
+
+    .sim-stat {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .sim-stat strong {
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Offset visualizer */
+    .offset-vis {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+      align-items: center;
+    }
+
+    .offset-cell {
+      width: 52px;
+      height: 44px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      transition: all 0.3s ease;
+      background: var(--bg-secondary);
+    }
+
+    .offset-cell__num {
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 0.65rem;
+    }
+
+    .offset-cell__val {
+      font-size: 0.6rem;
+      color: var(--text-secondary);
+      max-width: 48px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .offset-cell--read {
+      background: var(--success-bg);
+      border-color: var(--success);
+    }
+
+    .offset-cell--current {
+      background: var(--accent-bg);
+      border-color: var(--accent);
+      transform: scale(1.1);
+      box-shadow: 0 0 0 3px var(--accent-border);
+    }
+
+    .offset-cell--unread {
+      opacity: 0.5;
+    }
+
+    .offset-controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin: 12px 0;
+    }
+
+    .offset-controls label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    /* Step card */
+    .step-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .step-card__num {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .step-card__body {
+      flex: 1;
+    }
+
+    .step-card__title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+
+    .step-card__desc {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .step-card__expected {
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+
+    /* Analogy banner */
+    .analogy-banner {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 24px;
+      background: linear-gradient(135deg, var(--accent-bg), var(--bg-secondary));
+      border: 1px solid var(--accent-border);
+      border-radius: var(--radius-lg);
+      margin: 20px 0;
+    }
+
+    .analogy-banner__icon {
+      font-size: 2.5rem;
+      flex-shrink: 0;
+    }
+
+    .analogy-banner__text {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .analogy-banner__text strong {
+      color: var(--text-primary);
+    }
+
+    /* Reference table enhancements */
+    .ref-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.82rem;
+      margin: 16px 0;
+    }
+
+    .ref-table th {
+      text-align: left;
+      padding: 10px 14px;
+      background: var(--bg-tertiary);
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ref-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .ref-table td code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      background: var(--bg-code);
+      color: #e2e8f0;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .ref-table tr:hover {
+      background: var(--bg-tertiary);
+    }
+
+    /* Troubleshooting */
+    .trouble-item {
+      margin-bottom: 12px;
+      padding: 14px 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-secondary);
+    }
+
+    .trouble-item__problem {
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: var(--error);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .trouble-item__solution {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    /* Consumer log */
+    .consumer-output {
+      background: var(--success-bg);
+      border: 1px solid var(--success-border);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      margin-top: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      max-height: 160px;
+      overflow-y: auto;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="lab-layout">
+
+    <!-- Header -->
+    <header class="lab-header">
+      <div class="lab-header__left">
+        <button class="menu-toggle" aria-label="Menu">&#9776;</button>
+        <a class="lab-header__logo" href="#">Kafka Labs</a>
+        <div class="lab-header__breadcrumb">
+          <span class="sep">/</span>
+          <span>Introduccion</span>
+        </div>
+      </div>
+      <div class="lab-header__right">
+        <span class="lab-header__level">Principiante</span>
+        <button class="theme-toggle" onclick="LabUI.toggleTheme()">&#127769;</button>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="lab-sidebar">
+      <div class="lab-sidebar__section-title">Conceptos</div>
+      <nav class="lab-sidebar__nav">
+        <a class="lab-sidebar__item active" data-section="que-es">Que es Kafka</a>
+        <a class="lab-sidebar__item" data-section="kraft">KRaft vs ZooKeeper</a>
+        <a class="lab-sidebar__item" data-section="arquitectura">Arquitectura Docker</a>
+        <a class="lab-sidebar__item" data-section="topics">Topics y Particiones</a>
+        <a class="lab-sidebar__item" data-section="offsets">Offsets</a>
+        <a class="lab-sidebar__item" data-section="replication">Replication Factor</a>
+        <a class="lab-sidebar__item" data-section="flujo">Flujo Completo</a>
+        <a class="lab-sidebar__item" data-section="persistencia">Persistencia</a>
+      </nav>
+      <div class="lab-sidebar__section-title">Interactivo</div>
+      <nav class="lab-sidebar__nav">
+        <a class="lab-sidebar__item" data-section="sim-producer">Simulador Producer</a>
+        <a class="lab-sidebar__item" data-section="sim-offsets">Visualizador Offsets</a>
+      </nav>
+      <div class="lab-sidebar__section-title">Practica</div>
+      <nav class="lab-sidebar__nav">
+        <a class="lab-sidebar__item" data-section="practica">Practica Terminal</a>
+        <a class="lab-sidebar__item" data-section="referencia">Referencia Comandos</a>
+        <a class="lab-sidebar__item" data-section="troubleshooting">Troubleshooting</a>
+        <a class="lab-sidebar__item" data-section="quiz">Quiz</a>
+      </nav>
+    </aside>
+
+    <div class="sidebar-overlay"></div>
+
+    <!-- Main -->
+    <main class="lab-main">
+
+      <!-- Hero -->
+      <section class="lab-hero">
+        <h1 class="lab-hero__title">Introduccion a Apache Kafka</h1>
+        <p class="lab-hero__desc">
+          Aprende los fundamentos de la plataforma de streaming de eventos mas utilizada del mundo.
+          Al terminar este lab, entenderas la arquitectura, los conceptos clave y tendras un cluster Kafka corriendo en
+          Docker.
+        </p>
+        <div class="lab-hero__goals">
+          <div class="lab-hero__goal">
+            <div class="lab-hero__goal-icon">1</div>
+            <span>Entender que es Kafka y por que existe</span>
+          </div>
+          <div class="lab-hero__goal">
+            <div class="lab-hero__goal-icon">2</div>
+            <span>Conocer topics, particiones y offsets</span>
+          </div>
+          <div class="lab-hero__goal">
+            <div class="lab-hero__goal-icon">3</div>
+            <span>Levantar un cluster local con Docker</span>
+          </div>
+          <div class="lab-hero__goal">
+            <div class="lab-hero__goal-icon">4</div>
+            <span>Producir y consumir tus primeros mensajes</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 1. Que es Kafka -->
+      <section class="lab-section" id="que-es">
+        <h2 class="lab-section__title">Que es Apache Kafka</h2>
+        <p class="lab-section__subtitle">
+          Apache Kafka es una plataforma distribuida de streaming de eventos.
+          Permite publicar, almacenar y procesar flujos de datos en tiempo real.
+        </p>
+
+        <div class="analogy-banner">
+          <div class="analogy-banner__icon">&#9881;</div>
+          <div class="analogy-banner__text">
+            <strong>Analogia: la cinta transportadora de una fabrica.</strong><br>
+            Los productos (mensajes) se colocan en la cinta (topic). Multiples estaciones (consumers)
+            pueden leer los productos sin quitarlos de la cinta. Cada estacion lee a su propio ritmo.
+          </div>
+        </div>
+
+        <div class="card card--accent">
+          <div class="card__title">Kafka vs Colas Tradicionales (RabbitMQ, IBM MQ)</div>
+          <p style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:12px;">
+            En una cola tradicional, cuando un consumer lee un mensaje, este <strong>se borra</strong>.
+            En Kafka, los mensajes <strong>permanecen en disco</strong> despues de ser consumidos.
+          </p>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="callout callout--error" style="margin:0;">
+              <span class="callout__icon">&#10060;</span>
+              <div><strong>Cola tradicional:</strong> consume &rarr; mensaje eliminado. Un solo consumer por mensaje.
+              </div>
+            </div>
+            <div class="callout callout--tip" style="margin:0;">
+              <span class="callout__icon">&#9989;</span>
+              <div><strong>Kafka:</strong> consume &rarr; mensaje permanece. Replay, multiples consumers, auditoria.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__title">Casos de uso</div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px;">
+            <div
+              style="padding:10px; background:var(--bg-tertiary); border-radius:var(--radius-sm); font-size:0.82rem;">
+              <strong>Pagos</strong> &mdash; Procesar transacciones en tiempo real
+            </div>
+            <div
+              style="padding:10px; background:var(--bg-tertiary); border-radius:var(--radius-sm); font-size:0.82rem;">
+              <strong>E-commerce</strong> &mdash; Seguimiento de pedidos y eventos
+            </div>
+            <div
+              style="padding:10px; background:var(--bg-tertiary); border-radius:var(--radius-sm); font-size:0.82rem;">
+              <strong>Monitoreo</strong> &mdash; Metricas y logs centralizados
+            </div>
+            <div
+              style="padding:10px; background:var(--bg-tertiary); border-radius:var(--radius-sm); font-size:0.82rem;">
+              <strong>Redes sociales</strong> &mdash; Feeds y notificaciones
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. KRaft vs ZooKeeper -->
+      <section class="lab-section" id="kraft">
+        <h2 class="lab-section__title">KRaft vs ZooKeeper</h2>
+        <p class="lab-section__subtitle">
+          Antes, Kafka necesitaba ZooKeeper para coordinar metadata del cluster.
+          Desde Kafka 4.x, KRaft elimina esa dependencia &mdash; Kafka se coordina solo.
+        </p>
+
+        <div class="vs-grid">
+          <div class="vs-side vs-side--old">
+            <div class="vs-side__title" style="color:var(--error);">Antes (ZooKeeper)</div>
+            <div class="vs-side__items">
+              &#10060; Dos sistemas separados<br>
+              &#10060; Configuracion compleja<br>
+              &#10060; Limite de ~200K particiones<br>
+              &#10060; Recuperacion lenta<br>
+              &#10060; Requiere monitorear 2 clusters
+            </div>
+          </div>
+          <div class="vs-badge">&#8594;</div>
+          <div class="vs-side vs-side--new">
+            <div class="vs-side__title" style="color:var(--success);">Ahora (KRaft)</div>
+            <div class="vs-side__items">
+              &#9989; Un solo sistema<br>
+              &#9989; Operacion simple<br>
+              &#9989; Millones de particiones<br>
+              &#9989; Recuperacion rapida (Raft)<br>
+              &#9989; Inicio mas rapido
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout--info">
+          <span class="callout__icon">&#128161;</span>
+          <div>
+            <strong>KRaft</strong> usa el protocolo Raft para elegir un controller lider entre los nodos.
+            En nuestro entorno local, un solo nodo actua como broker <em>y</em> controller al mismo tiempo.
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Arquitectura Docker -->
+      <section class="lab-section" id="arquitectura">
+        <h2 class="lab-section__title">Arquitectura del Entorno Docker</h2>
+        <p class="lab-section__subtitle">
+          Nuestro entorno de desarrollo usa Docker Compose con un nodo Kafka combinado (broker + controller).
+          Pasa el mouse sobre cada componente para ver mas detalles.
+        </p>
+
+        <div class="arch-diagram">
+          <div class="arch-container">
+            <span class="arch-container__label">docker-compose.yml</span>
+            <div class="arch-inner">
+              <div class="arch-box">
+                <div class="arch-box__tooltip">
+                  El broker recibe mensajes de los producers, los almacena en particiones y los entrega a los consumers.
+                  Escucha en el puerto 9092.
+                </div>
+                <div class="arch-box__icon">&#128230;</div>
+                <div class="arch-box__title">Broker</div>
+                <div class="arch-box__desc">Recibe, almacena y entrega mensajes. Puerto 9092.</div>
+              </div>
+              <div class="arch-box">
+                <div class="arch-box__tooltip">
+                  El controller gestiona metadata del cluster: que topics existen, donde estan las particiones,
+                  quien es lider. Usa el protocolo Raft internamente por el puerto 9093.
+                </div>
+                <div class="arch-box__icon">&#128737;</div>
+                <div class="arch-box__title">Controller (KRaft)</div>
+                <div class="arch-box__desc">Coordina metadata del cluster. Puerto interno 9093.</div>
+              </div>
+            </div>
+            <div class="arch-ports">
+              <div class="arch-port">
+                <span class="arch-port__dot"></span>
+                9092 &mdash; Producers / Consumers
+              </div>
+              <div class="arch-port">
+                <span class="arch-port__dot arch-port__dot--internal"></span>
+                9093 &mdash; Controller (interno)
+              </div>
+            </div>
+            <div style="margin-top:16px;">
+              <div class="arch-box" style="max-width:300px;">
+                <div class="arch-box__tooltip">
+                  El volumen Docker persiste los datos de Kafka en disco.
+                  Si haces docker compose down sin -v, los datos sobreviven.
+                  Con -v se borra todo.
+                </div>
+                <div class="arch-box__icon">&#128451;</div>
+                <div class="arch-box__title">Volumen (kafka-data)</div>
+                <div class="arch-box__desc">Persistencia de datos en disco.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="code-block">
+          <span class="code-block__label">docker-compose.yml (simplificado)</span>
+          <code>services:
+  kafka:
+    image: apache/kafka:4.0.0
+    ports:
+      - "9092:9092"    # Clientes (producer/consumer)
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+    volumes:
+      - kafka-data:/var/lib/kafka/data</code>
+        </div>
+      </section>
+
+      <!-- 4. Topics y Particiones -->
+      <section class="lab-section" id="topics">
+        <h2 class="lab-section__title">Topics y Particiones</h2>
+        <p class="lab-section__subtitle">
+          Un <strong>topic</strong> es un canal logico de mensajes. Cada topic se divide en
+          <strong>particiones</strong>,
+          que son la unidad de paralelismo en Kafka.
+        </p>
+
+        <div class="card">
+          <div class="card__title">Caracteristicas clave</div>
+          <ul style="font-size:0.88rem; color:var(--text-secondary); padding-left:20px; line-height:2;">
+            <li>Los mensajes dentro de una particion estan <strong>ordenados</strong> e <strong>inmutables</strong>.
+            </li>
+            <li>Cada mensaje tiene un <strong>offset</strong> (numero de posicion unico).</li>
+            <li>Sin KEY = los mensajes se distribuyen en <strong>round-robin</strong> entre particiones.</li>
+            <li>Con KEY = todos los mensajes con la misma key van a la <strong>misma particion</strong>.</li>
+            <li>Mas particiones = mas paralelismo (mas consumers pueden leer a la vez).</li>
+          </ul>
+        </div>
+
+        <div class="flow-diagram">
+          <div class="flow-node flow-node--producer">Producer</div>
+          <div class="flow-arrow">&#8594;</div>
+          <div class="flow-node flow-node--topic">Topic (3 particiones)</div>
+          <div class="flow-arrow">&#8594;</div>
+          <div class="flow-node flow-node--consumer">Consumer(s)</div>
+        </div>
+      </section>
+
+      <!-- 5. Offsets -->
+      <section class="lab-section" id="offsets">
+        <h2 class="lab-section__title">Offsets</h2>
+        <p class="lab-section__subtitle">
+          El offset es el numero de posicion de cada mensaje dentro de una particion.
+          Los consumer groups guardan su offset actual en un topic interno: <code>__consumer_offsets</code>.
+        </p>
+
+        <div class="card">
+          <div class="card__title">auto.offset.reset</div>
+          <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">
+            Cuando un consumer nuevo se conecta sin offset previo guardado:
+          </p>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="callout callout--info" style="margin:0;">
+              <span class="callout__icon">&#9198;</span>
+              <div><code>earliest</code> &mdash; Lee desde el inicio (offset 0). Equivalente a
+                <code>--from-beginning</code>.</div>
+            </div>
+            <div class="callout callout--warning" style="margin:0;">
+              <span class="callout__icon">&#9193;</span>
+              <div><code>latest</code> &mdash; Solo lee mensajes nuevos (por defecto).</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. Replication Factor -->
+      <section class="lab-section" id="replication">
+        <h2 class="lab-section__title">Replication Factor</h2>
+        <p class="lab-section__subtitle">
+          El replication factor define cuantas copias de cada particion existen en el cluster.
+        </p>
+
+        <div class="card">
+          <div class="card__title">Comparacion</div>
+          <table class="state-table">
+            <thead>
+              <tr>
+                <th>Factor</th>
+                <th>Copias</th>
+                <th>Tolerancia a fallos</th>
+                <th>Uso</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>1</strong></td>
+                <td>Solo 1 copia</td>
+                <td>Ninguna &mdash; si el broker cae, se pierden datos</td>
+                <td>Desarrollo local</td>
+              </tr>
+              <tr>
+                <td><strong>2</strong></td>
+                <td>2 copias</td>
+                <td>1 broker puede fallar</td>
+                <td>Pre-produccion</td>
+              </tr>
+              <tr>
+                <td><strong>3</strong></td>
+                <td>3 copias</td>
+                <td>2 brokers pueden fallar</td>
+                <td>Produccion (recomendado)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout--warning">
+          <span class="callout__icon">&#9888;</span>
+          <div>
+            En nuestro entorno local con un solo broker, usamos <code>replication-factor 1</code>.
+            En produccion, siempre usa al menos 3.
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. Flujo completo -->
+      <section class="lab-section" id="flujo">
+        <h2 class="lab-section__title">Flujo Producer &rarr; Broker &rarr; Consumer</h2>
+        <p class="lab-section__subtitle">
+          El recorrido completo de un mensaje paso a paso.
+        </p>
+
+        <div class="card">
+          <ol style="font-size:0.88rem; color:var(--text-secondary); padding-left:20px; line-height:2.2;">
+            <li><strong>Connect</strong> &mdash; El Producer se conecta al broker (bootstrap-server).</li>
+            <li><strong>Send</strong> &mdash; El Producer envia un record (key + value) al topic.</li>
+            <li><strong>Partition assignment</strong> &mdash; El broker determina la particion (hash de key o
+              round-robin).</li>
+            <li><strong>Write to disk</strong> &mdash; El mensaje se escribe al log de la particion en disco.</li>
+            <li><strong>ACK</strong> &mdash; El broker confirma la escritura al Producer.</li>
+            <li><strong>Poll</strong> &mdash; El Consumer hace poll() al broker pidiendo mensajes.</li>
+            <li><strong>Deliver</strong> &mdash; El broker entrega los mensajes desde el offset actual del consumer.
+            </li>
+            <li><strong>Commit offset</strong> &mdash; El consumer guarda su posicion en
+              <code>__consumer_offsets</code>.</li>
+          </ol>
+        </div>
+
+        <div class="flow-diagram">
+          <div class="flow-node flow-node--producer">1. Producer<br><small>connect + send</small></div>
+          <div class="flow-arrow">&#8594;</div>
+          <div class="flow-node flow-node--topic">2. Broker<br><small>partition + write + ACK</small></div>
+          <div class="flow-arrow">&#8594;</div>
+          <div class="flow-node flow-node--consumer">3. Consumer<br><small>poll + deliver + commit</small></div>
+        </div>
+      </section>
+
+      <!-- 8. Persistencia -->
+      <section class="lab-section" id="persistencia">
+        <h2 class="lab-section__title">Persistencia</h2>
+        <p class="lab-section__subtitle">
+          Los mensajes de Kafka se almacenan en disco, no en memoria. En Docker, se persisten en un volumen.
+        </p>
+
+        <div class="card">
+          <div class="card__title">Detalles</div>
+          <ul style="font-size:0.88rem; color:var(--text-secondary); padding-left:20px; line-height:2;">
+            <li>Retencion por defecto: <strong>7 dias</strong> (<code>log.retention.hours=168</code>).</li>
+            <li><code>docker compose down</code> &rarr; contenedor se detiene, <strong>datos sobreviven</strong> en el
+              volumen.</li>
+            <li><code>docker compose down -v</code> &rarr; contenedor se detiene y <strong>se borran los datos</strong>.
+            </li>
+          </ul>
+        </div>
+
+        <div class="callout callout--error">
+          <span class="callout__icon">&#9888;</span>
+          <div>
+            <strong>Cuidado con <code>-v</code></strong>: borra los volumenes Docker y con ellos todos los mensajes
+            de todos los topics. Usalo solo cuando quieras empezar desde cero.
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================== SIMULATORS ======================== -->
+
+      <!-- Simulator: Producer/Consumer -->
+      <section class="lab-section" id="sim-producer">
+        <h2 class="lab-section__title">Simulador Producer / Consumer</h2>
+        <p class="lab-section__subtitle">
+          Envia mensajes a un topic simulado con 3 particiones. Observa como se distribuyen y el consumer los lee.
+        </p>
+
+        <div class="sim-panel">
+          <div class="sim-panel__header">
+            <div class="sim-panel__title">&#9881; Producer &rarr; Topic &rarr; Consumer</div>
+            <div class="sim-panel__controls">
+              <label class="sim-toggle">
+                <input type="checkbox" id="sim-use-key"> Con KEY
+              </label>
+              <button class="btn btn--sm" onclick="simClear()">Limpiar</button>
+            </div>
+          </div>
+          <div class="sim-panel__body">
+            <div class="sim-input-row">
+              <input type="text" id="sim-key-input" placeholder="Key (ej: pedido-1)" disabled style="max-width:140px;">
+              <input type="text" id="sim-msg-input" placeholder="Escribe un mensaje...">
+              <button class="btn btn--primary" onclick="simSend()">Enviar</button>
+            </div>
+
+            <div class="sim-stats">
+              <div class="sim-stat">Mensajes: <strong id="sim-total">0</strong></div>
+              <div class="sim-stat">P0: <strong id="sim-p0">0</strong></div>
+              <div class="sim-stat">P1: <strong id="sim-p1">0</strong></div>
+              <div class="sim-stat">P2: <strong id="sim-p2">0</strong></div>
+            </div>
+
+            <div class="partitions-visual" id="sim-partitions">
+              <div class="partition-col partition-col--p0">
+                <div class="partition-col__header">Particion 0</div>
+                <div class="partition-col__body" id="sim-part-0"></div>
+              </div>
+              <div class="partition-col partition-col--p1">
+                <div class="partition-col__header">Particion 1</div>
+                <div class="partition-col__body" id="sim-part-1"></div>
+              </div>
+              <div class="partition-col partition-col--p2">
+                <div class="partition-col__header">Particion 2</div>
+                <div class="partition-col__body" id="sim-part-2"></div>
+              </div>
+            </div>
+
+            <div style="margin-top:16px;">
+              <div class="card__title">&#128214; Consumer Output</div>
+              <div class="consumer-output" id="sim-consumer-output">
+                <em style="color:var(--text-tertiary);">Esperando mensajes...</em>
+              </div>
+            </div>
+
+            <div class="log-console" id="sim-log" style="margin-top:16px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Simulator: Offset Visualizer -->
+      <section class="lab-section" id="sim-offsets">
+        <h2 class="lab-section__title">Visualizador de Offsets</h2>
+        <p class="lab-section__subtitle">
+          Observa como el consumer se posiciona en una particion. Mueve el slider para simular la lectura.
+        </p>
+
+        <div class="sim-panel">
+          <div class="sim-panel__header">
+            <div class="sim-panel__title">&#128200; Particion con offsets</div>
+            <div class="sim-panel__controls">
+              <button class="btn btn--sm" onclick="offsetAddMsg()">+ Mensaje</button>
+              <button class="btn btn--sm btn--error" onclick="offsetReset()">Reset</button>
+            </div>
+          </div>
+          <div class="sim-panel__body">
+            <div class="offset-vis" id="offset-vis"></div>
+
+            <div class="offset-controls">
+              <label>Consumer position:</label>
+              <div class="range-input" style="flex:1;">
+                <input type="range" id="offset-slider" min="0" max="0" value="0" oninput="offsetUpdate()">
+                <span class="range-input__value" id="offset-value">0</span>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;">
+              <button class="btn btn--sm" onclick="offsetFromBeginning()">--from-beginning (offset 0)</button>
+              <button class="btn btn--sm" onclick="offsetLatest()">latest (solo nuevos)</button>
+              <button class="btn btn--sm" onclick="offsetSimulateRestart()">Simular reinicio consumer</button>
+            </div>
+
+            <div class="callout callout--info" style="margin-top:16px;" id="offset-info">
+              <span class="callout__icon">&#128161;</span>
+              <div id="offset-info-text">
+                El consumer esta en el offset <strong>0</strong>. Haz clic en "+ Mensaje" para agregar mensajes.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================== PRACTICE ======================== -->
+
+      <section class="lab-section" id="practica">
+        <h2 class="lab-section__title">Practica en Terminal</h2>
+        <p class="lab-section__subtitle">
+          Sigue estos pasos para levantar un cluster Kafka real con Docker y enviar tus primeros mensajes.
+        </p>
+
+        <div class="callout callout--warning">
+          <span class="callout__icon">&#9888;</span>
+          <div>
+            <strong>Prerequisitos:</strong> Docker Desktop 24+ y Docker Compose v2+ instalados y corriendo.
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">1</div>
+          <div class="step-card__body">
+            <div class="step-card__title">Levantar el cluster</div>
+            <div class="code-block" style="margin:8px 0;"><code>cd kafka-week/infra && docker compose up -d</code></div>
+            <div class="step-card__expected">Espera ~20-30 segundos para que Kafka inicie completamente.</div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">2</div>
+          <div class="step-card__body">
+            <div class="step-card__title">Verificar que Kafka inicio</div>
+            <div class="code-block" style="margin:8px 0;"><code>docker compose logs kafka</code></div>
+            <div class="step-card__expected">Busca el mensaje "started" o "Kafka Server started" en los logs.</div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">3</div>
+          <div class="step-card__body">
+            <div class="step-card__title">Entrar al contenedor</div>
+            <div class="code-block" style="margin:8px 0;"><code>docker exec -it kafka bash</code></div>
+            <div class="code-block" style="margin:8px 0;"><code>export PATH=$PATH:/opt/kafka/bin/</code></div>
+            <div class="code-block" style="margin:8px 0;">
+              <code>kafka-topics.sh --bootstrap-server localhost:9092 --list</code></div>
+            <div class="step-card__expected">Veras un prompt de bash dentro del contenedor.</div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">4</div>
+          <div class="step-card__body">
+            <div class="step-card__title">Crear un topic</div>
+            <div class="code-block" style="margin:8px 0;"><code>kafka-topics.sh --create --topic test-topic \
+  --partitions 3 --replication-factor 1 \
+  --bootstrap-server localhost:9092</code></div>
+            <div class="step-card__expected">Created topic test-topic.</div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">5</div>
+          <div class="step-card__body">
+            <div class="step-card__title">Listar topics</div>
+            <div class="code-block" style="margin:8px 0;">
+              <code>kafka-topics.sh --list --bootstrap-server localhost:9092</code></div>
+            <div class="step-card__expected">test-topic</div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">6</div>
+          <div class="step-card__body">
+            <div class="step-card__title">Terminal 1 &mdash; Iniciar Producer</div>
+            <div class="code-block" style="margin:8px 0;"><code>kafka-console-producer.sh --topic test-topic \
+  --bootstrap-server localhost:9092</code></div>
+            <div class="step-card__expected">Aparece un prompt &gt; donde puedes escribir mensajes.</div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">7</div>
+          <div class="step-card__body">
+            <div class="step-card__title">Terminal 2 &mdash; Iniciar Consumer</div>
+            <div class="code-block" style="margin:8px 0;"><code>kafka-console-consumer.sh --topic test-topic \
+  --from-beginning \
+  --bootstrap-server localhost:9092</code></div>
+            <div class="code-block" style="margin:8px 0;"><code>
+  docker exec -it kafka /opt/kafka/bin/kafka-console-consumer.sh \
+  --topic test-topic --from-beginning \
+  --bootstrap-server localhost:9092
+</code></div>
+            <div class="step-card__expected">Los mensajes que escribas en Terminal 1 apareceran aqui.</div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">8</div>
+          <div class="step-card__body">
+            <div class="step-card__title">Enviar mensajes</div>
+            <div class="step-card__desc">En Terminal 1, escribe mensajes y presiona Enter. Observa como aparecen en
+              Terminal 2.</div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">9</div>
+          <div class="step-card__body">
+            <div class="step-card__title">Describir el topic</div>
+            <div class="code-block" style="margin:8px 0;"><code>kafka-topics.sh --describe --topic test-topic \
+  --bootstrap-server localhost:9092</code></div>
+            <div class="step-card__expected">Muestra particiones, lider y replicas del topic.</div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">10</div>
+          <div class="step-card__body">
+            <div class="step-card__title">Consumer con grupo</div>
+            <div class="code-block" style="margin:8px 0;"><code>kafka-console-consumer.sh --topic test-topic \
+  --group mi-grupo \
+  --bootstrap-server localhost:9092</code></div>
+            <div class="step-card__expected">Consumer asociado al grupo "mi-grupo". El offset se guarda automaticamente.
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card__num">11</div>
+          <div class="step-card__body">
+            <div class="step-card__title">Detener el cluster</div>
+            <div class="code-block" style="margin:8px 0;"><code># Mantener datos:
+docker compose down
+
+# Borrar todo (volumenes incluidos):
+docker compose down -v</code></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reference Table -->
+      <section class="lab-section" id="referencia">
+        <h2 class="lab-section__title">Referencia de Comandos</h2>
+        <p class="lab-section__subtitle">Todos los comandos de Kafka CLI que usamos en este lab.</p>
+
+        <table class="ref-table">
+          <thead>
+            <tr>
+              <th>Accion</th>
+              <th>Comando</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Levantar cluster</td>
+              <td><code>docker compose up -d</code></td>
+            </tr>
+            <tr>
+              <td>Ver logs</td>
+              <td><code>docker compose logs kafka</code></td>
+            </tr>
+            <tr>
+              <td>Entrar al contenedor</td>
+              <td><code>docker exec -it kafka bash</code></td>
+            </tr>
+            <tr>
+              <td>Crear topic</td>
+              <td>
+                <code>kafka-topics.sh --create --topic NOMBRE --partitions N --replication-factor 1 --bootstrap-server localhost:9092</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Listar topics</td>
+              <td><code>kafka-topics.sh --list --bootstrap-server localhost:9092</code></td>
+            </tr>
+            <tr>
+              <td>Describir topic</td>
+              <td><code>kafka-topics.sh --describe --topic NOMBRE --bootstrap-server localhost:9092</code></td>
+            </tr>
+            <tr>
+              <td>Producer</td>
+              <td><code>kafka-console-producer.sh --topic NOMBRE --bootstrap-server localhost:9092</code></td>
+            </tr>
+            <tr>
+              <td>Consumer (desde inicio)</td>
+              <td>
+                <code>kafka-console-consumer.sh --topic NOMBRE --from-beginning --bootstrap-server localhost:9092</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Consumer con grupo</td>
+              <td><code>kafka-console-consumer.sh --topic NOMBRE --group GRUPO --bootstrap-server localhost:9092</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Detener (mantener datos)</td>
+              <td><code>docker compose down</code></td>
+            </tr>
+            <tr>
+              <td>Detener (borrar datos)</td>
+              <td><code>docker compose down -v</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Troubleshooting -->
+      <section class="lab-section" id="troubleshooting">
+        <h2 class="lab-section__title">Troubleshooting</h2>
+        <p class="lab-section__subtitle">Problemas comunes y sus soluciones.</p>
+
+        <div class="trouble-item">
+          <div class="trouble-item__problem">&#10060; "Connection refused" al conectar al broker</div>
+          <div class="trouble-item__solution">
+            Kafka tarda 20-30 segundos en iniciar. Espera y verifica con
+            <code>docker compose logs kafka</code> que diga "started".
+          </div>
+        </div>
+        <div class="trouble-item">
+          <div class="trouble-item__problem">&#10060; Consumer no recibe mensajes</div>
+          <div class="trouble-item__solution">
+            Verifica que usas el mismo nombre de topic y el mismo <code>--bootstrap-server localhost:9092</code>.
+            Si el consumer inicio despues de los mensajes, agrega <code>--from-beginning</code>.
+          </div>
+        </div>
+        <div class="trouble-item">
+          <div class="trouble-item__problem">&#10060; "Topic already exists"</div>
+          <div class="trouble-item__solution">
+            Esto es normal si el topic ya fue creado. Puedes ignorar el error o agregar
+            <code>--if-not-exists</code> al comando de creacion.
+          </div>
+        </div>
+        <div class="trouble-item">
+          <div class="trouble-item__problem">&#10060; Container no arranca</div>
+          <div class="trouble-item__solution">
+            Verifica que el puerto 9092 no este ocupado por otro proceso:
+            <code>lsof -i :9092</code> (Mac/Linux) o <code>netstat -ano | findstr 9092</code> (Windows).
+          </div>
+        </div>
+      </section>
+
+      <!-- Quiz -->
+      <section class="lab-section" id="quiz">
+        <h2 class="lab-section__title">Quiz de Reflexion</h2>
+        <p class="lab-section__subtitle">Verifica lo que aprendiste.</p>
+
+        <div class="quiz" id="quiz-container">
+          <!-- Q1 -->
+          <div class="quiz__question">
+            <div class="quiz__question-text">1. Cual es la diferencia principal entre Kafka y una cola de mensajes
+              tradicional?</div>
+            <div class="quiz__options">
+              <div class="quiz__option" data-correct="false">
+                <div class="quiz__radio"></div>
+                <span>Kafka es mas rapido que las colas tradicionales</span>
+              </div>
+              <div class="quiz__option" data-correct="true">
+                <div class="quiz__radio"></div>
+                <span>Kafka no borra los mensajes despues de consumirlos</span>
+              </div>
+              <div class="quiz__option" data-correct="false">
+                <div class="quiz__radio"></div>
+                <span>Kafka solo funciona con Java</span>
+              </div>
+            </div>
+            <div class="quiz__feedback quiz__feedback--correct">Correcto. Kafka retiene los mensajes en disco,
+              permitiendo replay, multiples consumers y auditoria.</div>
+            <div class="quiz__feedback quiz__feedback--incorrect">Incorrecto. La diferencia clave es que Kafka retiene
+              los mensajes despues de ser consumidos.</div>
+          </div>
+
+          <!-- Q2 -->
+          <div class="quiz__question">
+            <div class="quiz__question-text">2. Por que KRaft reemplaza a ZooKeeper?</div>
+            <div class="quiz__options">
+              <div class="quiz__option" data-correct="false">
+                <div class="quiz__radio"></div>
+                <span>ZooKeeper es un software de pago</span>
+              </div>
+              <div class="quiz__option" data-correct="false">
+                <div class="quiz__radio"></div>
+                <span>KRaft permite usar mas lenguajes de programacion</span>
+              </div>
+              <div class="quiz__option" data-correct="true">
+                <div class="quiz__radio"></div>
+                <span>Operacion mas simple: un solo sistema en vez de dos</span>
+              </div>
+            </div>
+            <div class="quiz__feedback quiz__feedback--correct">Correcto. KRaft integra la coordinacion directamente en
+              Kafka, eliminando la complejidad de mantener ZooKeeper por separado.</div>
+            <div class="quiz__feedback quiz__feedback--incorrect">Incorrecto. La razon principal es simplificar la
+              operacion eliminando un sistema externo.</div>
+          </div>
+
+          <!-- Q3 -->
+          <div class="quiz__question">
+            <div class="quiz__question-text">3. Si envias mensajes sin KEY a un topic con 3 particiones, como se
+              distribuyen?</div>
+            <div class="quiz__options">
+              <div class="quiz__option" data-correct="false">
+                <div class="quiz__radio"></div>
+                <span>Todos van a la particion 0</span>
+              </div>
+              <div class="quiz__option" data-correct="true">
+                <div class="quiz__radio"></div>
+                <span>Se distribuyen en round-robin entre las 3 particiones</span>
+              </div>
+              <div class="quiz__option" data-correct="false">
+                <div class="quiz__radio"></div>
+                <span>Kafka elige la particion con menos mensajes</span>
+              </div>
+            </div>
+            <div class="quiz__feedback quiz__feedback--correct">Correcto. Sin key, Kafka usa round-robin (o sticky
+              partitioner) para distribuir mensajes equitativamente.</div>
+            <div class="quiz__feedback quiz__feedback--incorrect">Incorrecto. Sin key, la distribucion es round-robin
+              entre todas las particiones.</div>
+          </div>
+
+          <!-- Q4 -->
+          <div class="quiz__question">
+            <div class="quiz__question-text">4. Que pasa si ejecutas <code>docker compose down -v</code>?</div>
+            <div class="quiz__options">
+              <div class="quiz__option" data-correct="false">
+                <div class="quiz__radio"></div>
+                <span>Solo detiene el contenedor, los datos sobreviven</span>
+              </div>
+              <div class="quiz__option" data-correct="false">
+                <div class="quiz__radio"></div>
+                <span>Reinicia Kafka con la configuracion por defecto</span>
+              </div>
+              <div class="quiz__option" data-correct="true">
+                <div class="quiz__radio"></div>
+                <span>Se borran todos los mensajes persistidos (volumenes eliminados)</span>
+              </div>
+            </div>
+            <div class="quiz__feedback quiz__feedback--correct">Correcto. La flag -v elimina los volumenes Docker y con
+              ellos todos los datos de Kafka.</div>
+            <div class="quiz__feedback quiz__feedback--incorrect">Incorrecto. La flag -v elimina los volumenes, borrando
+              todos los datos persistidos.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="lab-footer">
+        <a href="index.html">&larr; Hub de Labs</a>
+        <span style="margin:0 12px;">|</span>
+        <a href="lab-01-event-sourcing.html">Siguiente: Lab 01 &mdash; Ciclo de Vida del Pedido &rarr;</a>
+      </footer>
+
+    </main>
+  </div>
+
+  <script src="js/kafka-sim.js"></script>
+  <script src="js/lab-ui.js"></script>
+  <script>
+    // ========================
+    // Producer/Consumer Simulator
+    // ========================
+    const simTopic = new KafkaSim.Topic('test-topic', 3);
+    let simLogger;
+    let simMsgCount = 0;
+
+    function simSend() {
+      const msgInput = document.getElementById('sim-msg-input');
+      const keyInput = document.getElementById('sim-key-input');
+      const useKey = document.getElementById('sim-use-key').checked;
+      const value = msgInput.value.trim();
+      if (!value) return;
+
+      const key = useKey ? (keyInput.value.trim() || null) : null;
+      const record = simTopic.send(key, value);
+
+      simMsgCount++;
+      simLogger.log(`[Producer] send(key=${key || 'null'}, value="${value}")`, 'info');
+      simLogger.log(`[Broker]   -> Particion ${record.partition}, offset ${record.offset}`, 'accent');
+
+      // Render partition
+      const body = document.getElementById('sim-part-' + record.partition);
+      const div = document.createElement('div');
+      div.className = 'partition-msg';
+      div.innerHTML = `<span>${key ? '<strong>' + key + ':</strong> ' : ''}${value}</span><span class="partition-msg__offset">offset ${record.offset}</span>`;
+      body.appendChild(div);
+
+      // Consumer output
+      const out = document.getElementById('sim-consumer-output');
+      if (simMsgCount === 1) out.innerHTML = '';
+      const line = document.createElement('div');
+      line.textContent = `[P${record.partition}:${record.offset}] ${key ? key + ': ' : ''}${value}`;
+      out.appendChild(line);
+
+      simLogger.log(`[Consumer] poll() -> P${record.partition}:offset=${record.offset} "${value}"`, 'ok');
+
+      // Stats
+      document.getElementById('sim-total').textContent = simTopic.getTotalMessages();
+      for (let i = 0; i < 3; i++) {
+        document.getElementById('sim-p' + i).textContent = simTopic.getPartition(i).length;
+      }
+
+      msgInput.value = '';
+      msgInput.focus();
+    }
+
+    function simClear() {
+      simTopic.clear();
+      simMsgCount = 0;
+      for (let i = 0; i < 3; i++) {
+        document.getElementById('sim-part-' + i).innerHTML = '';
+        document.getElementById('sim-p' + i).textContent = '0';
+      }
+      document.getElementById('sim-total').textContent = '0';
+      document.getElementById('sim-consumer-output').innerHTML = '<em style="color:var(--text-tertiary);">Esperando mensajes...</em>';
+      simLogger.clear();
+      simLogger.log('[Sistema] Topic limpiado.', 'warn');
+    }
+
+    // ========================
+    // Offset Visualizer
+    // ========================
+    const offsetMessages = [];
+    let offsetConsumerPos = 0;
+    let offsetHasGroup = true;
+
+    function offsetAddMsg() {
+      const words = ['Hola', 'Pedido', 'Pago', 'Envio', 'Stock', 'Login', 'Logout', 'Update', 'Delete', 'Notify'];
+      offsetMessages.push(words[offsetMessages.length % words.length]);
+      const slider = document.getElementById('offset-slider');
+      slider.max = offsetMessages.length;
+      offsetRender();
+    }
+
+    function offsetRender() {
+      const vis = document.getElementById('offset-vis');
+      vis.innerHTML = '';
+      for (let i = 0; i < offsetMessages.length; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'offset-cell';
+        if (i < offsetConsumerPos) cell.classList.add('offset-cell--read');
+        else if (i === offsetConsumerPos) cell.classList.add('offset-cell--current');
+        else cell.classList.add('offset-cell--unread');
+        cell.innerHTML = `<span class="offset-cell__num">${i}</span><span class="offset-cell__val">${offsetMessages[i]}</span>`;
+        vis.appendChild(cell);
+      }
+      document.getElementById('offset-value').textContent = offsetConsumerPos;
+
+      const total = offsetMessages.length;
+      const pending = Math.max(0, total - offsetConsumerPos);
+      const infoText = document.getElementById('offset-info-text');
+      infoText.innerHTML = `Consumer en offset <strong>${offsetConsumerPos}</strong> de <strong>${total}</strong> mensajes. Pendientes: <strong>${pending}</strong>.`;
+    }
+
+    function offsetUpdate() {
+      offsetConsumerPos = parseInt(document.getElementById('offset-slider').value);
+      offsetRender();
+    }
+
+    function offsetFromBeginning() {
+      offsetConsumerPos = 0;
+      document.getElementById('offset-slider').value = 0;
+      offsetRender();
+      simLogger && simLogger.log('[Offset] --from-beginning: consumer reiniciado al offset 0.', 'warn');
+    }
+
+    function offsetLatest() {
+      offsetConsumerPos = offsetMessages.length;
+      document.getElementById('offset-slider').value = offsetMessages.length;
+      offsetRender();
+      simLogger && simLogger.log('[Offset] latest: consumer posicionado al final, solo lee nuevos mensajes.', 'info');
+    }
+
+    function offsetSimulateRestart() {
+      if (offsetHasGroup) {
+        // With group, offset is preserved
+        const infoText = document.getElementById('offset-info-text');
+        infoText.innerHTML = `<strong>Reinicio con grupo:</strong> el offset se preservo en __consumer_offsets. Consumer retoma en offset <strong>${offsetConsumerPos}</strong>.`;
+      } else {
+        offsetConsumerPos = offsetMessages.length;
+        document.getElementById('offset-slider').value = offsetMessages.length;
+        offsetRender();
+        const infoText = document.getElementById('offset-info-text');
+        infoText.innerHTML = `<strong>Reinicio sin grupo:</strong> sin offset guardado, el consumer arranca desde <code>latest</code> (offset ${offsetMessages.length}). Usa <code>--from-beginning</code> para empezar desde 0.`;
+      }
+      offsetHasGroup = !offsetHasGroup;
+    }
+
+    function offsetReset() {
+      offsetMessages.length = 0;
+      offsetConsumerPos = 0;
+      document.getElementById('offset-slider').value = 0;
+      document.getElementById('offset-slider').max = 0;
+      offsetRender();
+    }
+
+    // ========================
+    // Init
+    // ========================
+    document.addEventListener('DOMContentLoaded', () => {
+      LabUI.init();
+      LabUI.initQuiz('quiz-container');
+
+      simLogger = LabUI.createLogger('sim-log');
+      simLogger.log('[Sistema] Simulador listo. Escribe un mensaje y haz clic en Enviar.', 'info');
+
+      // Toggle key input
+      document.getElementById('sim-use-key').addEventListener('change', (e) => {
+        document.getElementById('sim-key-input').disabled = !e.target.checked;
+      });
+
+      // Enter to send
+      document.getElementById('sim-msg-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') simSend();
+      });
+      document.getElementById('sim-key-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') simSend();
+      });
+
+      // Seed offset visualizer
+      for (let i = 0; i < 5; i++) offsetAddMsg();
+      offsetConsumerPos = 2;
+      document.getElementById('offset-slider').value = 2;
+      offsetRender();
+    });
+  </script>
+</body>
+
+</html>

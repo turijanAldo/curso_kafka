@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab 03 — Consumer Groups y Rebalanceo | Kafka Labs</title>
+  <link rel="stylesheet" href="css/lab-theme.css">
+  <style>
+    /* === Rebalance Simulator === */
+    .rebalance-sim { position: relative; }
+
+    .partition-boxes {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 12px;
+    }
+
+    .partition-box {
+      width: 120px;
+      padding: 18px 12px;
+      border-radius: var(--radius-md);
+      text-align: center;
+      font-weight: 800;
+      font-size: 1rem;
+      color: white;
+      position: relative;
+      transition: all 0.4s ease;
+      z-index: 2;
+    }
+    .partition-box[data-p="0"] { background: var(--partition-0); }
+    .partition-box[data-p="1"] { background: var(--partition-1); }
+    .partition-box[data-p="2"] { background: var(--partition-2); }
+
+    .partition-box__label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+
+    /* SVG lines overlay */
+    .sim-lines {
+      width: 100%;
+      height: 80px;
+      position: relative;
+      z-index: 1;
+    }
+    .sim-lines svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .sim-lines svg line {
+      stroke-width: 2.5;
+      stroke-dasharray: 6 4;
+      transition: all 0.6s ease;
+    }
+
+    .consumers-area {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      min-height: 120px;
+      padding: 8px;
+    }
+
+    .consumer-card {
+      min-width: 140px;
+      max-width: 180px;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .consumer-card__status {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 6px;
+    }
+    .consumer-card--active .consumer-card__status { color: var(--success); }
+    .consumer-card--idle .consumer-card__status { color: var(--warning); }
+
+    .sim-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .sim-stat {
+      text-align: center;
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+    }
+    .sim-stat__value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+    .sim-stat__label {
+      font-size: 0.7rem;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .rebalance-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      border-radius: var(--radius-xl);
+      z-index: 10;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .rebalance-overlay.active { display: flex; }
+    .rebalance-overlay__text {
+      color: #fbbf24;
+      font-weight: 800;
+      font-size: 1.1rem;
+      animation: pulse 0.6s ease infinite;
+    }
+    .rebalance-overlay__sub {
+      color: #94a3b8;
+      font-size: 0.8rem;
+    }
+
+    /* Kill buttons */
+    .consumer-card__kill {
+      margin-top: 8px;
+      padding: 3px 8px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      background: var(--error);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .consumer-card__kill:hover { opacity: 0.8; }
+
+    /* === Scenarios Table === */
+    .scenario-highlight { background: var(--accent-bg) !important; font-weight: 700; }
+    .scenario-idle { color: var(--warning); font-weight: 700; }
+    .scenario-max { color: var(--success); font-weight: 700; }
+
+    /* === Lag Visualizer === */
+    .lag-bars {
+      display: flex;
+      gap: 20px;
+      align-items: flex-end;
+      height: 180px;
+      padding: 16px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .lag-bar-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+    }
+
+    .lag-bar {
+      width: 100%;
+      max-width: 80px;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      transition: height 0.5s ease, background 0.3s ease;
+      position: relative;
+      min-height: 4px;
+    }
+
+    .lag-bar__value {
+      position: absolute;
+      top: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .lag-bar__label {
+      margin-top: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+
+    .lag-status {
+      text-align: center;
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <div class="lab-layout">
+
+    <!-- Header -->
+    <header class="lab-header">
+      <div class="lab-header__left">
+        <button class="menu-toggle">&#9776;</button>
+        <a class="lab-header__logo" href="#">Kafka Labs</a>
+        <div class="lab-header__breadcrumb">
+          <span>v1.2</span> <span class="sep">/</span> <span>Leccion 3</span>
+        </div>
+      </div>
+      <div class="lab-header__right">
+        <span class="lab-header__level">Basico</span>
+        <button class="theme-toggle" onclick="LabUI.toggleTheme()">&#127769;</button>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="lab-sidebar">
+      <nav>
+        <ul class="lab-sidebar__nav">
+          <li class="lab-sidebar__section-title">Conceptos</li>
+          <li><a class="lab-sidebar__item active" data-section="consumer-group">Consumer Group</a></li>
+          <li><a class="lab-sidebar__item" data-section="regla-fundamental">La Regla Fundamental</a></li>
+          <li><a class="lab-sidebar__item" data-section="rebalanceo">Rebalanceo</a></li>
+          <li><a class="lab-sidebar__item" data-section="listener">RebalanceListener</a></li>
+          <li class="lab-sidebar__section-title">Laboratorio</li>
+          <li><a class="lab-sidebar__item" data-section="simulador">Simulador de Rebalanceo</a></li>
+          <li><a class="lab-sidebar__item" data-section="escenarios">Tabla de Escenarios</a></li>
+          <li><a class="lab-sidebar__item" data-section="lag">Visualizador de Lag</a></li>
+          <li class="lab-sidebar__section-title">Practica</li>
+          <li><a class="lab-sidebar__item" data-section="practica">Practica en Terminal</a></li>
+          <li><a class="lab-sidebar__item" data-section="referencia">Comandos de Referencia</a></li>
+          <li class="lab-sidebar__section-title">Evaluacion</li>
+          <li><a class="lab-sidebar__item" data-section="quiz">Quiz de Reflexion</a></li>
+        </ul>
+      </nav>
+    </aside>
+    <div class="sidebar-overlay"></div>
+
+    <!-- Main -->
+    <main class="lab-main">
+
+      <!-- Hero -->
+      <div class="lab-hero">
+        <h1 class="lab-hero__title">Consumer Groups y Rebalanceo</h1>
+        <p class="lab-hero__desc">Entiende como Kafka distribuye el trabajo entre consumers y que ocurre cuando el grupo cambia.</p>
+        <div class="lab-hero__goals">
+          <div class="lab-hero__goal">
+            <div class="lab-hero__goal-icon">1</div>
+            <span>Entender que es un Consumer Group y como reparte particiones</span>
+          </div>
+          <div class="lab-hero__goal">
+            <div class="lab-hero__goal-icon">2</div>
+            <span>Experimentar con el rebalanceo en tiempo real</span>
+          </div>
+          <div class="lab-hero__goal">
+            <div class="lab-hero__goal-icon">3</div>
+            <span>Visualizar el impacto del rebalanceo en el lag</span>
+          </div>
+          <div class="lab-hero__goal">
+            <div class="lab-hero__goal-icon">4</div>
+            <span>Comparar el modelo Kafka vs IBM MQ</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Consumer Group -->
+      <section id="consumer-group" class="lab-section">
+        <h2 class="lab-section__title">Consumer Group</h2>
+        <p class="lab-section__subtitle">Un conjunto de consumers que cooperan para leer un topic. Kafka divide el trabajo automaticamente: cada mensaje es procesado por exactamente <strong>un consumer</strong> del grupo.</p>
+
+        <div class="card card--accent">
+          <div class="card__title">&#128269; Analogia</div>
+          <p style="font-size:0.9rem;color:var(--text-secondary)">Imagina una pizzeria con 3 hornos (particiones) y un equipo de repartidores (consumers). Cada horno entrega pizzas a un solo repartidor. Si llega un repartidor nuevo, se redistribuyen los hornos. Si un repartidor se va, otro cubre sus hornos.</p>
+        </div>
+
+        <div class="flow-diagram">
+          <div class="flow-node flow-node--producer">Producer</div>
+          <div class="flow-arrow">&#8594;</div>
+          <div class="flow-node flow-node--topic">Topic<br><small>3 particiones</small></div>
+          <div class="flow-arrow">&#8594;</div>
+          <div class="flow-node flow-node--consumer">Consumer Group<br><small>N consumers</small></div>
+        </div>
+      </section>
+
+      <!-- Section: La Regla Fundamental -->
+      <section id="regla-fundamental" class="lab-section">
+        <h2 class="lab-section__title">La Regla Fundamental</h2>
+        <p class="lab-section__subtitle">Una particion solo puede ser leida por un consumer activo dentro de un mismo grupo. Esto establece el limite del paralelismo.</p>
+
+        <div class="callout callout--warning">
+          <span class="callout__icon">&#9888;&#65039;</span>
+          <div>
+            <strong>Maximo de consumers utiles = numero de particiones.</strong><br>
+            Si tienes 3 particiones, el consumer #4 quedara inactivo (standby). No recibira mensajes hasta que otro consumer falle.
+          </div>
+        </div>
+
+        <div class="code-block">
+          <span class="code-block__label">Regla</span>
+          <code>1 particion  →  1 consumer activo por grupo
+consumers > particiones  →  consumers sobrantes = INACTIVOS
+consumers < particiones  →  algun consumer lee mas de 1 particion</code>
+        </div>
+      </section>
+
+      <!-- Section: Rebalanceo -->
+      <section id="rebalanceo" class="lab-section">
+        <h2 class="lab-section__title">Rebalanceo</h2>
+        <p class="lab-section__subtitle">Cuando la membresia del grupo cambia, Kafka redistribuye las particiones entre los consumers activos. Este proceso se llama <strong>rebalanceo</strong>.</p>
+
+        <div class="card">
+          <div class="card__title">&#9889; Triggers del rebalanceo</div>
+          <ul style="padding-left:20px;font-size:0.9rem;color:var(--text-secondary);line-height:2">
+            <li>Un consumer se <strong>une</strong> al grupo</li>
+            <li>Un consumer <strong>sale</strong> del grupo (crash o shutdown)</li>
+            <li>Se agregan nuevas <strong>particiones</strong> al topic</li>
+          </ul>
+        </div>
+
+        <div class="callout callout--error">
+          <span class="callout__icon">&#128721;</span>
+          <div>
+            <strong>Stop-the-world:</strong> Durante el rebalanceo, <em>ningun consumer del grupo lee mensajes</em>. Por eso es importante minimizar la frecuencia de rebalanceos en produccion.
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: ConsumerRebalanceListener -->
+      <section id="listener" class="lab-section">
+        <h2 class="lab-section__title">ConsumerRebalanceListener</h2>
+        <p class="lab-section__subtitle">Java proporciona un listener con dos callbacks para reaccionar al rebalanceo.</p>
+
+        <div class="code-block">
+          <span class="code-block__label">Java</span>
+          <code>consumer.subscribe(List.of("pedidos"), new ConsumerRebalanceListener() {
+
+    @Override
+    public void onPartitionsRevoked(Collection&lt;TopicPartition&gt; partitions) {
+        // ANTES del rebalanceo: hacer commit final
+        consumer.commitSync();
+        log.info("Particiones REVOCADAS: {}", partitions);
+    }
+
+    @Override
+    public void onPartitionsAssigned(Collection&lt;TopicPartition&gt; partitions) {
+        // DESPUES del rebalanceo: inicializar estado
+        log.info("Particiones ASIGNADAS: {}", partitions);
+    }
+});</code>
+        </div>
+
+        <div class="callout callout--tip">
+          <span class="callout__icon">&#128161;</span>
+          <div><strong>onPartitionsRevoked</strong> es tu ultima oportunidad para hacer commit de offsets antes de perder las particiones. Si no lo haces, podrias reprocesar mensajes.</div>
+        </div>
+      </section>
+
+      <!-- ==================== -->
+      <!-- SIMULADOR PRINCIPAL  -->
+      <!-- ==================== -->
+      <section id="simulador" class="lab-section">
+        <h2 class="lab-section__title">Simulador de Rebalanceo en Tiempo Real</h2>
+        <p class="lab-section__subtitle">Agrega y elimina consumers para ver como Kafka redistribuye las particiones.</p>
+
+        <div class="sim-panel">
+          <div class="sim-panel__header">
+            <div class="sim-panel__title">&#9881;&#65039; Simulador Interactivo</div>
+            <div class="sim-panel__controls">
+              <button class="btn btn--primary" id="btn-add-consumer">&#10133; Agregar Consumer</button>
+              <button class="btn btn--error" id="btn-reset">&#8635; Reset</button>
+            </div>
+          </div>
+          <div class="sim-panel__body rebalance-sim" id="rebalance-sim">
+            <!-- Rebalance overlay -->
+            <div class="rebalance-overlay" id="rebalance-overlay">
+              <div class="rebalance-overlay__text">&#9889; REBALANCEO EN CURSO...</div>
+              <div class="rebalance-overlay__sub">Ningun consumer lee mensajes</div>
+            </div>
+
+            <!-- Partitions -->
+            <div class="partition-boxes" id="partition-boxes">
+              <div class="partition-box" data-p="0">P0<div class="partition-box__label">Particion 0</div></div>
+              <div class="partition-box" data-p="1">P1<div class="partition-box__label">Particion 1</div></div>
+              <div class="partition-box" data-p="2">P2<div class="partition-box__label">Particion 2</div></div>
+            </div>
+
+            <!-- SVG Lines -->
+            <div class="sim-lines"><svg id="sim-svg"></svg></div>
+
+            <!-- Consumers -->
+            <div class="consumers-area" id="consumers-area"></div>
+
+            <!-- Stats -->
+            <div class="sim-stats">
+              <div class="sim-stat">
+                <div class="sim-stat__value" id="stat-active">0</div>
+                <div class="sim-stat__label">Activos</div>
+              </div>
+              <div class="sim-stat">
+                <div class="sim-stat__value" id="stat-idle">0</div>
+                <div class="sim-stat__label">Inactivos</div>
+              </div>
+              <div class="sim-stat">
+                <div class="sim-stat__value" id="stat-partitions">3</div>
+                <div class="sim-stat__label">Particiones</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Log console -->
+        <div style="font-size:0.8rem;font-weight:700;margin-bottom:6px;color:var(--text-tertiary)">CONSOLA DE EVENTOS</div>
+        <div class="log-console" id="sim-log"></div>
+      </section>
+
+      <!-- ==================== -->
+      <!-- TABLA DE ESCENARIOS  -->
+      <!-- ==================== -->
+      <section id="escenarios" class="lab-section">
+        <h2 class="lab-section__title">Tabla de Escenarios</h2>
+        <p class="lab-section__subtitle">Cambia el numero de particiones y observa como cambia la distribucion.</p>
+
+        <div class="sim-panel">
+          <div class="sim-panel__header">
+            <div class="sim-panel__title">&#128202; Escenarios de Distribucion</div>
+          </div>
+          <div class="sim-panel__body">
+            <div class="range-input">
+              <label style="font-size:0.85rem;font-weight:600">Particiones:</label>
+              <input type="range" id="scenario-slider" min="1" max="6" value="3">
+              <span class="range-input__value" id="scenario-slider-val">3</span>
+            </div>
+            <table class="state-table" id="scenario-table">
+              <thead>
+                <tr>
+                  <th>Consumers</th>
+                  <th>Distribucion</th>
+                  <th>Activos</th>
+                  <th>Inactivos</th>
+                  <th>Resultado</th>
+                </tr>
+              </thead>
+              <tbody id="scenario-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== -->
+      <!-- VISUALIZADOR DE LAG  -->
+      <!-- ==================== -->
+      <section id="lag" class="lab-section">
+        <h2 class="lab-section__title">Visualizador de Lag</h2>
+        <p class="lab-section__subtitle">Observa como crece el lag cuando un consumer muere y sus particiones quedan sin leer hasta el rebalanceo.</p>
+
+        <div class="sim-panel">
+          <div class="sim-panel__header">
+            <div class="sim-panel__title">&#128200; Lag por Particion</div>
+            <div class="sim-panel__controls">
+              <button class="btn btn--primary btn--sm" id="lag-start">&#9654; Iniciar Produccion</button>
+              <button class="btn btn--error btn--sm" id="lag-kill">&#128128; Matar Consumer</button>
+              <button class="btn btn--sm" id="lag-reset">&#8635; Reset</button>
+            </div>
+          </div>
+          <div class="sim-panel__body">
+            <div class="lag-bars" id="lag-bars">
+              <div class="lag-bar-wrapper">
+                <div class="lag-bar" id="lag-bar-0" style="height:4px;background:var(--partition-0)">
+                  <span class="lag-bar__value">0</span>
+                </div>
+                <div class="lag-bar__label">P0</div>
+              </div>
+              <div class="lag-bar-wrapper">
+                <div class="lag-bar" id="lag-bar-1" style="height:4px;background:var(--partition-1)">
+                  <span class="lag-bar__value">0</span>
+                </div>
+                <div class="lag-bar__label">P1</div>
+              </div>
+              <div class="lag-bar-wrapper">
+                <div class="lag-bar" id="lag-bar-2" style="height:4px;background:var(--partition-2)">
+                  <span class="lag-bar__value">0</span>
+                </div>
+                <div class="lag-bar__label">P2</div>
+              </div>
+            </div>
+            <div class="lag-status" id="lag-status">3 consumers activos &mdash; todas las particiones cubiertas</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PRACTICA EN TERMINAL -->
+      <section class="lab-section" id="practica">
+        <h2 class="lab-section__title">Practica en Terminal</h2>
+        <p class="lab-section__subtitle">
+          Ahora ejecuta el experimento real con multiples instancias del consumer. Necesitas <strong>3 o 4 terminales</strong> abiertas en <code>kafka-week/tiendamax/</code>.
+        </p>
+
+        <div class="card">
+          <div class="card__title">Prerrequisitos</div>
+          <table class="state-table">
+            <thead><tr><th>Requisito</th><th>Verificacion</th></tr></thead>
+            <tbody>
+              <tr><td>Topic <code>pedidos-estados</code> existe</td><td>Creado en Leccion 1 con 3 particiones</td></tr>
+              <tr><td>Kafka corriendo en Docker</td><td><code>docker ps</code> muestra el contenedor <code>kafka</code></td></tr>
+              <tr><td>Proyecto compilado</td><td><code>mvn compile -q</code> sin errores</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout--info">
+          <span class="callout__icon">&#128196;</span>
+          <div>
+            <strong>Archivo de codigo:</strong>
+            <code>RebalanceoDemo.java</code> en <code>tiendamax/src/main/java/com/tiendamax/</code>.
+            Implementa un <code>ConsumerRebalanceListener</code> que imprime las particiones revocadas y asignadas en cada rebalanceo.
+          </div>
+        </div>
+
+        <h3 style="font-size:1rem;font-weight:700;margin:24px 0 12px;">Paso 1 — Verificar el topic</h3>
+        <div class="code-block">
+          <span class="code-block__label">Terminal</span>
+          <code>docker exec kafka /opt/kafka/bin/kafka-topics.sh \
+  --describe --topic pedidos-estados \
+  --bootstrap-server localhost:9092</code>
+        </div>
+        <div class="callout callout--tip">
+          <span class="callout__icon">&#9989;</span>
+          <div>Debe mostrar <strong>3 particiones</strong>. Si no existe, crealo con el comando de la Leccion 1.</div>
+        </div>
+
+        <h3 style="font-size:1rem;font-weight:700;margin:24px 0 12px;">Paso 2 — Compilar</h3>
+        <div class="code-block">
+          <span class="code-block__label">Terminal</span>
+          <code>mvn compile -q</code>
+        </div>
+
+        <h3 style="font-size:1rem;font-weight:700;margin:24px 0 12px;">Paso 3 — Lanzar instancia 1 (Terminal 1)</h3>
+        <div class="code-block">
+          <span class="code-block__label">Terminal 1</span>
+          <code>mvn exec:java "-Dexec.mainClass=com.tiendamax.RebalanceoDemo"</code>
+        </div>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:8px;">Salida esperada:</p>
+        <div class="code-block">
+          <span class="code-block__label">Salida</span>
+          <code>Consumer iniciado. Grupo: [grupo-rebalanceo]
+Esperando asignacion de particiones...
+
+>>> REBALANCEO COMPLETADO <<<
+    Particiones ASIGNADAS a este consumer:
+      - pedidos-estados [P0]
+      - pedidos-estados [P1]
+      - pedidos-estados [P2]</code>
+        </div>
+        <div class="callout callout--warning">
+          <span class="callout__icon">&#128270;</span>
+          <div>El primer consumer recibe las <strong>3 particiones</strong> porque es el unico en el grupo. Esto es lo mismo que agregar Consumer-1 en el simulador de arriba.</div>
+        </div>
+
+        <h3 style="font-size:1rem;font-weight:700;margin:24px 0 12px;">Paso 4 — Lanzar instancia 2 (Terminal 2)</h3>
+        <div class="code-block">
+          <span class="code-block__label">Terminal 2</span>
+          <code>mvn exec:java "-Dexec.mainClass=com.tiendamax.RebalanceoDemo"</code>
+        </div>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:8px;">
+          Observa <strong>ambas terminales</strong>. Las dos imprimen el rebalanceo:
+        </p>
+        <div class="code-block">
+          <span class="code-block__label">Terminal 1 (consumer existente)</span>
+          <code>>>> REBALANCEO INICIADO <<<
+    Particiones REVOCADAS (me las quitaron):
+      - pedidos-estados [P0]
+      - pedidos-estados [P1]
+      - pedidos-estados [P2]
+
+>>> REBALANCEO COMPLETADO <<<
+    Particiones ASIGNADAS a este consumer:
+      - pedidos-estados [P0]
+      - pedidos-estados [P1]</code>
+        </div>
+        <div class="code-block">
+          <span class="code-block__label">Terminal 2 (consumer nuevo)</span>
+          <code>>>> REBALANCEO COMPLETADO <<<
+    Particiones ASIGNADAS a este consumer:
+      - pedidos-estados [P2]</code>
+        </div>
+
+        <h3 style="font-size:1rem;font-weight:700;margin:24px 0 12px;">Paso 5 — Lanzar instancia 3 (Terminal 3)</h3>
+        <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:8px;">
+          Ahora hay 3 consumers y 3 particiones: <strong>cada uno recibe exactamente 1 particion</strong> (paralelismo maximo).
+        </p>
+        <div class="code-block">
+          <span class="code-block__label">Terminal 3</span>
+          <code>mvn exec:java "-Dexec.mainClass=com.tiendamax.RebalanceoDemo"</code>
+        </div>
+
+        <h3 style="font-size:1rem;font-weight:700;margin:24px 0 12px;">Paso 6 (opcional) — Lanzar instancia 4</h3>
+        <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:8px;">
+          El 4o consumer queda <strong>inactivo</strong> — no hay particiones disponibles para el.
+        </p>
+        <div class="code-block">
+          <span class="code-block__label">Salida del 4o consumer</span>
+          <code>>>> REBALANCEO COMPLETADO <<<
+    Sin particiones asignadas.
+    Hay mas consumers que particiones en el grupo.
+    Este consumer esta INACTIVO hasta que salga otro del grupo.</code>
+        </div>
+
+        <h3 style="font-size:1rem;font-weight:700;margin:24px 0 12px;">Paso 7 — Matar un consumer (Ctrl+C en Terminal 1)</h3>
+        <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:8px;">
+          Las terminales restantes imprimen el rebalanceo automaticamente. Las particiones del consumer muerto se redistribuyen.
+        </p>
+        <div class="code-block">
+          <span class="code-block__label">Salida en terminales restantes</span>
+          <code>[SHUTDOWN] Cerrando consumer - esto disparara un rebalanceo en el grupo.
+
+>>> REBALANCEO INICIADO <<<
+    Particiones REVOCADAS (me las quitaron): ...
+
+>>> REBALANCEO COMPLETADO <<<
+    Particiones ASIGNADAS a este consumer:
+      - pedidos-estados [P0]   <- absorbe la particion del consumer que salio</code>
+        </div>
+
+        <div class="callout callout--tip">
+          <span class="callout__icon">&#128161;</span>
+          <div>Si tenias el 4o consumer inactivo, ahora recibira una particion. Esto es exactamente lo que ves en el simulador cuando matas un consumer.</div>
+        </div>
+
+        <h3 style="font-size:1rem;font-weight:700;margin:24px 0 12px;">Paso 8 — Ver estado del grupo desde CLI</h3>
+        <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:8px;">
+          Mientras las instancias estan corriendo, abre otra terminal:
+        </p>
+        <div class="code-block">
+          <span class="code-block__label">Terminal extra</span>
+          <code># Ver todos los consumer groups
+docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+  --list --bootstrap-server localhost:9092
+
+# Ver detalle: que consumer tiene cada particion y su LAG
+docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+  --describe --group grupo-rebalanceo \
+  --bootstrap-server localhost:9092</code>
+        </div>
+        <div class="callout callout--info">
+          <span class="callout__icon">&#128200;</span>
+          <div>La columna <strong>LAG</strong> muestra cuantos mensajes tiene pendientes cada consumer. Un lag alto indica que el consumer no esta al dia. Esto es lo que simula el Visualizador de Lag de arriba.</div>
+        </div>
+      </section>
+
+      <!-- REFERENCIA RAPIDA -->
+      <section class="lab-section" id="referencia">
+        <h2 class="lab-section__title">Comandos de Referencia Rapida</h2>
+        <table class="state-table">
+          <thead><tr><th>Accion</th><th>Comando</th></tr></thead>
+          <tbody>
+            <tr><td>Verificar topic</td><td><code>docker exec kafka /opt/kafka/bin/kafka-topics.sh --describe --topic pedidos-estados --bootstrap-server localhost:9092</code></td></tr>
+            <tr><td>Compilar</td><td><code>mvn compile -q</code></td></tr>
+            <tr><td>Ejecutar RebalanceoDemo</td><td><code>mvn exec:java "-Dexec.mainClass=com.tiendamax.RebalanceoDemo"</code></td></tr>
+            <tr><td>Ver consumer groups</td><td><code>docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --list --bootstrap-server localhost:9092</code></td></tr>
+            <tr><td>Ver estado del grupo</td><td><code>docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --describe --group grupo-rebalanceo --bootstrap-server localhost:9092</code></td></tr>
+            <tr><td>Ver todos los topics</td><td><code>docker exec kafka /opt/kafka/bin/kafka-topics.sh --list --bootstrap-server localhost:9092</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ==================== -->
+      <!-- QUIZ                 -->
+      <!-- ==================== -->
+      <section id="quiz" class="lab-section">
+        <h2 class="lab-section__title">Quiz de Reflexion</h2>
+        <p class="lab-section__subtitle">Pon a prueba lo que aprendiste.</p>
+
+        <div class="quiz" id="quiz">
+
+          <!-- Q1 -->
+          <div class="quiz__question">
+            <div class="quiz__question-text">1. Si un topic tiene 3 particiones y 5 consumers en el mismo grupo, &#191;cuantos consumers quedan inactivos?</div>
+            <div class="quiz__options">
+              <div class="quiz__option" data-correct="false"><span class="quiz__radio"></span> 0 &mdash; todos reciben mensajes</div>
+              <div class="quiz__option" data-correct="false"><span class="quiz__radio"></span> 1 &mdash; solo uno queda sin particion</div>
+              <div class="quiz__option" data-correct="true"><span class="quiz__radio"></span> 2 &mdash; solo 3 pueden estar activos</div>
+              <div class="quiz__option" data-correct="false"><span class="quiz__radio"></span> 5 &mdash; ninguno puede leer</div>
+            </div>
+            <div class="quiz__feedback quiz__feedback--correct" style="display:none">&#9989; Correcto. Maximo de consumers activos = numero de particiones. 5 - 3 = 2 inactivos.</div>
+            <div class="quiz__feedback quiz__feedback--incorrect" style="display:none">&#10060; Incorrecto. Con 3 particiones, maximo 3 consumers estan activos. Los 2 restantes quedan en standby.</div>
+          </div>
+
+          <!-- Q2 -->
+          <div class="quiz__question">
+            <div class="quiz__question-text">2. &#191;Que ocurre durante un rebalanceo?</div>
+            <div class="quiz__options">
+              <div class="quiz__option" data-correct="false"><span class="quiz__radio"></span> Solo el consumer nuevo deja de leer</div>
+              <div class="quiz__option" data-correct="true"><span class="quiz__radio"></span> Ningun consumer del grupo lee mensajes (stop-the-world)</div>
+              <div class="quiz__option" data-correct="false"><span class="quiz__radio"></span> Los consumers existentes siguen leyendo normalmente</div>
+              <div class="quiz__option" data-correct="false"><span class="quiz__radio"></span> El broker deja de recibir mensajes del producer</div>
+            </div>
+            <div class="quiz__feedback quiz__feedback--correct" style="display:none">&#9989; Correcto. El rebalanceo es un stop-the-world: todos los consumers del grupo pausan su lectura mientras se redistribuyen las particiones.</div>
+            <div class="quiz__feedback quiz__feedback--incorrect" style="display:none">&#10060; Incorrecto. Durante el rebalanceo TODOS los consumers del grupo dejan de leer (stop-the-world). Es una pausa total.</div>
+          </div>
+
+          <!-- Q3 -->
+          <div class="quiz__question">
+            <div class="quiz__question-text">3. &#191;Para que sirve el callback <code>onPartitionsRevoked</code>?</div>
+            <div class="quiz__options">
+              <div class="quiz__option" data-correct="false"><span class="quiz__radio"></span> Para inicializar el estado del nuevo consumer</div>
+              <div class="quiz__option" data-correct="false"><span class="quiz__radio"></span> Para agregar nuevas particiones al topic</div>
+              <div class="quiz__option" data-correct="true"><span class="quiz__radio"></span> Para hacer commit final de offsets antes de soltar las particiones</div>
+              <div class="quiz__option" data-correct="false"><span class="quiz__radio"></span> Para notificar al producer que deje de enviar</div>
+            </div>
+            <div class="quiz__feedback quiz__feedback--correct" style="display:none">&#9989; Correcto. onPartitionsRevoked es tu ultima oportunidad para hacer commit antes de que las particiones pasen a otro consumer.</div>
+            <div class="quiz__feedback quiz__feedback--incorrect" style="display:none">&#10060; Incorrecto. onPartitionsRevoked se invoca ANTES del rebalanceo para que hagas commit final y no pierdas progreso.</div>
+          </div>
+
+          <!-- Q4 -->
+          <div class="quiz__question">
+            <div class="quiz__question-text">4. Comparado con IBM MQ, &#191;cual es la diferencia clave en el modelo de consumers?</div>
+            <div class="quiz__options">
+              <div class="quiz__option" data-correct="false"><span class="quiz__radio"></span> IBM MQ no soporta multiples consumers</div>
+              <div class="quiz__option" data-correct="false"><span class="quiz__radio"></span> Kafka no permite mas de un consumer por topic</div>
+              <div class="quiz__option" data-correct="true"><span class="quiz__radio"></span> En Kafka el paralelismo esta limitado por particiones; en MQ cualquier numero de consumers compite por los mensajes</div>
+              <div class="quiz__option" data-correct="false"><span class="quiz__radio"></span> No hay diferencia, ambos usan particiones</div>
+            </div>
+            <div class="quiz__feedback quiz__feedback--correct" style="display:none">&#9989; Correcto. En MQ los consumers compiten libremente por mensajes de la cola. En Kafka, el paralelismo maximo esta definido por la cantidad de particiones.</div>
+            <div class="quiz__feedback quiz__feedback--incorrect" style="display:none">&#10060; Incorrecto. La diferencia clave es que Kafka limita el paralelismo al numero de particiones, mientras que en IBM MQ multiples consumers compiten sin ese limite.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="lab-footer">
+        <a href="lab-02-dead-letter.html">&larr; Lab 02: Dead Letter Topic</a>
+        <span style="margin:0 12px;">|</span>
+        <a href="lab-ref-configuracion.html">Ref: Configuracion y Codigo Java &rarr;</a>
+      </footer>
+
+    </main>
+  </div>
+
+  <script src="js/kafka-sim.js"></script>
+  <script src="js/lab-ui.js"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    LabUI.init();
+    LabUI.initQuiz('quiz');
+
+    // =============================================
+    //  SIMULADOR DE REBALANCEO
+    // =============================================
+    const topic = new KafkaSim.Topic('pedidos', 3);
+    const group = new KafkaSim.ConsumerGroup('grupo-pedidos', topic);
+    const logger = LabUI.createLogger('sim-log');
+    const consumersArea = document.getElementById('consumers-area');
+    const svg = document.getElementById('sim-svg');
+    const overlay = document.getElementById('rebalance-overlay');
+    let consumerCounter = 0;
+    let consumerIds = [];
+
+    group.onRebalance((event, data) => {
+      // Show overlay
+      overlay.classList.add('active');
+
+      logger.log('', '');
+      logger.log('>>> REBALANCEO INICIADO <<<', 'warn');
+
+      // Log revoked
+      data.revoked.forEach((parts, cid) => {
+        if (parts.length > 0) {
+          logger.log(`  Particiones REVOCADAS de ${cid}: [${parts.map(p => 'P' + p).join(', ')}]`, 'error');
+        }
+      });
+
+      logger.log('  Redistribuyendo particiones...', 'info');
+
+      setTimeout(() => {
+        // Log assigned
+        data.assigned.forEach((parts, cid) => {
+          if (parts.length > 0) {
+            logger.log(`  Particiones ASIGNADAS a ${cid}: [${parts.map(p => 'P' + p).join(', ')}]`, 'ok');
+          } else {
+            logger.log(`  ${cid}: SIN PARTICIONES (INACTIVO)`, 'warn');
+          }
+        });
+
+        const idle = group.getIdleConsumers();
+        if (idle.length > 0) {
+          logger.log(`  ⚠ ${idle.length} consumer(s) inactivo(s) — no hay particiones disponibles`, 'warn');
+        }
+
+        logger.log('>>> REBALANCEO COMPLETADO <<<', 'warn');
+        overlay.classList.remove('active');
+        renderConsumers();
+        drawLines();
+        updateStats();
+      }, 900);
+    });
+
+    function renderConsumers() {
+      consumersArea.innerHTML = '';
+      const assignments = group.getAllAssignments();
+      const idleSet = new Set(group.getIdleConsumers().map(c => c.id));
+
+      consumerIds.forEach(cid => {
+        const parts = assignments.get(cid) || [];
+        const isIdle = idleSet.has(cid);
+        const card = document.createElement('div');
+        card.className = `consumer-card ${isIdle ? 'consumer-card--idle' : 'consumer-card--active'}`;
+        card.id = `card-${cid}`;
+
+        let badges = '';
+        parts.forEach(p => {
+          badges += `<span class="consumer-card__partition-badge" style="background:${LabUI.getPartitionColor(p)}">P${p}</span>`;
+        });
+
+        card.innerHTML = `
+          <div class="consumer-card__name">${cid}</div>
+          <div class="consumer-card__partitions">${badges || '<span style="font-size:0.7rem;color:var(--text-tertiary)">Sin particiones</span>'}</div>
+          <div class="consumer-card__status">${isIdle ? 'INACTIVO' : 'ACTIVO'}</div>
+          <button class="consumer-card__kill" data-cid="${cid}">&#10006; Matar</button>
+        `;
+        consumersArea.appendChild(card);
+      });
+
+      // Kill buttons
+      consumersArea.querySelectorAll('.consumer-card__kill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cid = btn.dataset.cid;
+          logger.log(`✕ Consumer ${cid} fue eliminado del grupo`, 'error');
+          consumerIds = consumerIds.filter(id => id !== cid);
+          group.removeConsumer(cid);
+        });
+      });
+    }
+
+    function drawLines() {
+      svg.innerHTML = '';
+      const assignments = group.getAllAssignments();
+      const partBoxes = document.querySelectorAll('.partition-box');
+      const simBody = document.getElementById('rebalance-sim');
+      const svgRect = svg.closest('.sim-lines').getBoundingClientRect();
+      const simRect = simBody.getBoundingClientRect();
+
+      assignments.forEach((parts, cid) => {
+        const card = document.getElementById(`card-${cid}`);
+        if (!card || parts.length === 0) return;
+
+        parts.forEach(p => {
+          const pBox = partBoxes[p];
+          if (!pBox) return;
+
+          const pRect = pBox.getBoundingClientRect();
+          const cRect = card.getBoundingClientRect();
+
+          const x1 = pRect.left + pRect.width / 2 - svgRect.left;
+          const y1 = 0;
+          const x2 = cRect.left + cRect.width / 2 - svgRect.left;
+          const y2 = svgRect.height;
+
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', x1);
+          line.setAttribute('y1', y1);
+          line.setAttribute('x2', x2);
+          line.setAttribute('y2', y2);
+          line.setAttribute('stroke', LabUI.getPartitionColor(p));
+          svg.appendChild(line);
+        });
+      });
+    }
+
+    function updateStats() {
+      const idle = group.getIdleConsumers().length;
+      const total = consumerIds.length;
+      document.getElementById('stat-active').textContent = total - idle;
+      document.getElementById('stat-idle').textContent = idle;
+    }
+
+    document.getElementById('btn-add-consumer').addEventListener('click', () => {
+      if (consumerIds.length >= 5) {
+        logger.log('Maximo 5 consumers alcanzado', 'warn');
+        return;
+      }
+      consumerCounter++;
+      const cid = `Consumer-${consumerCounter}`;
+      consumerIds.push(cid);
+      logger.log(`+ Consumer ${cid} se une al grupo`, 'info');
+      group.addConsumer(cid);
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      consumerIds.forEach(cid => group.removeConsumer(cid));
+      consumerIds = [];
+      consumerCounter = 0;
+      consumersArea.innerHTML = '';
+      svg.innerHTML = '';
+      updateStats();
+      logger.clear();
+      logger.log('Simulador reseteado', 'info');
+    });
+
+    // Redraw lines on resize
+    window.addEventListener('resize', drawLines);
+
+    // =============================================
+    //  TABLA DE ESCENARIOS
+    // =============================================
+    const slider = document.getElementById('scenario-slider');
+    const sliderVal = document.getElementById('scenario-slider-val');
+    const tbody = document.getElementById('scenario-tbody');
+
+    function buildScenarioTable(numPartitions) {
+      sliderVal.textContent = numPartitions;
+      tbody.innerHTML = '';
+
+      for (let c = 1; c <= 6; c++) {
+        const active = Math.min(c, numPartitions);
+        const idle = Math.max(0, c - numPartitions);
+        const perConsumer = [];
+        for (let i = 0; i < active; i++) {
+          const count = Math.floor(numPartitions / active) + (i < numPartitions % active ? 1 : 0);
+          perConsumer.push(count);
+        }
+        const distStr = perConsumer.map((n, i) => `C${i + 1}:${n}p`).join(', ');
+
+        let resultado = '';
+        let resultClass = '';
+        if (c === numPartitions) {
+          resultado = 'Paralelismo maximo';
+          resultClass = 'scenario-max';
+        } else if (idle > 0) {
+          resultado = `${idle} inactivo(s)`;
+          resultClass = 'scenario-idle';
+        } else {
+          resultado = 'Carga desbalanceada';
+          resultClass = '';
+        }
+
+        const isMax = c === numPartitions;
+        const tr = document.createElement('tr');
+        if (isMax) tr.className = 'scenario-highlight';
+        tr.innerHTML = `
+          <td>${c}</td>
+          <td>${distStr}</td>
+          <td>${active}</td>
+          <td class="${resultClass}">${idle}</td>
+          <td class="${resultClass}">${resultado}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    slider.addEventListener('input', () => buildScenarioTable(parseInt(slider.value)));
+    buildScenarioTable(3);
+
+    // =============================================
+    //  VISUALIZADOR DE LAG
+    // =============================================
+    let lagInterval = null;
+    let lagValues = [0, 0, 0];
+    let lagConsumers = [true, true, true]; // each partition has a consumer
+    let lagDeadPartition = -1;
+    let lagRunning = false;
+
+    function updateLagBars() {
+      for (let i = 0; i < 3; i++) {
+        const bar = document.getElementById(`lag-bar-${i}`);
+        const maxH = 150;
+        const h = Math.min(lagValues[i] * 3, maxH);
+        bar.style.height = Math.max(4, h) + 'px';
+        bar.querySelector('.lag-bar__value').textContent = lagValues[i];
+
+        if (!lagConsumers[i]) {
+          bar.style.background = 'var(--error)';
+        } else {
+          bar.style.background = LabUI.getPartitionColor(i);
+        }
+      }
+
+      const deadCount = lagConsumers.filter(c => !c).length;
+      const status = document.getElementById('lag-status');
+      if (deadCount === 0) {
+        status.textContent = `3 consumers activos — todas las particiones cubiertas`;
+      } else {
+        status.innerHTML = `<span style="color:var(--error);font-weight:700">&#9888; Particion sin consumer — lag creciendo!</span> Esperando rebalanceo...`;
+      }
+    }
+
+    document.getElementById('lag-start').addEventListener('click', function () {
+      if (lagRunning) return;
+      lagRunning = true;
+      this.disabled = true;
+
+      lagInterval = setInterval(() => {
+        for (let i = 0; i < 3; i++) {
+          // Producer adds messages
+          lagValues[i] += Math.floor(Math.random() * 4) + 1;
+          // Consumer processes if alive
+          if (lagConsumers[i]) {
+            lagValues[i] = Math.max(0, lagValues[i] - (Math.floor(Math.random() * 4) + 2));
+          }
+        }
+        updateLagBars();
+      }, 500);
+    });
+
+    document.getElementById('lag-kill').addEventListener('click', () => {
+      if (!lagRunning) return;
+      // Kill a random alive consumer
+      const alive = [];
+      lagConsumers.forEach((c, i) => { if (c) alive.push(i); });
+      if (alive.length <= 1) return; // keep at least one
+
+      const victim = alive[Math.floor(Math.random() * alive.length)];
+      lagConsumers[victim] = false;
+      lagDeadPartition = victim;
+
+      // After 4 seconds, simulate rebalance — surviving consumer takes over
+      setTimeout(() => {
+        lagConsumers[victim] = true;
+        document.getElementById('lag-status').innerHTML = `<span style="color:var(--success);font-weight:700">&#9989; Rebalanceo completado</span> — particion P${victim} reasignada`;
+      }, 4000);
+
+      updateLagBars();
+    });
+
+    document.getElementById('lag-reset').addEventListener('click', () => {
+      clearInterval(lagInterval);
+      lagRunning = false;
+      lagValues = [0, 0, 0];
+      lagConsumers = [true, true, true];
+      document.getElementById('lag-start').disabled = false;
+      updateLagBars();
+      document.getElementById('lag-status').textContent = '3 consumers activos — todas las particiones cubiertas';
+    });
+
+    updateLagBars();
+  });
+  </script>
+</body>
+</html>

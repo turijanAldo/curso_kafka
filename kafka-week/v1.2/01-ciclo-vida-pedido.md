@@ -178,6 +178,7 @@ Abre la primera terminal y ejecuta el consumer. Es importante lanzarlo **antes q
 
 ```bash
 mvn exec:java -Dexec.mainClass="com.tiendamax.PedidoEstadoConsumer"
+mvn exec:java "-Dexec.mainClass=com.tiendamax.PedidoEstadoConsumer"
 ```
 
 El consumer mostrará este mensaje y quedará esperando:
@@ -195,6 +196,7 @@ Abre una segunda terminal y ejecuta el producer:
 
 ```bash
 mvn exec:java -Dexec.mainClass="com.tiendamax.PedidoEstadoProducer"
+mvn exec:java "-Dexec.mainClass=com.tiendamax.PedidoEstadoProducer"
 ```
 
 El producer emitirá los eventos con pausas de 800ms entre cada transición de estado para que puedas observarlos llegar de uno en uno.
